@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Usina Solar CEMDO I</title>
+    <!-- SEO -->
+    <meta name="description" content="Usina Solar Fotovoltaica CEMDO I en Villa Dolores, Córdoba. Energía limpia y renovable para la comunidad.">
+    <meta name="keywords" content="Energía solar, CEMDO, Villa Dolores, fotovoltaica, sustentabilidad">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -14,32 +17,46 @@
 
 <header>
     <div class="logo">
-        <img src="logo_Cemdo.png.webp" alt="Logo CEMDO">
+        <img src="logo_Cemdo.png" alt="Logo Cooperativa CEMDO">
     </div>
     <h1>Usina Solar Fotovoltaica CEMDO I</h1>
     <p>Energía limpia para Villa Dolores y la región</p>
-    <button id="toggleTema">Modo Claro</button>
+    <button id="toggleTema" aria-label="Cambiar entre modo oscuro y claro">Modo Claro</button>
 </header>
 
 <nav>
     <a href="#info">Información</a>
     <a href="#galeria">Galería</a>
     <a href="#ubicacion">Ubicación</a>
+    <a href="#impacto">Impacto</a>
+    <a href="#equipo">Equipo</a>
     <a href="#trivia">Trivia</a>
+    <a href="#contacto">Contacto</a>
 </nav>
 
 <!-- Sección Información -->
 <section id="info">
     <h2>Sobre la Usina Solar</h2>
-    <p>El “Parque Solar Papa Francisco”, sede de la futura Usina Solar Fotovoltaica CEMDO I, honra el legado del Papa Francisco, quien impulsó con firmeza la economía solidaria y el cuidado de nuestra Casa Común. De manera simbólica y conmovedora, la presentación pública del proyecto coincidió con su fallecimiento, dotando a esta iniciativa de un profundo valor comunitario, ecológico y espiritual, y recordándonos que la sostenibilidad y la tecnología pueden ser expresión de responsabilidad y compromiso colectivo.</p>
-    <br>
-    <p>La Usina Solar CEMDO I es un proyecto de energía fotovoltaica ubicado en Mina Clavero, Córdoba, que aporta electricidad limpia y renovable a la comunidad.</p>
+    <p>El “Parque Solar Papa Francisco”, sede de la futura Usina Solar Fotovoltaica CEMDO I, honra el legado del Papa Francisco, impulsando la economía solidaria y el cuidado de nuestra Casa Común.</p>
+    <p>La Usina Solar CEMDO I aporta electricidad limpia y renovable a la comunidad.</p>
     <ul>
-        <li>Capacidad instalada: 2 MW</li>
-        <li>Paneles solares de alta eficiencia</li>
-        <li>Beneficios ambientales y económicos</li>
+        <li>Capacidad instalada: 10 MW ac </li>
+        <li>20880 Paneles solares bifaciales de 615 W de alta eficiencia</li>
+        <li>Producción 16% de energia y beneficios ambientales y económicos</li>
     </ul>
     <p>Más información en <a href="https://www.cemdo.com.ar" target="_blank">Cooperativa CEMDO</a>.</p>
+</section>
+
+<!-- Video sobre beneficios del Parque Solar -->
+<section id="video-beneficios" class="video-section">
+    <h2>Parque Solar Cooperativo</h2>
+    <div class="video-container">
+        <video autoplay playsinline loop controls poster="...">
+    <source src="https://www.cemdo.com.ar/wp-content/uploads/2025/08/BENEFICIOS_DEL_PARQUE_SOLAR.mp4" type="video/mp4">
+</video>
+
+    </div>
+    <p class="video-caption">Beneficios del Parque Solar Fotovoltaica CEMDO I</p>
 </section>
 
 <!-- Galería -->
@@ -49,44 +66,78 @@
         <img src="usina1.jpg" alt="Panel solar 1" class="img-galeria">
         <img src="usina2.jpg" alt="Panel solar 2" class="img-galeria">
         <img src="usina3.jpg" alt="Usina aérea" class="img-galeria">
+       
     </div>
 </section>
 
-<!-- Lightbox -->
-<div id="lightbox">
-    <span id="cerrar">&times;</span>
-    <img id="imgLightbox" src="" alt="Imagen ampliada">
-</div>
+
 
 <!-- Ubicación -->
 <section id="ubicacion">
     <h2>Ubicación Geográfica</h2>
-    <p>La Usina Solar CEMDO I se encuentra en Mina Clavero, Córdoba, Argentina.</p>
-    <div id="mapa"></div>
+    <p>La Usina Solar CEMDO I se encuentra en Villa Dolores, Córdoba, Argentina.</p>
+    <div id="mapa" style="height:400px;"></div>
 </section>
 
-<!-- Trivia -->
+<!-- Impacto ambiental -->
+<section id="impacto">
+    <h2>Impacto Ambiental y Social</h2>
+    <ul>
+        <li>Reducción de emisiones de CO₂ en la región</li>
+        <li>Fomento de energías renovables y educación ambiental</li>
+        <li>Generación de empleo local y desarrollo comunitario</li>
+        <li>Ahorro económico para los usuarios de la cooperativa</li>
+    </ul>
+</section>
+
+<!-- Equipo de desarrollo -->
+<section id="equipo">
+    <h2>Equipo de Desarrollo</h2>
+    <div class="equipo-miembros">
+        <div class="miembro">
+            <img src="parsons.jpg" alt="Parsons Tiziano - Diseño gráfico ">
+            <p>Parsons Tiziano - Frontend</p>
+        </div>
+        <div class="miembro">
+            <img src="ugolini.jpg" alt="Ugolini Gianlucas - Diseño gráfico">
+            <p>Ugolini Gianlucas - Backend</p>
+        </div>
+        <div class="miembro">
+            <img src="lucero.jpg" alt="Lucero Valentín - Programación">
+            <p>Lucero Valentín - Diseño gráfico</p>
+        </div>
+        <div class="miembro">
+            <img src="orozco.jpg" alt="Orozco Jeremías - Coordinacion Gral.">
+            <p>Orozco Jeremías - Contenido y QA</p>
+        </div>
+    </div>
+</section>
+
+
+<!-- Trivia sobre Energía Solar -->
 <section id="trivia">
     <h2>Trivia sobre Energía Solar</h2>
-    <p>¿Qué porcentaje de la energía de Argentina proviene de fuentes solares aproximadamente?</p>
-    <div>
-        <button class="respuesta" data-correcta="false">2%</button>
-        <button class="respuesta" data-correcta="true">5%</button>
-        <button class="respuesta" data-correcta="false">10%</button>
+    <div id="pregunta-container">
+        <p id="pregunta"></p>
+        <div id="respuestas"></div>
     </div>
     <p id="feedback"></p>
+    <button id="reiniciarTrivia">Reiniciar Trivia</button>
+    <p id="puntaje"></p>
 </section>
 
 <!-- Footer -->
 <footer>
     <p>Desarrollado por IPEM 146 "Centenario" | <a href="https://www.cemdo.com.ar" target="_blank">Cooperativa CEMDO</a></p>
-    <p>Parsons Tiziano - Ugolini Gianlucas - Lucero Valentín - Orozco Jeremias </p>
+    <p>Parsons Tiziano - Ugolini Gianlucas - Lucero Valentín - Orozco Jeremías</p>
     <div class="redes">
         <a href="https://www.facebook.com/cemdo" target="_blank">Facebook</a>
         <a href="https://www.instagram.com/cemdo" target="_blank">Instagram</a>
-        <a href="https://www.twitter.com/cemdo" target="_blank">Twitter</a>
+        <a href="https://www.x.com/cemdo" target="_blank">X</a>
     </div>
 </footer>
+
+
 
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>

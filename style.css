@@ -7,58 +7,62 @@
 
 /* ===== Variables de color ===== */
 :root {
-    --color-fondo: #f0f0f0;
-    --color-texto: #333;
-    --color-header: #006633;
-    --color-header-texto: #fff;
-    --color-nav: #004d1a;
-    --color-nav-hover: #ffcc00;
-    --color-boton: #006633;
-    --color-boton-hover: #004d1a;
-    --color-seccion: #fff;
-    --color-sombra: rgba(0,0,0,0.1);
-    --color-titulo: #006633;
-    --color-enlace: #006633;
-    --color-feedback-correcto: #007f00;
-    --color-feedback-incorrecto: #cc0000;
+    --fondo: #f0f0f0;
+    --texto: #333;
+    --header: #006633;
+    --header-texto: #fff;
+    --nav: #004d1a;
+    --nav-hover: #ffcc00;
+    --boton: #006633;
+    --boton-hover: #004d1a;
+    --seccion: #fff;
+    --sombra: rgba(0,0,0,0.1);
+    --titulo: #006633;
+    --enlace: #006633;
+    --feedback-correcto: #007f00;
+    --feedback-incorrecto: #cc0000;
 }
 
 /* ===== Tema oscuro ===== */
 body.tema-oscuro {
-    --color-fondo: #121212;
-    --color-texto: #e0e0e0;
-    --color-header: #004d1a;
-    --color-header-texto: #fff;
-    --color-nav: #003311;
-    --color-nav-hover: #ffcc00;
-    --color-boton: #004d1a;
-    --color-boton-hover: #006633;
-    --color-seccion: #1a1a1a;
-    --color-sombra: rgba(0,0,0,0.5);
-    --color-titulo: #ffcc00;
-    --color-enlace: #99ff99;
-    --color-feedback-correcto: #7CFC00;
-    --color-feedback-incorrecto: #FF4500;
+    --fondo: #121212;
+    --texto: #e0e0e0;
+    --header: #004d1a;
+    --header-texto: #fff;
+    --nav: #003311;
+    --nav-hover: #ffcc00;
+    --boton: #004d1a;
+    --boton-hover: #006633;
+    --seccion: #1a1a1a;
+    --sombra: rgba(0,0,0,0.5);
+    --titulo: #ffcc00;
+    --enlace: #99ff99;
+    --feedback-correcto: #7CFC00;
+    --feedback-incorrecto: #FF4500;
 }
 
 /* ===== Body y tipografía ===== */
 body {
     font-family: 'Roboto', sans-serif;
     line-height: 1.6;
-    background-color: var(--color-fondo);
-    color: var(--color-texto);
+    background-color: var(--fondo);
+    color: var(--texto);
     transition: all 0.3s ease;
 }
 
-h1, h2, h3, h4, h5, h6 { font-family: 'Montserrat', sans-serif; }
+h1,h2,h3,h4,h5,h6 {
+    font-family: 'Montserrat', sans-serif;
+    margin-bottom: 0.5rem;
+}
+
 h1 { font-size: 2.8rem; letter-spacing: 1px; }
-h2 { font-size: 2rem; letter-spacing: 0.5px; color: var(--color-titulo); }
-p, li { letter-spacing: 0.3px; }
+h2 { font-size: 2rem; letter-spacing: 0.5px; color: var(--titulo); }
+p, li { letter-spacing: 0.3px; margin-bottom: 0.5rem; }
 
 /* ===== Header ===== */
 header {
-    background-color: var(--color-header);
-    color: var(--color-header-texto);
+    background-color: var(--header);
+    color: var(--header-texto);
     text-align: center;
     padding: 30px 20px;
     transition: background-color 0.3s;
@@ -68,50 +72,55 @@ header .logo img { width: 150px; margin-bottom: 15px; }
 
 /* ===== Navegación ===== */
 nav {
-    background-color: var(--color-nav);
+    background-color: var(--nav);
     text-align: center;
     padding: 10px 0;
 }
 
 nav a {
-    color: var(--color-header-texto);
+    color: var(--header-texto);
     margin: 0 15px;
     text-decoration: none;
     font-weight: bold;
     transition: color 0.3s;
 }
 
-nav a:hover { color: var(--color-nav-hover); }
+nav a:hover { color: var(--nav-hover); }
 
 /* ===== Secciones ===== */
 section {
     padding: 25px 20px;
     margin: 20px auto;
     max-width: 900px;
-    background: var(--color-seccion);
+    background: var(--seccion);
     border-radius: 10px;
-    box-shadow: 0 0 10px var(--color-sombra);
+    box-shadow: 0 0 10px var(--sombra);
     transition: all 0.3s ease;
 }
 
 ul { list-style: disc inside; margin-bottom: 10px; }
-a { color: var(--color-enlace); }
+a { color: var(--enlace); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ===== Botones ===== */
-button.respuesta, #toggleTema {
+button, .respuesta-btn, #toggleTema, #reiniciarTrivia {
     padding: 10px 20px;
     margin: 5px;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
-    background-color: var(--color-boton);
-    color: #fff;
     font-weight: bold;
-    transition: background 0.3s;
+    transition: all 0.3s ease;
 }
 
-button.respuesta:hover, #toggleTema:hover { background-color: var(--color-boton-hover); }
+#toggleTema { background-color: var(--boton); color: #fff; }
+#toggleTema:hover { background-color: var(--boton-hover); }
+
+.respuesta-btn { background-color: #FFD700; color: #000; }
+.respuesta-btn:hover { background-color: #FFC107; transform: scale(1.05); }
+
+#reiniciarTrivia { background-color: #4CAF50; color: #fff; }
+#reiniciarTrivia:hover { background-color: #45A049; transform: scale(1.05); }
 
 /* ===== Galería ===== */
 #galeria .imagenes {
@@ -161,23 +170,65 @@ button.respuesta:hover, #toggleTema:hover { background-color: var(--color-boton-
     height: 400px;
     border-radius: 10px;
     margin-top: 15px;
-    box-shadow: 0 0 10px var(--color-sombra);
+    box-shadow: 0 0 10px var(--sombra);
 }
 
 /* ===== Feedback Trivia ===== */
 #feedback { font-weight: bold; margin-top: 10px; }
-#feedback.correcto { color: var(--color-feedback-correcto); }
-#feedback.incorrecto { color: var(--color-feedback-incorrecto); }
+#feedback.correcto { color: var(--feedback-correcto); }
+#feedback.incorrecto { color: var(--feedback-incorrecto); }
+#puntaje { font-size: 1.2rem; font-weight: bold; margin-top: 15px; }
 
 /* ===== Footer ===== */
 footer {
-    background: var(--color-nav);
-    color: var(--color-header-texto);
+    background: var(--nav);
+    color: var(--header-texto);
     text-align: center;
     padding: 15px;
     margin-top: 20px;
 }
 
-.redes a { margin-right: 15px; text-decoration: none; font-weight: bold; color: var(--color-enlace); }
-.redes a:hover { color: var(--color-titulo); }
-    
+.redes a {
+    margin-right: 15px;
+    font-weight: bold;
+    color: var(--enlace);
+    text-decoration: none;
+}
+.redes a:hover { color: var(--titulo); }
+
+/* ===== Video Section ===== */
+.video-section {
+    text-align: center;
+    margin: 2rem auto;
+    max-width: 600px;
+    padding: 15px;
+    background-color: var(--seccion);
+    border-radius: 10px;
+    box-shadow: 0 5px 15px var(--sombra);
+}
+
+.video-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px var(--sombra);
+}
+
+.video-container video {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 10px;
+}
+
+.video-caption {
+    margin-top: 0.5rem;
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--texto);
+}
+
+/* ===== Trivia Section ===== */
+#trivia { margin:20 px; text-align: center; }
