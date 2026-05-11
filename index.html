@@ -1,255 +1,750 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Gestión de Salidas - Feria de Ciencias</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Gestión de Salidas Internas - Relevamiento</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Sistema Web de Gestión de Salidas Internas Escolares</h1>
+        <p>
+          Complete el siguiente formulario para evaluar la implementación del
+          sistema digital.
+        </p>
+      </header>
 
-<style>
-  :root {
-    --primary-color: #1a73e8;
-    --secondary-color: #28a745;
-    --warning-color: #ffc107;
-    --bg-color: #f8f9fa;
-    --text-color: #3c4043;
-  }
+      <form id="survey-form">
+        <!-- SECCIÓN 1: DATOS GENERALES -->
+        <section class="form-section">
+          <h2>PC1</h2>
+          <h2>1. DATOS GENERALES</h2>
 
-  body {
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--bg-color);
-    margin: 0;
-    padding: 20px;
-    color: var(--text-color);
-    line-height: 1.6;
-  }
+          <div class="question">
+            <label>1. ¿Cuál es su función dentro de la institución?</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q1" value="Docente" /> Docente</label
+              >
+              <label
+                ><input type="radio" name="q1" value="Preceptor" />
+                Preceptor/a</label
+              >
+              <label
+                ><input type="radio" name="q1" value="Administrativo" />
+                Administrativo/a</label
+              >
+              <label
+                ><input type="radio" name="q1" value="Directivo" />
+                Directivo/a</label
+              >
+              <label
+                ><input type="radio" name="q1" value="Gabinete" /> Equipo de
+                orientación / gabinete</label
+              >
+              <label
+                ><input type="radio" name="q1" value="Auxiliar" /> Auxiliar /
+                Maestranza</label
+              >
+              <label>Otro: <input type="text" name="q1_otro" /></label>
+            </div>
+          </div>
 
-  header {
-    text-align: center;
-    margin-bottom: 40px;
-    background: white;
-    padding: 20px;
-    border-radius: 0 0 20px 20px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  }
+          <div class="question">
+            <label for="q2"
+              >2. Curso, división o área en la que se desempeña:</label
+            >
+            <input type="text" id="q2" name="q2" />
+          </div>
 
-  h1 {
-    color: var(--primary-color);
-    margin: 0;
-    font-size: 24px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
+          <div class="question">
+            <label>3. Turno en el que trabaja:</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q3" value="Mañana" /> Mañana</label
+              >
+              <label
+                ><input type="radio" name="q3" value="Tarde" /> Tarde</label
+              >
+              <label
+                ><input type="radio" name="q3" value="Vespertino" />
+                Vespertino</label
+              >
+              <label
+                ><input type="radio" name="q3" value="Ambos" /> Ambos
+                turnos</label
+              >
+            </div>
+          </div>
 
-  .subtitle {
-    color: #5f6368;
-    font-size: 18px;
-    margin-top: 5px;
-  }
+          <div class="question">
+            <label>4. Antigüedad en la institución:</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q4" value="<1" /> Menos de 1
+                año</label
+              >
+              <label
+                ><input type="radio" name="q4" value="1-5" /> Entre 1 y 5
+                años</label
+              >
+              <label
+                ><input type="radio" name="q4" value="6-10" /> Entre 6 y 10
+                años</label
+              >
+              <label
+                ><input type="radio" name="q4" value=">10" /> Más de 10
+                años</label
+              >
+            </div>
+          </div>
+          <h2>pc2</h2>
+          <div class="question">
+            <label
+              >5. ¿Cuántos estudiantes tiene habitualmente a cargo por
+              día?</label
+            >
+            <div class="options">
+              <label
+                ><input type="radio" name="q5" value="<30" /> Menos de 30</label
+              >
+              <label
+                ><input type="radio" name="q5" value="30-60" /> Entre 30 y
+                60</label
+              >
+              <label
+                ><input type="radio" name="q5" value="61-100" /> Entre 61 y
+                100</label
+              >
+              <label
+                ><input type="radio" name="q5" value=">100" /> Más de 100</label
+              >
+            </div>
+          </div>
+        </section>
 
-  .instrucciones {
-    background: #fff;
-    padding: 25px;
-    max-width: 700px;
-    margin: 0 auto 40px;
-    border-left: 6px solid var(--warning-color);
-    border-radius: 12px;
-    box-shadow: 0 8px 15px rgba(0,0,0,0.05);
-  }
+        <!-- SECCIÓN 2: SITUACIÓN ACTUAL -->
+        <section class="form-section">
+          <h2>2. SITUACIÓN ACTUAL DEL CONTROL DE SALIDAS</h2>
 
-  .instrucciones h2 {
-    margin-top: 0;
-    color: #856404;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+          <div class="question">
+            <label
+              >6. ¿Con qué frecuencia los estudiantes solicitan salir del
+              aula?</label
+            >
+            <div class="options">
+              <label
+                ><input type="radio" name="q6" value="Muy frecuente" /> Muy
+                frecuentemente</label
+              >
+              <label
+                ><input type="radio" name="q6" value="Frecuente" />
+                Frecuentemente</label
+              >
+              <label
+                ><input type="radio" name="q6" value="Ocasional" />
+                Ocasionalmente</label
+              >
+              <label
+                ><input type="radio" name="q6" value="Casi nunca" /> Casi
+                nunca</label
+              >
+            </div>
+          </div>
 
-  .instrucciones ul li {
-    margin-bottom: 12px;
-  }
+          <div class="question">
+            <label
+              >7. ¿En qué momentos se producen más salidas? (Múltiple)</label
+            >
+            <div class="options-grid">
+              <label
+                ><input type="checkbox" name="q7" value="Primera" /> Primera
+                hora</label
+              >
+              <label
+                ><input type="checkbox" name="q7" value="Intermedias" /> Horas
+                intermedias</label
+              >
+              <label
+                ><input type="checkbox" name="q7" value="Ultima" /> Última
+                hora</label
+              >
+              <label
+                ><input type="checkbox" name="q7" value="Antes Recreo" /> Antes
+                del recreo</label
+              >
+              <label
+                ><input type="checkbox" name="q7" value="Despues Recreo" />
+                Después del recreo</label
+              >
+              <label
+                ><input type="checkbox" name="q7" value="Evaluaciones" />
+                Durante evaluaciones</label
+              >
+            </div>
+          </div>
 
-  code {
-    background: #f1f3f4;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'Consolas', monospace;
-    color: #d93025;
-  }
+          <div class="question">
+            <label>8. ¿Cuáles son los motivos más habituales? (Múltiple)</label>
+            <div class="options-grid">
+              <label
+                ><input type="checkbox" name="q8" value="Baño" /> Baño</label
+              >
+              <label
+                ><input type="checkbox" name="q8" value="Preceptoria" />
+                Preceptoría</label
+              >
+              <label
+                ><input type="checkbox" name="q8" value="Direccion" />
+                Dirección</label
+              >
+              <label
+                ><input type="checkbox" name="q8" value="Biblioteca" />
+                Biblioteca</label
+              >
+              <label
+                ><input type="checkbox" name="q8" value="Enfermeria" />
+                Enfermería</label
+              >
+              <label
+                ><input type="checkbox" name="q8" value="Actividades" />
+                Actividades inst.</label
+              >
+              <label
+                ><input type="checkbox" name="q8" value="Ed Fisica" /> Ed.
+                Física</label
+              >
+              <label>Otro: <input type="text" name="q8_otro" /></label>
+            </div>
+          </div>
+          <h2>pc3</h2>
+          <div class="question">
+            <label>9. Actualmente, ¿la institución realiza control?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q9" value="Si" /> Sí</label>
+              <label><input type="radio" name="q9" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q9" value="Parcialmente" />
+                Parcialmente</label
+              >
+            </div>
+          </div>
 
-  #contenedor {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
+          <div class="question">
+            <label>10. ¿Cómo se registran actualmente?</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q10" value="Papel" /> En papel</label
+              >
+              <label
+                ><input type="radio" name="q10" value="Verbal" />
+                Verbalmente</label
+              >
+              <label
+                ><input type="radio" name="q10" value="Cuaderno" /> Cuaderno
+                inst.</label
+              >
+              <label
+                ><input type="radio" name="q10" value="Planilla" /> Planilla
+                compartida</label
+              >
+              <label
+                ><input type="radio" name="q10" value="Digital" /> Sistema
+                digital</label
+              >
+              <label
+                ><input type="radio" name="q10" value="No se registra" /> No se
+                registran</label
+              >
+              <label
+                ><input type="radio" name="q10" value="No sabe" /> No
+                sabn</label
+              >
+            </div>
+          </div>
 
-  .grupo {
-    background: white;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    border: 1px solid #e0e0e0;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
+          <div class="question">
+            <label>11. ¿Quién controla actualmente?</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q11" value="Docente" />
+                Docente</label
+              >
+              <label
+                ><input type="radio" name="q11" value="Preceptor" />
+                Preceptor/a</label
+              >
+              <label
+                ><input type="radio" name="q11" value="Directivo" />
+                Directivo/a</label
+              >
+              <label
+                ><input type="radio" name="q11" value="Nadie" /> Nadie en
+                particular</label
+              >
+            </div>
+          </div>
 
-  .grupo h3 {
-    margin-top: 0;
-    color: var(--primary-color);
-    border-bottom: 2px solid #f1f3f4;
-    padding-bottom: 10px;
-    font-size: 18px;
-  }
+          <div class="question">
+            <label>12. ¿Considera eficiente el sistema actual?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q12" value="Si" /> Sí</label>
+              <label><input type="radio" name="q12" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q12" value="Parcialmente" />
+                Parcialmente</label
+              >
+            </div>
+          </div>
+          <h2>pc4</h2>
+          <div class="question">
+            <label>13. ¿Qué dificultades observa? (Múltiple)</label>
+            <div class="options-grid">
+              <label
+                ><input type="checkbox" name="q13" value="Tiempo" /> Pérdida de
+                tiempo</label
+              >
+              <label
+                ><input type="checkbox" name="q13" value="Incompleto" />
+                Registros incompletos</label
+              >
+              <label
+                ><input type="checkbox" name="q13" value="Seguimiento" /> Falta
+                de seguimiento</label
+              >
+              <label
+                ><input type="checkbox" name="q13" value="Responsables" />
+                Identificar responsables</label
+              >
+              <label
+                ><input type="checkbox" name="q13" value="Papel" /> Exceso de
+                papel</label
+              >
+              <label
+                ><input type="checkbox" name="q13" value="Ninguna" /> No
+                presenta dificultades</label
+              >
+            </div>
+          </div>
 
-  .archivos {
-    margin: 15px 0;
-    flex-grow: 1;
-  }
+          <div class="question">
+            <label>14. ¿Con qué frecuencia se pierden registros?</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q14" value="Muy frecuente" /> Muy
+                frecuentemente</label
+              >
+              <label
+                ><input type="radio" name="q14" value="Frecuente" />
+                Frecuentemente</label
+              >
+              <label
+                ><input type="radio" name="q14" value="A veces" /> A
+                veces</label
+              >
+              <label
+                ><input type="radio" name="q14" value="Nunca" /> Nunca</label
+              >
+            </div>
+          </div>
+        </section>
 
-  .archivos a {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 10px 0;
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 500;
-  }
+        <!-- SECCIÓN 3: SEGURIDAD Y CONTROL -->
+        <section class="form-section">
+          <h2>3. SEGURIDAD, RESPONSABILIDAD Y CONTROL</h2>
 
-  .archivos a:hover {
-    text-decoration: underline;
-  }
+          <div class="question">
+            <label>15. ¿Importante saber dónde está el estudiante?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q15" value="Si" /> Sí</label>
+              <label><input type="radio" name="q15" value="No" /> No</label>
+            </div>
+          </div>
 
-  .archivos a::before {
-    content: "📄";
-  }
+          <div class="question">
+            <label
+              >16. ¿El docente sigue siendo responsable al salir el
+              alumno?</label
+            >
+            <div class="options-row">
+              <label><input type="radio" name="q16" value="Si" /> Sí</label>
+              <label><input type="radio" name="q16" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q16" value="Parcialmente" />
+                Parcialmente</label
+              >
+            </div>
+          </div>
+          <h2>pc5</h2>
+          <div class="question">
+            <label>17. ¿Importante registrar quién autoriza?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q17" value="Si" /> Sí</label>
+              <label><input type="radio" name="q17" value="No" /> No</label>
+            </div>
+          </div>
 
-  button {
-    padding: 12px;
-    width: 100%;
-    background: var(--secondary-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
+          <div class="question">
+            <label>18. ¿Importante registrar el motivo?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q18" value="Si" /> Sí</label>
+              <label><input type="radio" name="q18" value="No" /> No</label>
+            </div>
+          </div>
 
-  button:hover {
-    background: #1e7e34;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  }
+          <div class="question">
+            <label>19. ¿Importante registrar hora de salida y regreso?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q19" value="Si" /> Sí</label>
+              <label><input type="radio" name="q19" value="No" /> No</label>
+            </div>
+          </div>
 
-  button:active {
-    transform: translateY(0);
-  }
+          <div class="question">
+            <label>20. ¿Control insuficiente puede generar: (Múltiple)</label>
+            <div class="options-grid">
+              <label
+                ><input type="checkbox" name="q20" value="Seguridad" />
+                Seguridad</label
+              >
+              <label
+                ><input type="checkbox" name="q20" value="Disciplina" />
+                Disciplina</label
+              >
+              <label
+                ><input type="checkbox" name="q20" value="Legal" />
+                Responsabilidad Inst.</label
+              >
+              <label
+                ><input type="checkbox" name="q20" value="Familias" />
+                Conflictos familias</label
+              >
+              <label
+                ><input type="checkbox" name="q20" value="Riesgo" /> Situaciones
+                riesgo</label
+              >
+            </div>
+          </div>
+          <h2>pc6</h2>
+          <div class="question">
+            <label>21. ¿Estudiantes pasan demasiado tiempo fuera?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q21" value="Si" /> Sí</label>
+              <label><input type="radio" name="q21" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q21" value="A veces" /> A
+                veces</label
+              >
+            </div>
+          </div>
 
-  .aviso-navegador {
-    display: block;
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px solid #eee;
-    color: #666;
-    font-style: italic;
-    font-size: 0.85em;
-  }
-</style>
-</head>
+          <div class="question">
+            <label>22. ¿Ocurrió situación problemática relacionada?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q22" value="Si" /> Sí</label>
+              <label><input type="radio" name="q22" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q22" value="No se" /> No lo sé</label
+              >
+            </div>
+          </div>
 
-<body>
+          <div class="question">
+            <label>23. Situaciones más frecuentes: (Múltiple)</label>
+            <div class="options-grid">
+              <label
+                ><input type="checkbox" name="q23" value="Demoras" /> Demoras
+                excesivas</label
+              >
+              <label
+                ><input type="checkbox" name="q23" value="Fuera Lugar" /> Fuera
+                de lugar</label
+              >
+              <label
+                ><input type="checkbox" name="q23" value="Conflictos" />
+                Conflictos entre alumnos</label
+              >
+              <label
+                ><input type="checkbox" name="q23" value="Clases" /> Pérdida de
+                clases</label
+              >
+            </div>
+          </div>
 
-<header>
-  <h1>Sistema Gestión de Salidas</h1>
-  <h2>Datos: Alumnos por curso</h2>
-  <div class="subtitle">Proyecto Feria de Ciencias - 6to año Informática</div>
-</header>
+          <div class="question">
+            <label>24. ¿Quién debería autorizar?</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q24" value="Docente" />
+                Docente</label
+              >
+              <label
+                ><input type="radio" name="q24" value="Preceptor" />
+                Preceptor/a</label
+              >
+              <label
+                ><input type="radio" name="q24" value="Directivo" />
+                Directivo/a</label
+              >
+              <label
+                ><input type="radio" name="q24" value="Segun motivo" /> Según
+                motivo</label
+              >
+            </div>
+          </div>
+          <h2>pc7</h2>
+          <div class="question">
+            <label>25. ¿Importante historial por estudiante?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q25" value="Si" /> Sí</label>
+              <label><input type="radio" name="q25" value="No" /> No</label>
+            </div>
+          </div>
 
-<div class="instrucciones">
-  <h2>📋 Tarea a realizar (por cada archivo):</h2>
-  <ul>
-    <li>Descarga los archivos asignados por tu profesor a tu grupo</li>
-    <li>Abre cada archivo con <strong>Excel</strong>.</li>
-    <li>Elimina <strong>TODAS</strong> las columnas salvo: <code>nro dni</code>, <code>apellido</code>, <code>nombre</code>.</li>
-    <li>En <strong>D1</strong> agrega el título: <strong>Nombre</strong>.</li>
-    <li>En la celda <strong>D2</strong> ingresa la fórmula: <code>=B2&" "&C2</code></li>
-    <li>Aplica el <strong>Controlador de relleno</strong> hacia abajo para completar la columna.</li>
-    <li>Oculte las columnas B y C</li>
-    <li>Agrega las columnas: <strong>curso</strong>, <strong>division</strong>, <strong>turno</strong>, <strong>especialidad</strong>.</li>
-    <li>Complete informacion ej 1ero A Mañana Básico</li>
-    <h4>Nota  1ero a 3ero Especialidad BASICO 4to a 6to Especialidad ECONOMIA - INFORMATICA</h4>
-    <li>Selecione y aplica el <strong>Controlador de relleno</strong> hacia abajo para completar la columna.</li>
-    <li>Guarda todas las modificaciones.</li>
-  </ul>
-  <span class="aviso-navegador">💡 <strong>Nota:</strong> Si el botón de descarga solo baja un archivo, activa el permiso de "Permitir siempre descargas múltiples" en la barra de direcciones de tu navegador.</span>
-</div>
+          <div class="question">
+            <label>26. ¿Exceso de salidas afecta rendimiento?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q26" value="Si" /> Sí</label>
+              <label><input type="radio" name="q26" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q26" value="Tal vez" /> Tal
+                vez</label
+              >
+            </div>
+          </div>
 
-<div id="contenedor"></div>
-<footer>Asignatura: Sistemas Digitales 5to - Prof. Pantaleo</footer>
-<script>
-const grupos = [
-  ["1AM.xlsx","1AT.xlsx","1BM.xlsx"],
-  ["1BT.xlsx","1CM.xlsx","1CT.xlsx"],
-  ["2AM.xlsx","2AT.xlsx","2BM.xlsx"],
-  ["2BT.xlsx","2CM.xlsx","2CT.xlsx"],
-  ["3AM.xlsx","3AT.xlsx","3BM.xlsx"],
-  ["3BT.xlsx","3CM.xlsx","3CT.xlsx"],
-  ["4AM.xlsx","4AT.xlsx","4BM.xlsx"],
-  ["4BT.xlsx","4CM.xlsx","4ATinf.xlsx"],
-  ["5AM.xlsx","5AT.xlsx","5BM.xlsx","5ATinf.xlsx"],
-  ["5BT.xlsx","6AM.xlsx","6AT.xlsx"],
-  ["6BM.xlsx","6BT.xlsx","6ATinf.xlsx"]
-];
+          <div class="question">
+            <label>27. ¿Importante recibir alertas por demora?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q27" value="Si" /> Sí</label>
+              <label><input type="radio" name="q27" value="No" /> No</label>
+            </div>
+          </div>
 
-const contenedor = document.getElementById("contenedor");
+          <div class="question">
+            <label>28. ¿Notificar a familias en casos especiales?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q28" value="Si" /> Sí</label>
+              <label><input type="radio" name="q28" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q28" value="Tal vez" /> Tal
+                vez</label
+              >
+            </div>
+          </div>
+        </section>
+        <h2>pc8</h2>
+        <!-- SECCIÓN 4: IMPLEMENTACIÓN DIGITAL -->
+        <section class="form-section">
+          <h2>4. IMPLEMENTACIÓN DE UN SISTEMA DIGITAL</h2>
 
-grupos.forEach((grupo, index) => {
-  const div = document.createElement("div");
-  div.className = "grupo";
+          <div class="question">
+            <label>29. ¿Ayudaría a la organización?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q29" value="Si" /> Sí</label>
+              <label><input type="radio" name="q29" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q29" value="Tal vez" /> Tal
+                vez</label
+              >
+            </div>
+          </div>
 
-  let html = `<h3>Grupo ${index + 1}</h3><div class="archivos">`;
-  grupo.forEach(archivo => {
-    html += `<a href="${archivo}" download>${archivo}</a>`;
-  });
-  html += `</div>`;
-  html += `<button onclick="descargarGrupo(${index})"><span>📥</span> Descargar Grupo ${index + 1}</button>`;
+          <div class="question">
+            <label>30. ¿Mejoraría la seguridad escolar?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q30" value="Si" /> Sí</label>
+              <label><input type="radio" name="q30" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q30" value="Tal vez" /> Tal
+                vez</label
+              >
+            </div>
+          </div>
 
-  div.innerHTML = html;
-  contenedor.appendChild(div);
-});
+          <div class="question">
+            <label>31. ¿Brindaría mayor respaldo al docente?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q31" value="Si" /> Sí</label>
+              <label><input type="radio" name="q31" value="No" /> No</label>
+              <label
+                ><input type="radio" name="q31" value="Parcialmente" />
+                Parcialmente</label
+              >
+            </div>
+          </div>
 
-async function descargarGrupo(i) {
-  const archivos = grupos[i];
+          <div class="question">
+            <label>32. ¿Reduciría uso de papel?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q32" value="Si" /> Sí</label>
+              <label><input type="radio" name="q32" value="No" /> No</label>
+            </div>
+          </div>
+          <h2>pc9</h2>
+          <div class="question">
+            <label>33. ¿Facilitaría trabajo de preceptores/directivos?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q33" value="Si" /> Sí</label>
+              <label><input type="radio" name="q33" value="No" /> No</label>
+            </div>
+          </div>
 
-  for (let index = 0; index < archivos.length; index++) {
-    const archivo = archivos[index];
-    
-    // Espera un segundo entre cada archivo para evitar bloqueos del navegador
-    await new Promise(resolve => setTimeout(resolve, 1000));
+          <div class="question">
+            <label>34. Beneficios del sistema: (Múltiple)</label>
+            <div class="options-grid">
+              <label
+                ><input type="checkbox" name="q34" value="Org" />
+                Organización</label
+              >
+              <label
+                ><input type="checkbox" name="q34" value="Auto" /> Registro
+                automático</label
+              >
+              <label
+                ><input type="checkbox" name="q34" value="Real" /> Tiempo
+                real</label
+              >
+              <label
+                ><input type="checkbox" name="q34" value="Est" />
+                Estadísticas</label
+              >
+            </div>
+          </div>
+        </section>
 
-    const link = document.createElement("a");
-    link.href = archivo;
-    link.download = archivo;
-    link.style.display = "none";
-    
-    document.body.appendChild(link);
-    link.click();
-    
-    // Limpieza del DOM
-    setTimeout(() => {
-      document.body.removeChild(link);
-    }, 200);
-  }
-}
-</script>
+        <!-- SECCIÓN 5: FUNCIONALIDADES -->
+        <section class="form-section">
+          <h2>5. FUNCIONALIDADES DEL SISTEMA</h2>
 
-</body>
+          <div class="question">
+            <label>35. Funciones necesarias: (Múltiple)</label>
+            <div class="options-grid">
+              <label
+                ><input type="checkbox" name="q35" value="QR" /> Identificación
+                QR</label
+              >
+              <label
+                ><input type="checkbox" name="q35" value="Alertas" /> Alertas
+                demora</label
+              >
+              <label
+                ><input type="checkbox" name="q35" value="Cel" /> Uso desde
+                celular</label
+              >
+              <label
+                ><input type="checkbox" name="q35" value="Firma" /> Firma
+                digital</label
+              >
+            </div>
+          </div>
+
+          <div class="question">
+            <label>36. ¿Desde qué dispositivos?</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q36" value="Comp" />
+                Computadora</label
+              >
+              <label
+                ><input type="radio" name="q36" value="Cel" /> Celular</label
+              >
+              <label
+                ><input type="radio" name="q36" value="Todo" /> Todos los
+                anteriores</label
+              >
+            </div>
+          </div>
+          <h2>pc10</h2>
+          <div class="question">
+            <label>37. Facilidad de uso:</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q37" value="Muy Facil" /> Muy
+                fácil</label
+              >
+              <label
+                ><input type="radio" name="q37" value="Intermedio" />
+                Intermedio</label
+              >
+              <label
+                ><input type="radio" name="q37" value="Complejo" />
+                Complejo</label
+              >
+            </div>
+          </div>
+
+          <div class="question">
+            <label>38. Disposición a usarlo:</label>
+            <div class="options">
+              <label
+                ><input type="radio" name="q38" value="Muy Disp" /> Muy
+                dispuesto/a</label
+              >
+              <label
+                ><input type="radio" name="q38" value="Disp" />
+                Dispuesto/a</label
+              >
+              <label
+                ><input type="radio" name="q38" value="Nada" /> Nada
+                dispuesto/a</label
+              >
+            </div>
+          </div>
+
+          <div class="question">
+            <label>39. ¿Necesaria capacitación?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q39" value="Si" /> Sí</label>
+              <label><input type="radio" name="q39" value="No" /> No</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECCIÓN 6: IMPACTO -->
+        <section class="form-section">
+          <h2>6. IMPACTO INSTITUCIONAL</h2>
+          <div class="question">
+            <label>40. ¿Mejoraría la convivencia?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q40" value="Si" /> Sí</label>
+              <label><input type="radio" name="q40" value="No" /> No</label>
+            </div>
+          </div>
+          <h2>pc11</h2>
+          <!-- ... Las preguntas 41 a 44 siguen el mismo formato de Sí/No/Tal vez ... -->
+          <div class="question">
+            <label>41. ¿Mejoraría la comunicación entre personal?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q41" value="Si" /> Sí</label
+              ><label><input type="radio" name="q41" value="No" /> No</label>
+            </div>
+          </div>
+          <div class="question">
+            <label>42. ¿Mejor toma de decisiones?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q42" value="Si" /> Sí</label
+              ><label><input type="radio" name="q42" value="No" /> No</label>
+            </div>
+          </div>
+          <div class="question">
+            <label>43. ¿Detectaría situaciones problemáticas?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q43" value="Si" /> Sí</label
+              ><label><input type="radio" name="q43" value="No" /> No</label>
+            </div>
+          </div>
+          <div class="question">
+            <label>44. ¿Aumentaría transparencia?</label>
+            <div class="options-row">
+              <label><input type="radio" name="q44" value="Si" /> Sí</label
+              ><label><input type="radio" name="q44" value="No" /> No</label>
+            </div>
+          </div>
+        </section>
+      </form>
+    </div>
+  </body>
 </html>

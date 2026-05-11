@@ -1,0 +1,134 @@
+/* ===== RESET BÁSICO ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    background: #f4f6f9;
+    color: #333;
+    padding: 20px;
+}
+
+/* ===== CONTENEDOR ===== */
+.container {
+    max-width: 1000px;
+    margin: auto;
+}
+
+/* ===== HEADER ===== */
+header {
+    text-align: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #1e3a8a;
+    color: white;
+    border-radius: 12px;
+}
+
+header h1 {
+    font-size: 22px;
+    margin-bottom: 10px;
+}
+
+header p {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* ===== FORMULARIO ===== */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ===== SECCIONES ===== */
+.form-section {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.form-section h2 {
+    margin-bottom: 15px;
+    color: #1e3a8a;
+    border-left: 5px solid #1e3a8a;
+    padding-left: 10px;
+    font-size: 50px;
+}
+
+/* ===== PREGUNTAS ===== */
+.question {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.question label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* ===== INPUTS ===== */
+input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+/* ===== OPCIONES ===== */
+.options,
+.options-row,
+.options-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.options label,
+.options-row label,
+.options-grid label {
+    background: #f1f5f9;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 14px;
+}
+
+.options label:hover,
+.options-row label:hover,
+.options-grid label:hover {
+    background: #dbeafe;
+}
+
+/* CHECKBOX / RADIO */
+input[type="radio"],
+input[type="checkbox"] {
+    margin-right: 6px;
+}
+
+/* ===== INPUT OTRO ===== */
+input[type="text"][name$="_otro"] {
+    margin-top: 5px;
+    width: 200px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .options,
+    .options-row,
+    .options-grid {
+        flex-direction: column;
+    }
+
+    header h1 {
+        font-size: 18px;
+    }
+}
