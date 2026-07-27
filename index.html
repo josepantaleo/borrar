@@ -3,748 +3,2538 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema de Gestión de Salidas Internas - Relevamiento</title>
+    <title>Escuela de Ajedrez IPEM 146</title>
+
     <link rel="stylesheet" href="styles.css" />
   </head>
+
   <body>
-    <div class="container">
-      <header>
-        <h1>Sistema Web de Gestión de Salidas Internas Escolares</h1>
-        <p>
-          Complete el siguiente formulario para evaluar la implementación del
-          sistema digital.
-        </p>
-      </header>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo">♞</div>
+          <div>
+            <h1>Escuela de Ajedrez</h1>
+            <p>IPEM N.º 146</p>
+            <br />
+            <h4>Profesores</h4>
+            <span><strong>Ajedrez:</strong> Gerardo Garro</span>
+            <br />
+            <span><strong>Web:</strong> José Pantaleo</span>
+          </div>
+        </div>
 
-      <form id="survey-form">
-        <!-- SECCIÓN 1: DATOS GENERALES -->
-        <section class="form-section">
-          <h2>PC1</h2>
-          <h2>1. DATOS GENERALES</h2>
+        <nav class="nav">
+          <button class="active" data-page="inicio">🏠 Inicio</button>
+          <button data-page="jugar">♟️ Jugar</button>
+          <button data-page="aprender">📚 Aprender</button>
+          <button data-page="ejercicios">🧩 Ejercicios</button>
+          <button data-page="torneo">🏆 Torneo</button>
+          <button data-page="estadisticas">📊 Estadísticas</button>
+          <button data-page="temas">🎨 Temas</button>
+          <button data-page="configuracion">⚙️ Configuración</button>
+        </nav>
 
-          <div class="question">
-            <label>1. ¿Cuál es su función dentro de la institución?</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q1" value="Docente" /> Docente</label
-              >
-              <label
-                ><input type="radio" name="q1" value="Preceptor" />
-                Preceptor/a</label
-              >
-              <label
-                ><input type="radio" name="q1" value="Administrativo" />
-                Administrativo/a</label
-              >
-              <label
-                ><input type="radio" name="q1" value="Directivo" />
-                Directivo/a</label
-              >
-              <label
-                ><input type="radio" name="q1" value="Gabinete" /> Equipo de
-                orientación / gabinete</label
-              >
-              <label
-                ><input type="radio" name="q1" value="Auxiliar" /> Auxiliar /
-                Maestranza</label
-              >
-             
-            </div>
+        <div class="profile-mini">
+          <strong id="mini-name">Alumno</strong>
+          <span id="mini-level">Nivel 1 · Principiante</span>
+          <div class="xpbar"><i id="mini-xp"></i></div>
+          <small id="mini-xp-text">0 / 1000 XP</small>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <h2 id="page-title">
+              ¡Bienvenido a la Escuela de Ajedrez! 👋 <br />
+              IPEM N.º 146 "Centenario" Villa Dolores Cba
+            </h2>
+            <p id="page-subtitle">
+              Aprendé, jugá y mejorá tu nivel partida a partida.
+            </p>
           </div>
 
-          <div class="question">
-            <label for="q2"
-              >2. Curso, división o área en la que se desempeña:</label
-            >
-            <input type="text" id="q2" name="q2" />
-          </div>
-
-          <div class="question">
-            <label>3. Turno en el que trabaja:</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q3" value="Mañana" /> Mañana</label
-              >
-              <label
-                ><input type="radio" name="q3" value="Tarde" /> Tarde</label
-              >
-              <label
-                ><input type="radio" name="q3" value="Vespertino" />
-                Vespertino</label
-              >
-              <label
-                ><input type="radio" name="q3" value="Ambos" /> Ambos
-                turnos</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>4. Antigüedad en la institución:</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q4" value="<1" /> Menos de 1
-                año</label
-              >
-              <label
-                ><input type="radio" name="q4" value="1-5" /> Entre 1 y 5
-                años</label
-              >
-              <label
-                ><input type="radio" name="q4" value="6-10" /> Entre 6 y 10
-                años</label
-              >
-              <label
-                ><input type="radio" name="q4" value=">10" /> Más de 10
-                años</label
-              >
-            </div>
-          </div>
-          <h2>pc2</h2>
-          <div class="question">
-            <label
-              >5. ¿Cuántos estudiantes tiene habitualmente a cargo por
-              día?</label
-            >
-            <div class="options">
-              <label
-                ><input type="radio" name="q5" value="<30" /> Menos de 30</label
-              >
-              <label
-                ><input type="radio" name="q5" value="30-60" /> Entre 30 y
-                60</label
-              >
-              <label
-                ><input type="radio" name="q5" value="61-100" /> Entre 61 y
-                100</label
-              >
-              <label
-                ><input type="radio" name="q5" value=">100" /> Más de 100</label
-              >
-            </div>
-          </div>
-        </section>
-
-        <!-- SECCIÓN 2: SITUACIÓN ACTUAL -->
-        <section class="form-section">
-          <h2>2. SITUACIÓN ACTUAL DEL CONTROL DE SALIDAS</h2>
-
-          <div class="question">
-            <label
-              >6. ¿Con qué frecuencia los estudiantes solicitan salir del
-              aula?</label
-            >
-            <div class="options">
-              <label
-                ><input type="radio" name="q6" value="Muy frecuente" /> Muy
-                frecuentemente</label
-              >
-              <label
-                ><input type="radio" name="q6" value="Frecuente" />
-                Frecuentemente</label
-              >
-              <label
-                ><input type="radio" name="q6" value="Ocasional" />
-                Ocasionalmente</label
-              >
-              <label
-                ><input type="radio" name="q6" value="Casi nunca" /> Casi
-                nunca</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label
-              >7. ¿En qué momentos se producen más salidas? (Múltiple)</label
-            >
-            <div class="options-grid">
-              <label
-                ><input type="checkbox" name="q7" value="Primera" /> Primera
-                hora</label
-              >
-              <label
-                ><input type="checkbox" name="q7" value="Intermedias" /> Horas
-                intermedias</label
-              >
-              <label
-                ><input type="checkbox" name="q7" value="Ultima" /> Última
-                hora</label
-              >
-              <label
-                ><input type="checkbox" name="q7" value="Antes Recreo" /> Antes
-                del recreo</label
-              >
-              <label
-                ><input type="checkbox" name="q7" value="Despues Recreo" />
-                Después del recreo</label
-              >
-              <label
-                ><input type="checkbox" name="q7" value="Evaluaciones" />
-                Durante evaluaciones</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>8. ¿Cuáles son los motivos más habituales? (Múltiple)</label>
-            <div class="options-grid">
-              <label
-                ><input type="checkbox" name="q8" value="Baño" /> Baño</label
-              >
-              <label
-                ><input type="checkbox" name="q8" value="Preceptoria" />
-                Preceptoría</label
-              >
-              <label
-                ><input type="checkbox" name="q8" value="Direccion" />
-                Dirección</label
-              >
-              <label
-                ><input type="checkbox" name="q8" value="Biblioteca" />
-                Biblioteca</label
-              >
-              <label
-                ><input type="checkbox" name="q8" value="Enfermeria" />
-                Enfermería</label
-              >
-              <label
-                ><input type="checkbox" name="q8" value="Actividades" />
-                Actividades inst.</label
-              >
-              <label
-                ><input type="checkbox" name="q8" value="Ed Fisica" /> Ed.
-                Física</label
-              >
+          <div class="top-actions">
            
-            </div>
+            
+            <button class="btn primary" data-page-action="jugar">
+              ▶️ Jugar ahora
+            </button>
           </div>
-          <h2>pc3</h2>
-          <div class="question">
-            <label>9. Actualmente, ¿la institución realiza control?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q9" value="Si" /> Sí</label>
-              <label><input type="radio" name="q9" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q9" value="Parcialmente" />
-                Parcialmente</label
-              >
+        </div>
+
+        <section class="page active" id="page-inicio">
+          <div class="grid dashboard-grid">
+            <div class="card stat">
+              <div class="icon">⭐</div>
+              <b id="stat-xp">0</b>
+              <span>Experiencia</span>
+            </div>
+
+            <div class="card stat">
+              <div class="icon medal-glow">🏆</div>
+              <b id="stat-wins">0</b>
+              <span>Victorias</span>
+            </div>
+
+            <div class="card stat">
+              <div class="icon">🧩</div>
+              <b id="stat-puzzles">0</b>
+              <span>Ejercicios resueltos</span>
+            </div>
+
+            <div class="card stat">
+              <div class="icon">🎯</div>
+              <b id="stat-accuracy">100%</b>
+              <span>Precisión estimada</span>
             </div>
           </div>
 
-          <div class="question">
-            <label>10. ¿Cómo se registran actualmente?</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q10" value="Papel" /> En papel</label
-              >
-              <label
-                ><input type="radio" name="q10" value="Verbal" />
-                Verbalmente</label
-              >
-              <label
-                ><input type="radio" name="q10" value="Cuaderno" /> Cuaderno
-                inst.</label
-              >
-              <label
-                ><input type="radio" name="q10" value="Planilla" /> Planilla
-                compartida</label
-              >
-              <label
-                ><input type="radio" name="q10" value="Digital" /> Sistema
-                digital</label
-              >
-              <label
-                ><input type="radio" name="q10" value="No se registra" /> No se
-                registran</label
-              >
-              <label
-                ><input type="radio" name="q10" value="No sabe" /> No
-                sabe/no contesta</label
-              >
+          <div
+            class="grid"
+            style="grid-template-columns: 1.5fr 1fr; margin-top: 20px"
+          >
+            <div class="card">
+              <div class="panel-title">📈 Tu progreso</div>
+              <h3 id="progress-title">Nivel 1 · Principiante</h3>
+              <div class="progress"><i id="main-progress"></i></div>
+              <p style="color: var(--muted)">
+                Seguí practicando para mejorar tu nivel.
+              </p>
+              <button class="btn primary" data-page-action="jugar">
+                Jugar una partida
+              </button>
             </div>
-          </div>
 
-          <div class="question">
-            <label>11. ¿Quién controla actualmente?</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q11" value="Docente" />
-                Docente</label
-              >
-              <label
-                ><input type="radio" name="q11" value="Preceptor" />
-                Preceptor/a</label
-              >
-              <label
-                ><input type="radio" name="q11" value="Directivo" />
-                Directivo/a</label
-              >
-              <label
-                ><input type="radio" name="q11" value="Nadie" /> Nadie en
-                particular</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>12. ¿Considera eficiente el sistema actual?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q12" value="Si" /> Sí</label>
-              <label><input type="radio" name="q12" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q12" value="Parcialmente" />
-                Parcialmente</label
-              >
-            </div>
-          </div>
-          <h2>pc4</h2>
-          <div class="question">
-            <label>13. ¿Qué dificultades observa? (Múltiple)</label>
-            <div class="options-grid">
-              <label
-                ><input type="checkbox" name="q13" value="Tiempo" /> Pérdida de
-                tiempo</label
-              >
-              <label
-                ><input type="checkbox" name="q13" value="Incompleto" />
-                Registros incompletos</label
-              >
-              <label
-                ><input type="checkbox" name="q13" value="Seguimiento" /> Falta
-                de seguimiento</label
-              >
-              <label
-                ><input type="checkbox" name="q13" value="Responsables" />
-                Identificar responsables</label
-              >
-              <label
-                ><input type="checkbox" name="q13" value="Papel" /> Exceso de
-                papel</label
-              >
-              <label
-                ><input type="checkbox" name="q13" value="Ninguna" /> No
-                presenta dificultades</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>14. ¿Con qué frecuencia se pierden registros?</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q14" value="Muy frecuente" /> Muy
-                frecuentemente</label
-              >
-              <label
-                ><input type="radio" name="q14" value="Frecuente" />
-                Frecuentemente</label
-              >
-              <label
-                ><input type="radio" name="q14" value="A veces" /> A
-                veces</label
-              >
-              <label
-                ><input type="radio" name="q14" value="Nunca" /> Nunca</label
-              >
+            <div class="card">
+              <div class="panel-title">💡 Consejo del día</div>
+              <h3 id="daily-tip-title">Controlá el centro</h3>
+              <p id="daily-tip-text" style="color: var(--muted)">
+                Las casillas centrales permiten que tus piezas tengan mayor
+                movilidad.
+              </p>
+              <button class="btn" data-page-action="ejercicios">
+                Resolver ejercicio
+              </button>
             </div>
           </div>
         </section>
 
-        <!-- SECCIÓN 3: SEGURIDAD Y CONTROL -->
-        <section class="form-section">
-          <h2>3. SEGURIDAD, RESPONSABILIDAD Y CONTROL</h2>
+        <section class="page" id="page-jugar">
+          <div class="game-layout">
+            <div class="left">
+              <div class="card" id="modo-educativo-panel">
+                <div class="panel-title">🎓 Modo educativo</div>
 
-          <div class="question">
-            <label>15. ¿Importante saber dónde está el estudiante?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q15" value="Si" /> Sí</label>
-              <label><input type="radio" name="q15" value="No" /> No</label>
+                <div class="toggle">
+                  <div>
+                    Movimientos legales<small
+                      >Mostrar dónde puede ir la pieza.</small
+                    >
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="toggle-legal" checked />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div class="toggle">
+                  <div>Amenazas<small>Resaltar piezas atacadas.</small></div>
+                  <label class="switch">
+                    <input type="checkbox" id="toggle-threats" checked />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div class="toggle">
+                  <div>
+                    Explicaciones<small
+                      >Recibir consejos durante la partida.</small
+                    >
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="toggle-explain" checked />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div class="toggle">
+                  <div>
+                    Sonido<small
+                      >Efectos de sonido al mover, capturar y dar jaque.</small
+                    >
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="toggle-sound" checked />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div class="settings" style="margin-top: 15px">
+                  <label for="mode">
+                    Modo de juego
+                    <select id="mode">
+                      <option value="pvp">👥 Dos jugadores</option>
+                      <option value="bot">🤖 Contra la IA</option>
+                    </select>
+                  </label>
+
+                  <label
+                    for="bot-difficulty"
+                    id="bot-difficulty-label"
+                    style="display: none"
+                  >
+                    Dificultad de la IA
+                    <select id="bot-difficulty">
+                      <option value="facil">🌱 Fácil</option>
+                      <option value="medio" selected>⚙️ Medio</option>
+                      <option value="dificil">🔥 Difícil</option>
+                      <option value="experto">🧠 Experto</option>
+                    </select>
+                  </label>
+
+                  <label for="bot-color" id="bot-color-label" style="display: none">
+                    Jugás con
+                    <select id="bot-color">
+                      <option value="w" selected>⚪ Blancas (vos primero)</option>
+                      <option value="b">⚫ Negras (la IA primero)</option>
+                    </select>
+                  </label>
+
+                  <div class="toggle" id="pvp-flip-label">
+                    <div>
+                      Rotar tablero por turno<small
+                        >Cada jugador ve el tablero desde su propia
+                        perspectiva (ideal para jugar 1 vs 1 en el mismo
+                        dispositivo).</small
+                      >
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="pvp-flip" checked />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+
+                  <label for="time-mode">
+                    Tiempo
+                    <select id="time-mode">
+                      <option value="none">Sin reloj</option>
+                      <option value="1">1 minuto</option>
+                      <option value="3">3 minutos</option>
+                      <option value="5" selected>5 minutos</option>
+                      <option value="10">10 minutos</option>
+                      <option value="custom">Personalizado</option>
+                    </select>
+                  </label>
+
+                  <label for="custom-minutes" id="custom-time-label">
+                    Minutos personalizados
+                    <input
+                      type="number"
+                      id="custom-minutes"
+                      min="1"
+                      max="180"
+                      value="5"
+                    />
+                  </label>
+
+                  <label for="increment">
+                    Incremento
+                    <select id="increment">
+                      <option value="0">0 segundos</option>
+                      <option value="2">2 segundos</option>
+                      <option value="5" selected>5 segundos</option>
+                      <option value="10">10 segundos</option>
+                      <option value="custom">Personalizado</option>
+                    </select>
+                  </label>
+
+                  <label
+                    for="custom-increment"
+                    id="custom-increment-label"
+                    style="display: none"
+                  >
+                    Incremento personalizado
+                    <input
+                      type="number"
+                      id="custom-increment"
+                      min="0"
+                      max="60"
+                      value="0"
+                    />
+                  </label>
+                </div>
+              </div>
+              <!-- /modo-educativo-panel -->
+
+              <div class="card floating-moves-card" style="margin-top: 18px">
+                <div class="panel-title">
+                  <span>📝 Jugadas <span class="moves-count" id="moves-count">0</span></span>
+                  <button
+                    class="btn secondary toggle-panel-btn"
+                    id="moves-toggle"
+                    type="button"
+                    data-tooltip="Mostrar u ocultar el listado"
+                  >
+                    ⇔
+                  </button>
+                </div>
+                <div class="moves" id="moves">
+                  <p class="moves-empty" id="moves-empty">Todavía no se jugó ninguna jugada.</p>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top: 18px">
+                <div class="panel-title">🔎 Análisis de partidas</div>
+                <p style="color: var(--muted); font-size: 0.85rem; margin: 0 0 12px">
+                  Revisá tus últimas partidas jugada por jugada con el motor,
+                  con precisión y errores marcados.
+                </p>
+                <div id="saved-games-list" class="saved-games-list">
+                  <p class="saved-games-empty" id="saved-games-empty">
+                    Todavía no jugaste ninguna partida completa.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="board-area">
+              <div class="card" id="game-card">
+                <div id="tournament-match-bar" style="display: none; margin-bottom: 14px">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px">
+                    <div>
+                      <strong id="tournament-match-title">🏆 Partida de torneo</strong>
+                      <p class="muted" id="tournament-match-status" style="margin: 4px 0 0"></p>
+                    </div>
+                    <button class="btn" id="tournament-match-back-btn">← Volver al torneo</button>
+                  </div>
+                  <div
+                    id="tournament-match-spectator-note"
+                    style="display: none; text-align: center; margin-top: 14px"
+                  >
+                    <p class="muted">👀 Estás mirando esta partida — no es tuya, así que no podés mover piezas.</p>
+                  </div>
+                  <div
+                    id="tournament-match-controls"
+                    style="display: none; gap: 10px; margin-top: 14px; flex-wrap: wrap"
+                  >
+                    <button class="btn" id="tournament-match-draw-btn">🤝 Ofrecer/aceptar tablas</button>
+                    <button class="btn danger" id="tournament-match-resign-btn">🏳️ Abandonar</button>
+                  </div>
+                </div>
+
+                <div class="clock">
+                  <div id="clock-w">05:00</div>
+                  <div id="clock-b">05:00</div>
+                </div>
+
+                <div class="status" id="status">Turno de las Blancas</div>
+
+                <div class="board-frame">
+                  <div class="board" id="board"></div>
+                </div>
+
+                <div class="controls controls-panel">
+                  <button class="btn primary" id="new-game" data-tooltip="Comenzar una partida nueva">
+                    ▶️ Iniciar partida
+                  </button>
+                  <button class="btn" id="undo" data-tooltip="Deshacer la última jugada">↩️ Deshacer</button>
+                  <button class="btn danger" id="resign" data-tooltip="Abandonar la partida actual">🏳️ Rendirse</button>
+                  <button class="btn" id="copy-game" data-tooltip="Copiar la notación de la partida">📋 Copiar partida</button>
+                  <button
+                    class="btn secondary"
+                    id="toggle-legal-btn"
+                    type="button"
+                    data-tooltip="Activar o desactivar las jugadas posibles resaltadas en el tablero"
+                    aria-pressed="true"
+                  >
+                    🎯 Jugadas: ON
+                  </button>
+                  <button
+                    class="btn secondary"
+                    id="game-fullscreen"
+                    data-enter-text="📺 Pantalla completa"
+                    data-exit-text="❎ Salir"
+                  >
+                    📺 Pantalla completa
+                  </button>
+                </div>
+
+                <div class="eval">
+                  <i id="eval-bar"></i>
+                </div>
+              </div>
+            </div>
+
+            <div class="right">
+              <div class="card" id="ayuda-educativa-panel">
+                <div class="panel-title">📚 Ayuda educativa</div>
+                <h3 id="edu-title">Pensá antes de mover</h3>
+                <p id="edu-text" style="color: var(--muted)">
+                  Antes de jugar, preguntate: ¿qué amenaza mi rival?
+                </p>
+              </div>
+
+              <div class="card" style="margin-top: 18px">
+                <div class="panel-title">♟️ Material capturado</div>
+                <p>Blancas: <span id="captured-w"></span></p>
+                <p>Negras: <span id="captured-b"></span></p>
+              </div>
+
+              <div class="card" id="tutor-card" style="margin-top: 18px">
+                <div class="panel-title">🧠 Tutor IA</div>
+                <p style="color: var(--muted); font-size: 0.85rem; margin-top: -8px">
+                  Pedile al tutor una jugada sugerida y el porqué, cuando quieras.
+                </p>
+                <button class="btn primary" id="tutor-suggest-btn" style="width: 100%" data-tooltip="El tutor analiza la posición y te sugiere la mejor jugada">
+                  💡 Sugerir jugada
+                </button>
+
+                <div id="tutor-loading" style="display: none; color: var(--muted); font-size: 0.85rem; margin-top: 12px">
+                  🧠 El tutor está pensando…
+                </div>
+
+                <div id="tutor-output" style="display: none; margin-top: 14px">
+                  <div class="tutor-move-row">
+                    <span id="tutor-move-san" class="tutor-move-badge"></span>
+                    <span id="tutor-eval" class="tutor-eval-text"></span>
+                  </div>
+                  <div class="tutor-comment" id="tutor-explanation"></div>
+                  <div class="tutor-pv" id="tutor-pv" style="display: none">
+                    <span class="tutor-pv-label">📖 Línea principal sugerida</span>
+                    <span id="tutor-pv-text"></span>
+                  </div>
+                  <div class="tutor-tip" id="tutor-tip"></div>
+                  <button class="btn" id="tutor-play-btn" style="width: 100%; margin-top: 10px">
+                    ▶️ Jugar esta jugada
+                  </button>
+                </div>
+
+                <div style="margin-top: 16px; border-top: 1px solid var(--surface2); padding-top: 12px; font-size: 0.8rem; color: var(--muted)">
+                  🎓 Activá o desactivá "Explicaciones" en el panel <strong>Modo educativo</strong> para recibir, en la tarjeta "Ayuda educativa", el porqué de cada jugada mientras jugás.
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-aprender">
+          <div class="card learning-hero">
+            <div class="learning-head">
+              <div>
+                <div class="learning-kicker">📚 Escuela de ajedrez</div>
+                <h2>Tu ruta para aprender ajedrez</h2>
+                <p style="color: var(--muted); max-width: 680px">
+                  Avanzá desde los fundamentos hasta las tácticas. Estudiá una
+                  lección, poné en práctica lo aprendido y construí una base
+                  sólida.
+                </p>
+              </div>
+
+              <div class="learning-progress-box">
+                <strong>
+                  <span>Progreso del curso</span>
+                  <span id="learning-progress-text">0%</span>
+                </strong>
+                <div class="progress">
+                  <i id="learning-progress-bar"></i>
+                </div>
+                <small id="learning-progress-detail"
+                  >0 de 20 lecciones completadas</small
+                >
+              </div>
             </div>
           </div>
 
-          <div class="question">
-            <label
-              >16. ¿El docente sigue siendo responsable al salir el
-              alumno?</label
+          <div
+            class="learning-filters"
+            role="tablist"
+            aria-label="Filtrar lecciones"
+          >
+            <button
+              class="btn learning-filter active"
+              data-learning-filter="all"
             >
-            <div class="options-row">
-              <label><input type="radio" name="q16" value="Si" /> Sí</label>
-              <label><input type="radio" name="q16" value="No" /> No</label>
+              📚 Todas
+            </button>
+            <button
+              class="btn learning-filter"
+              data-learning-filter="fundamentos"
+            >
+              ♟️ Fundamentos
+            </button>
+            <button
+              class="btn learning-filter"
+              data-learning-filter="estrategia"
+            >
+              🎯 Estrategia
+            </button>
+            <button class="btn learning-filter" data-learning-filter="tactica">
+              ⚡ Táctica
+            </button>
+          </div>
+
+          <div class="learning-path grid">
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="fundamentos"
+              data-lesson-id="1"
+            >
+              <div class="lesson-number">1</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Fundamentos</span
+                  ><span class="badge">⭐ Inicial</span>
+                </div>
+                <h3>♟️ Conocé las piezas</h3>
+                <p class="lesson-description">
+                  Aprendé cómo se mueve cada pieza y cuál es su valor.
+                </p>
+                <div class="lesson-reward">🎁 +25 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="1"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="fundamentos"
+              data-lesson-id="2"
+            >
+              <div class="lesson-number">2</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Fundamentos</span
+                  ><span class="badge">⭐ Inicial</span>
+                </div>
+                <h3>🎯 Capturas y valor de las piezas</h3>
+                <p class="lesson-description">
+                  Aprendé cuándo conviene capturar y cómo comparar material.
+                </p>
+                <div class="lesson-reward">🎁 +30 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="2"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="fundamentos"
+              data-lesson-id="3"
+            >
+              <div class="lesson-number">3</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Fundamentos</span
+                  ><span class="badge">⭐ Inicial</span>
+                </div>
+                <h3>👑 Jaque, jaque mate y tablas</h3>
+                <p class="lesson-description">
+                  Entendé cómo se ataca al rey y cómo termina una partida.
+                </p>
+                <div class="lesson-reward">🎁 +35 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="3"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="estrategia"
+              data-lesson-id="4"
+            >
+              <div class="lesson-number">4</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐ Básico</span>
+                </div>
+                <h3>🌟 El control del centro</h3>
+                <p class="lesson-description">
+                  Descubrí por qué las casillas centrales son tan importantes.
+                </p>
+                <div class="lesson-reward">🎁 +40 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="4"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="estrategia"
+              data-lesson-id="5"
+            >
+              <div class="lesson-number">5</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐ Básico</span>
+                </div>
+                <h3>🚀 Desarrollo y seguridad del rey</h3>
+                <p class="lesson-description">
+                  Sacá tus piezas, enrocá y evitá perder tiempos en la apertura.
+                </p>
+                <div class="lesson-reward">🎁 +45 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="5"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="estrategia"
+              data-lesson-id="6"
+            >
+              <div class="lesson-number">6</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐ Básico</span>
+                </div>
+                <h3>🏰 El enroque</h3>
+                <p class="lesson-description">
+                  Aprendé cuándo podés enrocar y por qué protege al rey.
+                </p>
+                <div class="lesson-reward">🎁 +45 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="6"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="7"
+            >
+              <div class="lesson-number">7</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐ Intermedio</span>
+                </div>
+                <h3>⚡ El ataque doble</h3>
+                <p class="lesson-description">
+                  Aprendé a atacar dos objetivos al mismo tiempo.
+                </p>
+                <div class="lesson-reward">🎁 +50 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="7"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="8"
+            >
+              <div class="lesson-number">8</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐ Intermedio</span>
+                </div>
+                <h3>📌 La clavada</h3>
+                <p class="lesson-description">
+                  Descubrí cómo inmovilizar una pieza detrás de un objetivo
+                  importante.
+                </p>
+                <div class="lesson-reward">🎁 +50 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="8"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="9"
+            >
+              <div class="lesson-number">9</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐ Intermedio</span>
+                </div>
+                <h3>💥 El ataque descubierto</h3>
+                <p class="lesson-description">
+                  Usá una pieza para descubrir el ataque de otra.
+                </p>
+                <div class="lesson-reward">🎁 +55 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="9"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="10"
+            >
+              <div class="lesson-number">10</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐ Avanzado</span>
+                </div>
+                <h3>🧲 La desviación</h3>
+                <p class="lesson-description">
+                  Obligá a una pieza defensora a abandonar su función.
+                </p>
+                <div class="lesson-reward">🎁 +60 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="10"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="11"
+            >
+              <div class="lesson-number">11</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐ Avanzado</span>
+                </div>
+                <h3>🔗 La sobrecarga</h3>
+                <p class="lesson-description">
+                  Aprendé a aprovechar una pieza que defiende demasiadas cosas.
+                </p>
+                <div class="lesson-reward">🎁 +60 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="11"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="estrategia"
+              data-lesson-id="12"
+            >
+              <div class="lesson-number">12</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">🏆 Desafío final</span>
+                </div>
+                <h3>🏆 Pensamiento ajedrecístico</h3>
+                <p class="lesson-description">
+                  Aprendé a analizar amenazas, capturas y jugadas candidatas
+                  antes de mover.
+                </p>
+                <div class="lesson-reward">🎁 +100 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="12"
+              >
+                Comenzar
+              </button>
+            </article>
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="fundamentos"
+              data-lesson-id="13"
+            >
+              <div class="lesson-number">13</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Fundamentos</span
+                  ><span class="badge">⭐⭐ Básico</span>
+                </div>
+                <h3>🧭 La notación algebraica</h3>
+                <p class="lesson-description">
+                  Aprendé a leer y escribir jugadas para poder estudiar tus
+                  partidas.
+                </p>
+                <div class="lesson-reward">🎁 +40 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="13"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="fundamentos"
+              data-lesson-id="14"
+            >
+              <div class="lesson-number">14</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Fundamentos</span
+                  ><span class="badge">⭐⭐ Básico</span>
+                </div>
+                <h3>🔄 El cambio de piezas</h3>
+                <p class="lesson-description">
+                  Descubrí cuándo conviene cambiar piezas y cuándo mantenerlas.
+                </p>
+                <div class="lesson-reward">🎁 +45 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="14"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="estrategia"
+              data-lesson-id="15"
+            >
+              <div class="lesson-number">15</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐⭐ Intermedio</span>
+                </div>
+                <h3>🛣️ Columnas abiertas</h3>
+                <p class="lesson-description">
+                  Aprendé a aprovechar columnas abiertas y semiabiertas con tus
+                  torres.
+                </p>
+                <div class="lesson-reward">🎁 +55 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="15"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="estrategia"
+              data-lesson-id="16"
+            >
+              <div class="lesson-number">16</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐⭐ Intermedio</span>
+                </div>
+                <h3>🐴 Caballo bueno y caballo malo</h3>
+                <p class="lesson-description">
+                  Comprendé la diferencia entre piezas activas y piezas
+                  limitadas por la estructura de peones.
+                </p>
+                <div class="lesson-reward">🎁 +55 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="16"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="17"
+            >
+              <div class="lesson-number">17</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐ Intermedio</span>
+                </div>
+                <h3>🎯 La doble amenaza</h3>
+                <p class="lesson-description">
+                  Aprendé a crear dos problemas distintos que el rival no puede
+                  resolver a la vez.
+                </p>
+                <div class="lesson-reward">🎁 +60 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="17"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="18"
+            >
+              <div class="lesson-number">18</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐ Avanzado</span>
+                </div>
+                <h3>🪤 La intermedia</h3>
+                <p class="lesson-description">
+                  Descubrí cómo insertar una jugada fuerte antes de recuperar
+                  material.
+                </p>
+                <div class="lesson-reward">🎁 +70 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="18"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="tactica"
+              data-lesson-id="19"
+            >
+              <div class="lesson-number">19</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐ Avanzado</span>
+                </div>
+                <h3>💣 El sacrificio</h3>
+                <p class="lesson-description">
+                  Aprendé cuándo entregar material para obtener una ventaja
+                  concreta.
+                </p>
+                <div class="lesson-reward">🎁 +80 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="19"
+              >
+                Comenzar
+              </button>
+            </article>
+
+            <article
+              class="card lesson-card"
+              data-lesson-card
+              data-category="estrategia"
+              data-lesson-id="20"
+            >
+              <div class="lesson-number">20</div>
+              <div>
+                <div class="lesson-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">🏆 Maestro del método</span>
+                </div>
+                <h3>🧠 Planificar una partida</h3>
+                <p class="lesson-description">
+                  Uní apertura, medio juego y final para construir un plan
+                  completo.
+                </p>
+                <div class="lesson-reward">🎁 +120 XP</div>
+              </div>
+              <button
+                class="btn primary lesson-action lesson-btn"
+                data-lesson="20"
+              >
+                Comenzar
+              </button>
+            </article>
+          </div>
+
+          <div class="card learning-empty" id="learning-empty">
+            No hay lecciones en esta categoría.
+          </div>
+        </section>
+
+        <div id="lesson-modal" class="alert" style="display: none">
+          <div class="lesson-modal-content">
+            <div class="panel-title" id="lesson-modal-category">📚 Lección</div>
+            <h3 id="lesson-title">Lección</h3>
+            <div id="lesson-content" class="lesson-content"></div>
+            <div class="lesson-checklist">
               <label
-                ><input type="radio" name="q16" value="Parcialmente" />
-                Parcialmente</label
+                ><input type="checkbox" class="lesson-check" /> Entendí la idea
+                principal.</label
+              >
+              <label
+                ><input type="checkbox" class="lesson-check" /> Puedo explicarla
+                con mis propias palabras.</label
+              >
+              <label
+                ><input type="checkbox" class="lesson-check" /> Estoy listo para
+                practicarla.</label
               >
             </div>
+            <div class="puzzle-box">
+              <div class="puzzle-prompt" id="lesson-puzzle-prompt"></div>
+              <div class="puzzle-board-wrap">
+                <div class="board puzzle-board" id="lesson-puzzle-board"></div>
+              </div>
+              <div class="puzzle-feedback" id="lesson-puzzle-feedback"></div>
+              <div class="puzzle-actions">
+                <button class="btn" id="lesson-puzzle-hint" type="button">
+                  💡 Pista
+                </button>
+                <button
+                  class="btn"
+                  id="lesson-puzzle-retry"
+                  type="button"
+                  style="display: none"
+                >
+                  ↺ Reintentar
+                </button>
+              </div>
+            </div>
+            <p class="lesson-gate-note" id="lesson-gate-note">
+              Resolvé la posición y tildá los 3 casilleros para poder marcar
+              la lección como completada.
+            </p>
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-top: 22px;
+              "
+            >
+              <button class="btn primary" id="lesson-complete" disabled>
+                ✓ Marcar como completada
+              </button>
+              <button class="btn" id="lesson-close">Cerrar</button>
+            </div>
           </div>
-          <h2>pc5</h2>
-          <div class="question">
-            <label>17. ¿Importante registrar quién autoriza?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q17" value="Si" /> Sí</label>
-              <label><input type="radio" name="q17" value="No" /> No</label>
+        </div>
+
+        <section class="page" id="page-ejercicios">
+          <div class="card exercise-hero">
+            <div class="learning-kicker">⚡ CENTRO DE ENTRENAMIENTO</div>
+            <h2>Ejercicios de ajedrez</h2>
+            <p style="color: var(--muted); max-width: 720px">
+              Entrená tu cálculo, tu visión táctica y tu toma de decisiones.
+              Resolvé desafíos, recibí explicaciones y acumulá experiencia.
+            </p>
+
+            <div class="exercise-dashboard">
+              <div class="exercise-stat">
+                <strong id="exercise-total-stat">0</strong
+                ><span>Ejercicios resueltos</span>
+              </div>
+              <div class="exercise-stat">
+                <strong id="exercise-correct-stat">0%</strong
+                ><span>Precisión</span>
+              </div>
+              <div class="exercise-stat">
+                <strong id="exercise-streak-stat">0 🔥</strong
+                ><span>Racha actual</span>
+              </div>
+              <div class="exercise-stat">
+                <strong id="exercise-best-stat">0</strong
+                ><span>Mejor racha</span>
+              </div>
             </div>
           </div>
 
-          <div class="question">
-            <label>18. ¿Importante registrar el motivo?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q18" value="Si" /> Sí</label>
-              <label><input type="radio" name="q18" value="No" /> No</label>
-            </div>
+          <div class="exercise-controls">
+            <button
+              class="btn exercise-filter active"
+              data-exercise-filter="all"
+            >
+              📚 Todos
+            </button>
+            <button
+              class="btn exercise-filter"
+              data-exercise-filter="principiante"
+            >
+              🌱 Principiante
+            </button>
+            <button
+              class="btn exercise-filter"
+              data-exercise-filter="estrategia"
+            >
+              ♟️ Estrategia
+            </button>
+            <button class="btn exercise-filter" data-exercise-filter="tactica">
+              ⚡ Táctica
+            </button>
           </div>
 
-          <div class="question">
-            <label>19. ¿Importante registrar hora de salida y regreso?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q19" value="Si" /> Sí</label>
-              <label><input type="radio" name="q19" value="No" /> No</label>
-            </div>
+          <div class="exercise-list" id="exercise-list">
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="principiante"
+              data-exercise-id="1"
+            >
+              <div class="exercise-icon">♟️</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Principiante</span
+                  ><span class="badge">⭐ Fácil</span>
+                </div>
+                <h3>El valor de las piezas</h3>
+                <p class="exercise-description">
+                  Aprendé a comparar el valor del material.
+                </p>
+                <div class="exercise-xp">🎁 +20 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="1"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="principiante"
+              data-exercise-id="2"
+            >
+              <div class="exercise-icon">🏰</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Principiante</span
+                  ><span class="badge">⭐ Fácil</span>
+                </div>
+                <h3>Seguridad del rey</h3>
+                <p class="exercise-description">
+                  Aprendé a reconocer las mejores decisiones para proteger al
+                  rey.
+                </p>
+                <div class="exercise-xp">🎁 +20 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="2"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="estrategia"
+              data-exercise-id="3"
+            >
+              <div class="exercise-icon">🌟</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐ Medio</span>
+                </div>
+                <h3>La apertura correcta</h3>
+                <p class="exercise-description">
+                  Elegí el plan más lógico durante la apertura.
+                </p>
+                <div class="exercise-xp">🎁 +30 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="3"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="4"
+            >
+              <div class="exercise-icon">⚡</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐ Medio</span>
+                </div>
+                <h3>Encontrá el ataque doble</h3>
+                <p class="exercise-description">
+                  Buscá una jugada que cree dos amenazas al mismo tiempo.
+                </p>
+                <div class="exercise-xp">🎁 +35 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="4"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="5"
+            >
+              <div class="exercise-icon">📌</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐ Medio</span>
+                </div>
+                <h3>Reconocé la clavada</h3>
+                <p class="exercise-description">
+                  Identificá una pieza que no puede moverse libremente.
+                </p>
+                <div class="exercise-xp">🎁 +35 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="5"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="6"
+            >
+              <div class="exercise-icon">💥</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐ Difícil</span>
+                </div>
+                <h3>Jaque, captura o amenaza</h3>
+                <p class="exercise-description">
+                  Entrená tu método para encontrar jugadas candidatas.
+                </p>
+                <div class="exercise-xp">🎁 +50 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="6"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="estrategia"
+              data-exercise-id="7"
+            >
+              <div class="exercise-icon">🧠</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐⭐ Difícil</span>
+                </div>
+                <h3>¿Qué pieza está peor?</h3>
+                <p class="exercise-description">
+                  Aprendé a mejorar la pieza menos activa.
+                </p>
+                <div class="exercise-xp">🎁 +50 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="7"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="8"
+            >
+              <div class="exercise-icon">🏆</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐ Desafío</span>
+                </div>
+                <h3>Desafío final</h3>
+                <p class="exercise-description">
+                  Calculá antes de mover y elegí la mejor respuesta.
+                </p>
+                <div class="exercise-xp">🎁 +75 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="8"
+              >
+                Resolver
+              </button>
+            </article>
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="principiante"
+              data-exercise-id="9"
+            >
+              <div class="exercise-icon">🧭</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Principiante</span
+                  ><span class="badge">⭐ Fácil</span>
+                </div>
+                <h3>Leé la posición</h3>
+                <p class="exercise-description">
+                  Entrená tu capacidad para identificar piezas y amenazas.
+                </p>
+                <div class="exercise-xp">🎁 +25 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="9"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="principiante"
+              data-exercise-id="10"
+            >
+              <div class="exercise-icon">📝</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Principiante</span
+                  ><span class="badge">⭐ Fácil</span>
+                </div>
+                <h3>Notación algebraica</h3>
+                <p class="exercise-description">
+                  Aprendé a reconocer cómo se escribe una jugada.
+                </p>
+                <div class="exercise-xp">🎁 +25 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="10"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="estrategia"
+              data-exercise-id="11"
+            >
+              <div class="exercise-icon">🛣️</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐ Medio</span>
+                </div>
+                <h3>Encontrá la columna abierta</h3>
+                <p class="exercise-description">
+                  Elegí dónde colocar mejor una torre.
+                </p>
+                <div class="exercise-xp">🎁 +35 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="11"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="estrategia"
+              data-exercise-id="12"
+            >
+              <div class="exercise-icon">🐴</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐ Medio</span>
+                </div>
+                <h3>Mejorá tu peor pieza</h3>
+                <p class="exercise-description">
+                  Elegí el plan que mejora la pieza menos activa.
+                </p>
+                <div class="exercise-xp">🎁 +40 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="12"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="estrategia"
+              data-exercise-id="13"
+            >
+              <div class="exercise-icon">🏗️</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐⭐ Difícil</span>
+                </div>
+                <h3>Elegí el plan</h3>
+                <p class="exercise-description">
+                  Aprendé a transformar una ventaja posicional en un plan
+                  concreto.
+                </p>
+                <div class="exercise-xp">🎁 +50 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="13"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="14"
+            >
+              <div class="exercise-icon">🎯</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐ Medio</span>
+                </div>
+                <h3>La doble amenaza</h3>
+                <p class="exercise-description">
+                  Encontrá una jugada que ataque dos objetivos.
+                </p>
+                <div class="exercise-xp">🎁 +40 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="14"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="15"
+            >
+              <div class="exercise-icon">🪤</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐ Difícil</span>
+                </div>
+                <h3>La intermedia</h3>
+                <p class="exercise-description">
+                  Encontrá una jugada intermedia antes de recapturar.
+                </p>
+                <div class="exercise-xp">🎁 +50 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="15"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="16"
+            >
+              <div class="exercise-icon">💣</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐ Difícil</span>
+                </div>
+                <h3>¿Conviene sacrificar?</h3>
+                <p class="exercise-description">
+                  Aprendé a evaluar si un sacrificio tiene compensación.
+                </p>
+                <div class="exercise-xp">🎁 +55 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="16"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="17"
+            >
+              <div class="exercise-icon">👑</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐ Desafío</span>
+                </div>
+                <h3>Mate en uno</h3>
+                <p class="exercise-description">
+                  Entrená tu visión para encontrar una amenaza decisiva.
+                </p>
+                <div class="exercise-xp">🎁 +60 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="17"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="18"
+            >
+              <div class="exercise-icon">🔍</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐ Desafío</span>
+                </div>
+                <h3>Calculá dos jugadas</h3>
+                <p class="exercise-description">
+                  Mejorá tu cálculo de variantes cortas.
+                </p>
+                <div class="exercise-xp">🎁 +65 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="18"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="estrategia"
+              data-exercise-id="19"
+            >
+              <div class="exercise-icon">🧠</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Estrategia</span
+                  ><span class="badge">⭐⭐⭐⭐ Desafío</span>
+                </div>
+                <h3>Final de peones</h3>
+                <p class="exercise-description">
+                  Tomá decisiones básicas en finales de peones.
+                </p>
+                <div class="exercise-xp">🎁 +70 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="19"
+              >
+                Resolver
+              </button>
+            </article>
+
+            <article
+              class="card exercise-card"
+              data-exercise-card
+              data-category="tactica"
+              data-exercise-id="20"
+            >
+              <div class="exercise-icon">🏆</div>
+              <div>
+                <div class="exercise-meta">
+                  <span class="badge">Táctica</span
+                  ><span class="badge">⭐⭐⭐⭐⭐ Maestro</span>
+                </div>
+                <h3>Desafío maestro</h3>
+                <p class="exercise-description">
+                  Combiná amenazas, cálculo y evaluación en un único desafío.
+                </p>
+                <div class="exercise-xp">🎁 +100 XP</div>
+              </div>
+              <button
+                class="btn primary exercise-action exercise-start"
+                data-exercise="20"
+              >
+                Resolver
+              </button>
+            </article>
           </div>
 
-          <div class="question">
-            <label>20. ¿Control insuficiente puede generar: (Múltiple)</label>
-            <div class="options-grid">
-              <label
-                ><input type="checkbox" name="q20" value="Seguridad" />
-                Seguridad</label
+          <div id="exercise-modal" class="alert" style="display: none">
+            <div class="exercise-modal-content">
+              <div class="panel-title" id="exercise-modal-category">
+                ⚡ Ejercicio
+              </div>
+              <h3 id="exercise-modal-title">Ejercicio</h3>
+              <div class="exercise-streak" id="exercise-modal-streak">
+                🔥 Racha: 0
+              </div>
+              <div class="exercise-question" id="exercise-question"></div>
+              <div class="puzzle-box">
+                <div class="puzzle-board-wrap">
+                  <div
+                    class="board puzzle-board"
+                    id="exercise-puzzle-board"
+                  ></div>
+                </div>
+                <div class="puzzle-feedback" id="puzzle-feedback"></div>
+                <div class="puzzle-actions">
+                  <button class="btn" id="exercise-puzzle-hint" type="button">
+                    💡 Pista
+                  </button>
+                  <button
+                    class="btn"
+                    id="exercise-puzzle-retry"
+                    type="button"
+                    style="display: none"
+                  >
+                    ↺ Reintentar
+                  </button>
+                </div>
+              </div>
+              <div class="exercise-options" id="exercise-options" style="display:none"></div>
+              <div class="exercise-feedback" id="exercise-feedback" style="display:none"></div>
+              <div
+                id="exercise-result"
+                class="exercise-result"
+                style="display: none"
               >
-              <label
-                ><input type="checkbox" name="q20" value="Disciplina" />
-                Disciplina</label
+                <div class="exercise-result-score" id="exercise-result-score">
+                  0/0
+                </div>
+                <p id="exercise-result-text"></p>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  gap: 10px;
+                  flex-wrap: wrap;
+                  margin-top: 22px;
+                "
               >
-              <label
-                ><input type="checkbox" name="q20" value="Legal" />
-                Responsabilidad Inst.</label
-              >
-              <label
-                ><input type="checkbox" name="q20" value="Familias" />
-                Conflictos familias</label
-              >
-              <label
-                ><input type="checkbox" name="q20" value="Riesgo" /> Situaciones
-                riesgo</label
-              >
-            </div>
-          </div>
-          <h2>pc6</h2>
-          <div class="question">
-            <label>21. ¿Estudiantes pasan demasiado tiempo fuera?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q21" value="Si" /> Sí</label>
-              <label><input type="radio" name="q21" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q21" value="A veces" /> A
-                veces</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>22. ¿Ocurrió situación problemática relacionada?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q22" value="Si" /> Sí</label>
-              <label><input type="radio" name="q22" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q22" value="No se" /> No lo sé</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>23. Situaciones más frecuentes: (Múltiple)</label>
-            <div class="options-grid">
-              <label
-                ><input type="checkbox" name="q23" value="Demoras" /> Demoras
-                excesivas</label
-              >
-              <label
-                ><input type="checkbox" name="q23" value="Fuera Lugar" /> Fuera
-                de lugar</label
-              >
-              <label
-                ><input type="checkbox" name="q23" value="Conflictos" />
-                Conflictos entre alumnos</label
-              >
-              <label
-                ><input type="checkbox" name="q23" value="Clases" /> Pérdida de
-                clases</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>24. ¿Quién debería autorizar?</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q24" value="Docente" />
-                Docente</label
-              >
-              <label
-                ><input type="radio" name="q24" value="Preceptor" />
-                Preceptor/a</label
-              >
-              <label
-                ><input type="radio" name="q24" value="Directivo" />
-                Directivo/a</label
-              >
-              <label
-                ><input type="radio" name="q24" value="Segun motivo" /> Según
-                motivo</label
-              >
-            </div>
-          </div>
-          <h2>pc7</h2>
-          <div class="question">
-            <label>25. ¿Importante historial por estudiante?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q25" value="Si" /> Sí</label>
-              <label><input type="radio" name="q25" value="No" /> No</label>
-            </div>
-          </div>
-
-          <div class="question">
-            <label>26. ¿Exceso de salidas afecta rendimiento?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q26" value="Si" /> Sí</label>
-              <label><input type="radio" name="q26" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q26" value="Tal vez" /> Tal
-                vez</label
-              >
-            </div>
-          </div>
-
-          <div class="question">
-            <label>27. ¿Importante recibir alertas por demora?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q27" value="Si" /> Sí</label>
-              <label><input type="radio" name="q27" value="No" /> No</label>
-            </div>
-          </div>
-
-          <div class="question">
-            <label>28. ¿Notificar a familias en casos especiales?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q28" value="Si" /> Sí</label>
-              <label><input type="radio" name="q28" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q28" value="Tal vez" /> Tal
-                vez</label
-              >
+                <button class="btn" id="exercise-close">Cerrar</button>
+              </div>
             </div>
           </div>
         </section>
-        <h2>pc8</h2>
-        <!-- SECCIÓN 4: IMPLEMENTACIÓN DIGITAL -->
-        <section class="form-section">
-          <h2>4. IMPLEMENTACIÓN DE UN SISTEMA DIGITAL</h2>
 
-          <div class="question">
-            <label>29. ¿Ayudaría a la organización?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q29" value="Si" /> Sí</label>
-              <label><input type="radio" name="q29" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q29" value="Tal vez" /> Tal
-                vez</label
-              >
-            </div>
-          </div>
+        <section class="page" id="page-torneo">
+          <div class="grid" style="grid-template-columns: 1fr; gap: 20px">
+            <div class="card">
+              <h2>🏆 Torneo</h2>
+              <p class="muted">
+                Sistema suizo con base de datos compartida (Firebase / Firestore):
+                cada jugador puede abrir esta misma página desde su propio
+                celular o compu y va a ver los mismos emparejamientos y
+                resultados en tiempo real. Para jugar hace falta iniciar
+                sesión con una cuenta de Gmail. Solo la cuenta
+                <strong>ipem146centenario@gmail.com</strong> puede
+                administrar el torneo (crear, generar rondas, configurar,
+                finalizar o reiniciar); el resto de las cuentas juega o
+                mira en modo espectador.
+              </p>
 
-          <div class="question">
-            <label>30. ¿Mejoraría la seguridad escolar?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q30" value="Si" /> Sí</label>
-              <label><input type="radio" name="q30" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q30" value="Tal vez" /> Tal
-                vez</label
-              >
+              <div id="tournament-connect-box">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600"
+                  >Configuración de Firebase (pegar el objeto "firebaseConfig" de tu proyecto)</label
+                >
+                <textarea
+                  id="tournament-config-input"
+                  rows="7"
+                  placeholder='{
+  apiKey: "AIza...",
+  authDomain: "mi-torneo.firebaseapp.com",
+  projectId: "mi-torneo",
+  storageBucket: "mi-torneo.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+}'
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    font-family: monospace;
+                    font-size: 13px;
+                    resize: vertical;
+                  "
+                ></textarea>
+                <label style="display: block; margin: 10px 0 6px; font-weight: 600"
+                  >Código de sala (opcional — usalo si vas a correr varios torneos en el mismo proyecto)</label
+                >
+                <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                  <input
+                    type="text"
+                    id="tournament-room-input"
+                    placeholder="main"
+                    style="
+                      flex: 1;
+                      min-width: 160px;
+                      padding: 10px 12px;
+                      border-radius: 10px;
+                      border: 1px solid var(--surface2);
+                      background: var(--surface);
+                      color: var(--text);
+                    "
+                  />
+                  <button class="btn primary" id="tournament-connect-btn">Conectar</button>
+                </div>
+                <p class="lesson-gate-note" id="tournament-connect-status"></p>
+                <p class="muted" style="font-size: 13px; margin-top: 10px">
+                  ¿Todavía no tenés un proyecto de Firebase? Mirá las instrucciones
+                  de configuración en el archivo
+                  <code>Firebase-Torneo-Instrucciones.md</code> que viene junto a
+                  esta página.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div class="question">
-            <label>31. ¿Brindaría mayor respaldo al docente?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q31" value="Si" /> Sí</label>
-              <label><input type="radio" name="q31" value="No" /> No</label>
-              <label
-                ><input type="radio" name="q31" value="Parcialmente" />
-                Parcialmente</label
-              >
+            <div id="tournament-auth-box" class="card" style="display: none">
+              <h3>Iniciar sesión</h3>
+              <p class="muted" id="tournament-auth-status">No iniciaste sesión todavía.</p>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+                <button class="btn primary" id="tournament-google-signin-btn">🔑 Iniciar sesión con Google</button>
+                <button class="btn" id="tournament-signout-btn" style="display: none">Cerrar sesión</button>
+                <span
+                  id="tournament-mode-badge"
+                  style="display: none; padding: 6px 12px; border-radius: 999px; background: var(--surface2); font-weight: 600; font-size: 13px"
+                ></span>
+              </div>
             </div>
-          </div>
 
-          <div class="question">
-            <label>32. ¿Reduciría uso de papel?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q32" value="Si" /> Sí</label>
-              <label><input type="radio" name="q32" value="No" /> No</label>
-            </div>
-          </div>
-          <h2>pc9</h2>
-          <div class="question">
-            <label>33. ¿Facilitaría trabajo de preceptores/directivos?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q33" value="Si" /> Sí</label>
-              <label><input type="radio" name="q33" value="No" /> No</label>
-            </div>
-          </div>
+            <div id="tournament-setup-box" class="card" style="display: none">
 
-          <div class="question">
-            <label>34. Beneficios del sistema: (Múltiple)</label>
-            <div class="options-grid">
-              <label
-                ><input type="checkbox" name="q34" value="Org" />
-                Organización</label
+              <h3>Crear torneo nuevo</h3>
+              <label style="display: block; margin: 10px 0 6px; font-weight: 600">Nombre del torneo</label>
+              <input
+                type="text"
+                id="tournament-name-input"
+                placeholder="Torneo escolar 2026"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                  margin-bottom: 14px;
+                "
+              />
+              <label style="display: block; margin-bottom: 6px; font-weight: 600"
+                >Jugadores — un jugador por línea, formato "Nombre, email"</label
               >
-              <label
-                ><input type="checkbox" name="q34" value="Auto" /> Registro
-                automático</label
+              <textarea
+                id="tournament-players-input"
+                rows="8"
+                placeholder="Ana, ana@gmail.com&#10;Bruno, bruno@gmail.com&#10;Carla, carla@gmail.com&#10;Diego, diego@gmail.com"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                  font-family: inherit;
+                  resize: vertical;
+                "
+              ></textarea>
+              <p class="muted" style="font-size: 13px; margin: 6px 0 0">
+                El email tiene que ser la cuenta de Gmail con la que cada
+                jugador va a iniciar sesión — así la app sabe automáticamente
+                con quién juega cada uno, sin tener que elegir color a mano.
+              </p>
+              <label style="display: block; margin: 14px 0 6px; font-weight: 600"
+                >Cantidad de rondas (opcional)</label
               >
-              <label
-                ><input type="checkbox" name="q34" value="Real" /> Tiempo
-                real</label
+              <input
+                type="number"
+                id="tournament-rounds-input"
+                min="1"
+                placeholder="Dejalo vacío para decidir vos cuándo termina"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                "
+              />
+              <p class="muted" style="font-size: 13px; margin: 6px 0 0">
+                Si la ponés, el torneo se cierra solo y muestra el campeón
+                apenas se carga el resultado de la última partida de esa
+                ronda.
+              </p>
+              <button class="btn primary" id="tournament-create-btn" style="margin-top: 14px">
+                Crear torneo y sortear ronda 1
+              </button>
+            </div>
+
+            <div id="tournament-active-box" style="display: none">
+              <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px">
+                  <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+                    <h3 id="tournament-title-display" style="margin: 0">Torneo</h3>
+                    <span
+                      id="tournament-mode-badge-active"
+                      style="padding: 4px 10px; border-radius: 999px; background: var(--surface2); font-weight: 600; font-size: 12px"
+                    ></span>
+                  </div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                    <button class="btn" id="tournament-refresh-btn">🔄 Actualizar</button>
+                    <div id="tournament-admin-controls" style="display: none; gap: 8px; flex-wrap: wrap">
+                      <button class="btn" id="tournament-next-round-btn">➡️ Generar próxima ronda</button>
+                      <button class="btn" id="tournament-finish-btn">🏁 Finalizar torneo</button>
+                      <button class="btn" id="tournament-reopen-btn" style="display: none">↩️ Reabrir torneo</button>
+                      <button class="btn" id="tournament-settings-btn">⚙️ Configuración</button>
+                      <button class="btn" id="tournament-reset-btn">🗑️ Reiniciar torneo</button>
+                    </div>
+                  </div>
+                </div>
+                <p class="muted" id="tournament-round-display"></p>
+              </div>
+
+              <div class="card" id="tournament-settings-panel" style="display: none">
+                <h3>⚙️ Configuración del torneo (solo administradores)</h3>
+                <label style="display: block; margin-bottom: 6px; font-weight: 600">Nombre del torneo</label>
+                <input
+                  type="text"
+                  id="tournament-settings-name-input"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 12px;
+                  "
+                />
+                <label style="display: block; margin-bottom: 6px; font-weight: 600">Cantidad de rondas (vacío = sin límite)</label>
+                <input
+                  type="number"
+                  id="tournament-settings-rounds-input"
+                  min="1"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 12px;
+                  "
+                />
+                <p class="muted" style="font-size: 13px; margin-bottom: 12px">
+                  🔒 El administrador del torneo es fijo:
+                  <strong>ipem146centenario@gmail.com</strong>.
+                </p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                  <button class="btn primary" id="tournament-settings-save-btn">Guardar configuración</button>
+                  <button class="btn" id="tournament-settings-cancel-btn">Cancelar</button>
+                </div>
+              </div>
+
+              <div
+                class="card"
+                id="tournament-champion-banner"
+                style="display: none; text-align: center; border: 2px solid gold"
               >
-              <label
-                ><input type="checkbox" name="q34" value="Est" />
-                Estadísticas</label
-              >
+                <h3 style="margin: 0 0 6px">🏆 Torneo finalizado</h3>
+                <p id="tournament-champion-text" style="font-size: 18px; font-weight: 700; margin: 0"></p>
+              </div>
+
+              <div class="card" id="tournament-pairings-card">
+                <h3>Emparejamientos — ronda actual</h3>
+                <div id="tournament-pairings-list"></div>
+              </div>
+
+              <div class="card" id="tournament-standings-card">
+                <h3>Tabla de posiciones</h3>
+                <div id="tournament-standings-list"></div>
+              </div>
             </div>
           </div>
         </section>
 
-        <!-- SECCIÓN 5: FUNCIONALIDADES -->
-        <section class="form-section">
-          <h2>5. FUNCIONALIDADES DEL SISTEMA</h2>
+        <section class="page" id="page-estadisticas">
+          <div class="grid dashboard-grid">
+            <div class="card stat">
+              <div class="icon">🎮</div>
+              <b id="games-total">0</b>
+              <span>Partidas</span>
+            </div>
 
-          <div class="question">
-            <label>35. Funciones necesarias: (Múltiple)</label>
-            <div class="options-grid">
-              <label
-                ><input type="checkbox" name="q35" value="QR" /> Identificación
-                QR</label
-              >
-              <label
-                ><input type="checkbox" name="q35" value="Alertas" /> Alertas
-                demora</label
-              >
-              <label
-                ><input type="checkbox" name="q35" value="Cel" /> Uso desde
-                celular</label
-              >
-              <label
-                ><input type="checkbox" name="q35" value="Firma" /> Firma
-                digital</label
-              >
+            <div class="card stat">
+              <div class="icon">🏆</div>
+              <b id="games-wins">0</b>
+              <span>Victorias</span>
+            </div>
+
+            <div class="card stat">
+              <div class="icon">❌</div>
+              <b id="games-losses">0</b>
+              <span>Derrotas</span>
+            </div>
+
+            <div class="card stat">
+              <div class="icon">🤝</div>
+              <b id="games-draws">0</b>
+              <span>Tablas</span>
             </div>
           </div>
 
-          <div class="question">
-            <label>36. ¿Desde qué dispositivos?</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q36" value="Comp" />
-                Computadora</label
-              >
-              <label
-                ><input type="radio" name="q36" value="Cel" /> Celular</label
-              >
-              <label
-                ><input type="radio" name="q36" value="Todo" /> Todos los
-                anteriores</label
-              >
-            </div>
+          <div class="card" style="margin-top: 20px" id="history-card">
+            <div class="panel-title">📊 Historial</div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Actividad</th>
+                  <th>Resultado</th>
+                  <th>XP</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody id="history-table"></tbody>
+            </table>
           </div>
-          <h2>pc10</h2>
-          <div class="question">
-            <label>37. Facilidad de uso:</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q37" value="Muy Facil" /> Muy
-                fácil</label
-              >
-              <label
-                ><input type="radio" name="q37" value="Intermedio" />
-                Intermedio</label
-              >
-              <label
-                ><input type="radio" name="q37" value="Complejo" />
-                Complejo</label
-              >
+        </section>
+
+        <section class="page" id="page-temas">
+          <div class="card">
+            <div class="panel-title">🎨 Personalización</div>
+            <h2>Elegí tu estilo</h2>
+            <p style="color: var(--muted); margin-bottom: 0">
+              Personalizá la apariencia de la escuela y encontrá el ambiente que
+              más te guste para aprender y jugar.
+            </p>
+
+            <div class="theme-toolbar">
+              <div class="theme-current">
+                Estilo actual:
+                <strong id="current-theme-name">Azul moderno</strong>
+              </div>
+              <button class="btn" id="reset-theme">
+                ↺ Restaurar predeterminado
+              </button>
             </div>
           </div>
 
-          <div class="question">
-            <label>38. Disposición a usarlo:</label>
-            <div class="options">
-              <label
-                ><input type="radio" name="q38" value="Muy Disp" /> Muy
-                dispuesto/a</label
+          <div class="grid theme-grid" style="margin-top: 20px">
+            <div class="card theme-card" data-theme-card="blue">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #132943, #07111f);
+                  --preview-piece: #f2b84b;
+                "
               >
-              <label
-                ><input type="radio" name="q38" value="Disp" />
-                Dispuesto/a</label
+                <span class="theme-swatch" style="background: #f2b84b"></span>
+                <span class="theme-swatch" style="background: #5cc8ff"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🌊 Azul moderno</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn primary theme-btn" data-theme="blue">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-theme-card="wood">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #4a2e1d, #160c08);
+                  --preview-piece: #d9a441;
+                "
               >
-              <label
-                ><input type="radio" name="q38" value="Nada" /> Nada
-                dispuesto/a</label
+                <span class="theme-swatch" style="background: #d9a441"></span>
+                <span class="theme-swatch" style="background: #c98245"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🪵 Madera clásica</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn theme-btn" data-theme="wood">Aplicar</button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-theme-card="green">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #174c35, #06110c);
+                  --preview-piece: #72d572;
+                "
               >
+                <span class="theme-swatch" style="background: #72d572"></span>
+                <span class="theme-swatch" style="background: #55c7a0"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🟢 Verde torneo</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn theme-btn" data-theme="green">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-theme-card="purple">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #38205d, #0d0717);
+                  --preview-piece: #d69cff;
+                "
+              >
+                <span class="theme-swatch" style="background: #d69cff"></span>
+                <span class="theme-swatch" style="background: #8db4ff"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🟣 Violeta</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn theme-btn" data-theme="purple">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-theme-card="red">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #5a1e25, #150606);
+                  --preview-piece: #ff9a76;
+                "
+              >
+                <span class="theme-swatch" style="background: #ff9a76"></span>
+                <span class="theme-swatch" style="background: #ff6b7a"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🔥 Rojo intenso</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn theme-btn" data-theme="red">Aplicar</button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-theme-card="ocean">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #124b63, #041018);
+                  --preview-piece: #5ce1e6;
+                "
+              >
+                <span class="theme-swatch" style="background: #5ce1e6"></span>
+                <span class="theme-swatch" style="background: #65a9ff"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🌊 Océano</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn theme-btn" data-theme="ocean">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-theme-card="midnight">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #17223b, #010207);
+                  --preview-piece: #f5c451;
+                "
+              >
+                <span class="theme-swatch" style="background: #f5c451"></span>
+                <span class="theme-swatch" style="background: #7298ff"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🌌 Medianoche</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn theme-btn" data-theme="midnight">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-theme-card="light">
+              <div
+                class="theme-preview"
+                style="
+                  --preview-bg: linear-gradient(135deg, #ffffff, #dce6f2);
+                  --preview-piece: #367ee8;
+                "
+              >
+                <span class="theme-swatch" style="background: #d88b16"></span>
+                <span class="theme-swatch" style="background: #367ee8"></span>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">☀️ Claro elegante</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn theme-btn" data-theme="light">
+                  Aplicar
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="question">
-            <label>39. ¿Necesaria capacitación?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q39" value="Si" /> Sí</label>
-              <label><input type="radio" name="q39" value="No" /> No</label>
+          <div class="card" style="margin-top: 20px">
+            <div class="panel-title">♟️ Fichas</div>
+            <h2>Elegí el estilo de las fichas</h2>
+            <p style="color: var(--muted); margin-bottom: 0">
+              Cambiá la forma en que se ven las piezas sobre el tablero.
+            </p>
+
+            <div class="theme-toolbar">
+              <div class="theme-current">
+                Estilo de fichas actual:
+                <strong id="current-piece-style-name">Clásico</strong>
+              </div>
+              <button class="btn" id="reset-piece-style">
+                ↺ Restaurar predeterminado
+              </button>
+            </div>
+          </div>
+
+          <div class="grid theme-grid" style="margin-top: 20px">
+            <div class="card theme-card" data-piece-style-card="classic">
+              <div class="piece-style-preview pstyle-classic">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">♔ Clásico</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn primary piece-style-btn" data-piece-style="classic">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="bold">
+              <div class="piece-style-preview pstyle-bold">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">⬛ Sólido</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="bold">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="outline">
+              <div class="piece-style-preview pstyle-outline">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">◇ Contorno</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="outline">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="neon">
+              <div class="piece-style-preview pstyle-neon">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">💡 Neón</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="neon">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="minimal">
+              <div class="piece-style-preview pstyle-minimal">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">⚪ Minimalista</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="minimal">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="gold">
+              <div class="piece-style-preview pstyle-gold">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🏆 Dorado</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="gold">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="glass">
+              <div class="piece-style-preview pstyle-glass">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">💎 Cristal</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="glass">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="retro">
+              <div class="piece-style-preview pstyle-retro">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🕹️ Retro</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="retro">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="wood">
+              <div class="piece-style-preview pstyle-wood">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🪵 Madera</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="wood">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="fire">
+              <div class="piece-style-preview pstyle-fire">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🔥 Fuego</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="fire">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="ice">
+              <div class="piece-style-preview pstyle-ice">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">❄️ Hielo</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="ice">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="pastel">
+              <div class="piece-style-preview pstyle-pastel">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🌸 Pastel</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="pastel">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="rainbow">
+              <div class="piece-style-preview pstyle-rainbow">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">🌈 Arcoíris</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="rainbow">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <div class="card theme-card" data-piece-style-card="longshadow">
+              <div class="piece-style-preview pstyle-longshadow">
+                <div class="piece white-piece" data-piece="K">♔</div>
+                <div class="piece black-piece" data-piece="N">♞</div>
+              </div>
+              <div class="theme-meta">
+                <div>
+                  <h3 style="margin: 0">📐 Sombra larga</h3>
+                  <span class="theme-status">✓ ACTIVO</span>
+                </div>
+                <button class="btn piece-style-btn" data-piece-style="longshadow">
+                  Aplicar
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
-        <!-- SECCIÓN 6: IMPACTO -->
-        <section class="form-section">
-          <h2>6. IMPACTO INSTITUCIONAL</h2>
-          <div class="question">
-            <label>40. ¿Mejoraría la convivencia?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q40" value="Si" /> Sí</label>
-              <label><input type="radio" name="q40" value="No" /> No</label>
+        <section class="page" id="page-configuracion">
+          <div class="card">
+            <div class="panel-title">⚙️ Configuración</div>
+            <div class="settings" style="max-width: 500px">
+              <label for="student-name">
+                Nombre del alumno
+                <input id="student-name" placeholder="Escribí tu nombre" />
+              </label>
+
+              <label for="student-course">
+                Curso
+                <input id="student-course" placeholder="Ejemplo: 3.º Año" />
+              </label>
+
+              <button class="btn primary" id="save-profile">
+                💾 Guardar perfil
+              </button>
             </div>
           </div>
-          <h2>pc11</h2>
-          <!-- ... Las preguntas 41 a 44 siguen el mismo formato de Sí/No/Tal vez ... -->
-          <div class="question">
-            <label>41. ¿Mejoraría la comunicación entre personal?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q41" value="Si" /> Sí</label
-              ><label><input type="radio" name="q41" value="No" /> No</label>
-            </div>
-          </div>
-          <div class="question">
-            <label>42. ¿Mejor toma de decisiones?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q42" value="Si" /> Sí</label
-              ><label><input type="radio" name="q42" value="No" /> No</label>
-            </div>
-          </div>
-          <div class="question">
-            <label>43. ¿Detectaría situaciones problemáticas?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q43" value="Si" /> Sí</label
-              ><label><input type="radio" name="q43" value="No" /> No</label>
-            </div>
-          </div>
-          <div class="question">
-            <label>44. ¿Aumentaría transparencia?</label>
-            <div class="options-row">
-              <label><input type="radio" name="q44" value="Si" /> Sí</label
-              ><label><input type="radio" name="q44" value="No" /> No</label>
-            </div>
+
+          <div class="card" style="margin-top: 20px">
+            <div class="panel-title">💾 Datos y respaldo</div>
+            <button class="btn" id="export-json">📤 Exportar datos</button>
+            <label class="btn" style="display: inline-block; cursor: pointer">
+              📥 Importar datos
+              <input
+                type="file"
+                id="import-json"
+                accept=".json"
+                style="display: none"
+              />
+            </label>
+            <br />
+            <button class="btn danger" id="reset-data" style="margin-top: 15px">
+              🗑️ Borrar progreso
+            </button>
           </div>
         </section>
-      </form>
+      </main>
     </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="alert" id="alert">
+      <div class="alert-box" id="alert-box">
+        <div id="alert-box-text"></div>
+        <button
+          class="btn primary"
+          id="alert-analyze-btn"
+          style="display: none; margin-top: 16px"
+        >
+          🔎 Analizar esta partida
+        </button>
+      </div>
+    </div>
+
+    <div class="promo" id="promo">
+      <div class="promo-box" id="promo-box"></div>
+    </div>
+
+    <div id="analysis-modal" class="alert" style="display: none">
+      <div class="analysis-modal-content">
+        <div class="analysis-header">
+          <h3 id="analysis-title" style="margin: 0">🔎 Análisis de la partida</h3>
+          <button class="btn secondary" id="analysis-close">✖ Cerrar</button>
+        </div>
+        <div style="color: var(--muted); font-size: 0.85rem; margin-top: 4px">
+          <span id="analysis-meta"></span>
+        </div>
+
+        <div class="analysis-progress" id="analysis-progress">
+          <span id="analysis-progress-text">Analizando jugada 0/0…</span>
+          <div class="analysis-progress-bar">
+            <i id="analysis-progress-fill"></i>
+          </div>
+        </div>
+
+        <div id="analysis-body" style="display: none">
+          <div class="analysis-summary" id="analysis-summary"></div>
+
+          <div class="analysis-eval-graph" id="analysis-eval-graph"></div>
+
+          <div class="analysis-layout" style="margin-top: 16px">
+            <div class="analysis-board-col">
+              <div class="analysis-board" id="analysis-board"></div>
+              <div class="analysis-eval-current" id="analysis-eval-current"></div>
+              <div class="analysis-nav">
+                <button class="btn secondary" id="analysis-first">⏮</button>
+                <button class="btn secondary" id="analysis-prev">◀</button>
+                <button class="btn secondary" id="analysis-next">▶</button>
+                <button class="btn secondary" id="analysis-last">⏭</button>
+              </div>
+              <div class="analysis-comment" id="analysis-comment"></div>
+            </div>
+
+            <div class="analysis-move-list" id="analysis-move-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
+    <!-- Firebase (Firestore) — base de datos compartida del torneo -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+
+    <script type="module" src="app.js"></script>
   </body>
 </html>
