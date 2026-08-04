@@ -1808,6 +1808,94 @@
                 resultados en tiempo real. Para inscribirte a un torneo o jugar hace falta iniciar
                 sesión con una cuenta de Gmail. 
               </p>
+
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px">
+                <button class="btn primary" id="tournament-mode-online-btn">🌐 Torneo Online</button>
+                <button class="btn" id="tournament-mode-lan-btn">📶 Red Local (LAN)</button>
+              </div>
+
+              <div id="tournament-lan-box" class="card" style="display: none; margin-top: 14px">
+                <h3>📶 Unirse a una sala en red local</h3>
+                <p class="muted" style="font-size: 13px; margin: 0 0 10px">
+                  Sin internet. Un alumno abre el servidor desde la compu del aula (anfitrión) y el resto se conecta a esa dirección.
+                </p>
+
+                <label style="display: block; margin-bottom: 6px; font-weight: 600">Tu nombre</label>
+                <input
+                  type="text"
+                  id="lan-name-input"
+                  placeholder="Ej: Ana"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 10px;
+                  "
+                />
+
+                <label style="display: block; margin-bottom: 6px; font-weight: 600">Código de sala</label>
+                <input
+                  type="text"
+                  id="lan-room-input"
+                  placeholder="main"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 10px;
+                  "
+                />
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px">
+                  <div style="flex: 1; min-width: 200px">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600">Dirección del anfitrión (para unirse)</label>
+                    <input
+                      type="text"
+                      id="lan-host-input"
+                      placeholder="192.168.1.10:8080"
+                      style="
+                        width: 100%;
+                        padding: 10px 12px;
+                        border-radius: 10px;
+                        border: 1px solid var(--surface2);
+                        background: var(--surface);
+                        color: var(--text);
+                      "
+                    />
+                  </div>
+                  <div style="flex: 1; min-width: 200px">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600">Dirección propia (para ser anfitrión)</label>
+                    <input
+                      type="text"
+                      id="lan-host-address-input"
+                      placeholder="localhost:8080"
+                      value="localhost:8080"
+                      style="
+                        width: 100%;
+                        padding: 10px 12px;
+                        border-radius: 10px;
+                        border: 1px solid var(--surface2);
+                        background: var(--surface);
+                        color: var(--text);
+                      "
+                    />
+                  </div>
+                </div>
+
+                <p class="lesson-gate-note" id="lan-connect-status" style="margin: 0 0 10px"></p>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                  <button class="btn" id="lan-back-btn" type="button">← Volver</button>
+                  <button class="btn primary" id="lan-host-btn" type="button">🖥️ Crear sala (anfitrión)</button>
+                  <button class="btn" id="lan-join-btn" type="button">📲 Unirme a sala</button>
+                </div>
+              </div>
             
 
 
@@ -3304,6 +3392,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 
+    <script src="lan-shim.js"></script>
     <script type="module" src="app.js"></script>
   </body>
 </html>
