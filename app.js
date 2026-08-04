@@ -31,18 +31,6 @@
       // producción; para reactivarla al depurar, poner esto en true.
       const PERF_DEBUG = false;
 
-      // Forward declarations para variables globales usadas en
-      // funciones definidas antes de su inicialización.
-      let state;
-      let matchChatPanelOpen;
-      let gameStarted;
-      let tournamentMatchActive;
-      let opponentMoveHighlight;
-      let explainMode;
-      let lastTournamentState;
-      let currentUser;
-      const TOURNAMENT_ADMIN_EMAIL = "ipem146centenario@gmail.com";
-
       // =========================
       // FEEDBACK TÁCTIL (sin el flash gris de Android/Chrome)
       // =========================
@@ -299,7 +287,7 @@
         avatar: "knight",
       };
 
-      state = loadState();
+      let state = loadState();
       let toastTimer = null;
       // Callback opcional que se ejecuta al cerrar el popup de alerta (#alert),
       // sea por el botón de acción o por tocar afuera del cuadro. Se usa para
@@ -800,13 +788,13 @@
         if (pvpFlipLabel) pvpFlipLabel.style.display = isBot ? "none" : "";
       }
 
-      gameStarted = false;
+      let gameStarted = false;
 
       // -------- Partida de torneo jugada en el tablero grande de "Jugar" --------
       // (declaradas acá arriba, junto con el resto del estado, porque
       // render() ya las usa y se llama mucho antes de llegar a donde
       // estaban originalmente declaradas más abajo en el archivo)
-      tournamentMatchActive = false;
+      let tournamentMatchActive = false;
       let tournamentMatchCtx = null; // {round, board, whiteName, blackName, whiteEmail, blackEmail}
       let tournamentMatchBusy = false;
       let tournamentResultShown = false; // evita mostrar el popup de fin de partida más de una vez
@@ -822,7 +810,7 @@
       // gamesCollectionRef más arriba).
       let matchChatUnsub = null;
       let matchChatMessages = [];
-      matchChatPanelOpen = false;
+      let matchChatPanelOpen = false;
       let matchChatUnreadCount = 0;
       // true mientras no llegó todavía el primer snapshot de la mesa actual:
       // sirve para no sonar ni mostrar popup por todo el historial que ya
@@ -848,6 +836,8 @@
       let callCandidatesUnsub = [];
       let callState = "idle"; // idle | outgoing | incoming | active
       let callIsMuted = false;
+      let callRound = null;
+      let callBoard = null;
       let callPendingOffer = null; // oferta SDP del rival mientras suena una llamada entrante, hasta que se acepta o rechaza
       let tournamentTimeoutClaimBusy = false; // evita reclamar la bandera caída más de una vez a la vez
 
@@ -1009,7 +999,7 @@
       // Declarada acá arriba, antes de render(), porque render() se llama
       // muy temprano al cargar la página (antes de que existiera esta
       // variable si se declaraba más abajo, lo que rompía toda la carga).
-      opponentMoveHighlight = null; // { from, to }
+      let opponentMoveHighlight = null; // { from, to }
       let opponentMoveHighlightTimer = null;
 
       function clearOpponentMoveHighlight() {
@@ -3203,7 +3193,7 @@
       // EXPLICACIONES (panel "Modo educativo"): explica cada jugada apenas se
       // juega, actualizando en vivo la tarjeta "Ayuda educativa".
       // =========================
-      explainMode = localStorage.getItem("chessExplainMode") !== "off";
+      let explainMode = localStorage.getItem("chessExplainMode") !== "off";
       const explainToggleEl = document.getElementById("toggle-explain");
       const explainToggleElCfg = document.getElementById("toggle-explain-cfg");
       const EDU_DEFAULT_TITLE = "Pensá antes de mover";
@@ -4743,7 +4733,7 @@
         if (!clean) throw new Error("Escribí un mensaje para anunciar");
         await announcementsCollectionRef.add({
           text: clean,
-          ts: srvTimestamp(),
+          ts: firebase.firestore.FieldValue.serverTimestamp(),
           byEmail: currentUser ? currentUser.email : null,
         });
       }
@@ -4766,7 +4756,7 @@
           tx.update(fbRoomRef, {
             meta: {
               ...data.meta,
-              roundCountdownSetAt: srvTimestamp(),
+              roundCountdownSetAt: firebase.firestore.FieldValue.serverTimestamp(),
               roundCountdownMs: Math.round(m * 60000),
             },
           });
@@ -5260,6 +5250,8 @@
       // cuelga/cancela/rechaza del otro lado.
       function subscribeCallSignaling(round, board) {
         unsubscribeCallSignaling();
+        callRound = round;
+        callBoard = board;
         callDocUnsub = callDocRef_(round, board).onSnapshot(
           (docSnap) => {
             const data = docSnap.exists ? docSnap.data() : null;
@@ -5299,6 +5291,8 @@
           callDocUnsub = null;
         }
         teardownCallLocal_();
+        callRound = null;
+        callBoard = null;
       }
 
       // Últimas partidas de la ronda actual (alimentado por
@@ -5308,7 +5302,7 @@
       let subscribedRound_ = undefined;
       let tournamentUnsub = null;
       let tournamentBusy = false;
-      lastTournamentState = null;
+      let lastTournamentState = null;
       // Último meta.status conocido (antes de procesar el snapshot actual).
       // Sirve para detectar la TRANSICIÓN a "finished" (se finalizó el
       // torneo) o "setup" (se reinició), y en ese momento sacar a cualquier
@@ -5319,87 +5313,7 @@
       // con el que se encontró al entrar).
       let lastKnownTournamentStatus_ = null;
       let tournamentEditingPlayerId = null; // id del jugador cuya fila está en modo edición en el panel de árbitro
-      currentUser = null; // { email, displayName } una vez logueado con Google (o "logueado" localmente en modo LAN)
-
-      // "online" (Firebase/Internet, comportamiento de siempre) o "lan"
-      // (servidor local vía lan-server.js + lan-shim.js, sin internet).
-      // Ver connectLan() más abajo.
-      let connectionMode = "online";
-      let lanClient_ = null; // instancia de LanClient (lan-shim.js) mientras estemos en modo LAN
-
-      // Firestore real (modo online) resuelve FieldValue.serverTimestamp()
-      // contra el reloj del servidor de Firebase; el shim LAN hace lo mismo
-      // contra el reloj de la compu que corre lan-server.js. Este helper
-      // evita tener que ramificar cada lugar que lo usa.
-      function srvTimestamp() {
-        return connectionMode === "lan" ? window.LAN.serverTimestamp() : firebase.firestore.FieldValue.serverTimestamp();
-      }
-
-      // Genera un "email" sintético a partir del nombre para identificar a
-      // cada jugador en modo LAN (todo el resto del código de torneo ya
-      // identifica jugadores por currentUser.email, así que no hace falta
-      // tocar esa lógica: solo hay que darle un email con el mismo formato).
-      function slugifyForLanEmail_(name) {
-        const base = (name || "jugador")
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]+/g, ".")
-          .replace(/^\.+|\.+$/g, "");
-        return (base || "jugador") + "@lan.local";
-      }
-
-      // Conecta el torneo al servidor LAN (lan-server.js) en vez de a
-      // Firebase. hostAddr es "ip:puerto" (por ej. "192.168.0.15:8080" o
-      // "localhost:8080" si esta misma compu es la que corre el servidor).
-      // isHost=true es quien creó/corre el servidor: se le asigna el email
-      // de administrador del torneo (TOURNAMENT_ADMIN_EMAIL) para que el
-      // resto del código (que ya chequea ese email en todos lados) lo trate
-      // como admin sin tener que duplicar esa lógica para el modo LAN.
-      async function connectLan(hostAddr, room, displayName, isHost) {
-        const statusEl = document.getElementById("lan-connect-status");
-        if (statusEl) {
-          statusEl.textContent = "Conectando…";
-          statusEl.classList.remove("correct");
-        }
-        try {
-          if (!displayName) throw new Error("Ingresá tu nombre primero");
-          if (!window.LAN) throw new Error("No se cargó lan-shim.js (revisá el <script> en index.html)");
-          const addr = (hostAddr || "").trim().replace(/^wss?:\/\//, "").replace(/\/+$/, "");
-          if (!addr) throw new Error("Ingresá la dirección del anfitrión (ej: 192.168.0.15:8080)");
-          if (lanClient_) {
-            lanClient_.close();
-            lanClient_ = null;
-          }
-          const roomName = room || "main";
-          const { client, db } = await window.LAN.connect("ws://" + addr, roomName, displayName);
-          lanClient_ = client;
-          connectionMode = "lan";
-          fbDb = db;
-          fbRoomRef = fbDb.collection("torneos").doc(roomName);
-          gamesCollectionRef = fbRoomRef.collection("games");
-          announcementsCollectionRef = fbRoomRef.collection("announcements");
-          subscribedRound_ = undefined;
-          lastRoundGames = [];
-          currentUser = {
-            email: isHost ? TOURNAMENT_ADMIN_EMAIL : slugifyForLanEmail_(displayName),
-            displayName: displayName,
-          };
-          setTournamentRoom(roomName);
-          document.getElementById("tournament-auth-box").style.display = "";
-          const lanBox = document.getElementById("tournament-lan-box");
-          if (lanBox) lanBox.style.display = "none";
-          const modeSelect = document.getElementById("tournament-mode-select");
-          if (modeSelect) modeSelect.style.display = "none";
-          updateAuthUI();
-          subscribeTournament();
-          subscribeAnnouncements();
-          if (statusEl) statusEl.textContent = "";
-          toast(isHost ? "🖥️ Conectado como anfitrión (red local)" : "📲 Conectado a la sala LAN");
-        } catch (err) {
-          if (statusEl) statusEl.textContent = "❌ " + err.message;
-        }
-      }
+      let currentUser = null; // { email, displayName } una vez logueado con Google
 
       // Única cuenta habilitada para administrar el torneo. Se ignora
       // cualquier lista de administradores guardada en Firestore: sin
@@ -5417,6 +5331,7 @@
       // permisivas ("allow write: if true"), cualquier visitante puede
       // borrar o alterar el torneo aunque esta pantalla no le muestre los
       // botones para hacerlo.
+      const TOURNAMENT_ADMIN_EMAIL = "ipem146centenario@gmail.com";
       let authListenerAttached = false;
 
       // Modo árbitro: una cuenta aparte del admin del torneo, exclusiva para
@@ -5545,28 +5460,9 @@
         subscribedRound_ = undefined;
         lastRoundGames = [];
         document.getElementById("tournament-auth-box").style.display = "";
-        // Igual que en connectLan(): una vez que efectivamente estamos
-        // conectados (a Firebase, en este caso), hay que ocultar la
-        // pantalla "¿Cómo querés jugar?" — si no, quedaba visible para
-        // siempre encima de la de login (bug: nunca se ocultaba en modo
-        // online, ni al cargar la página ni al tocar "Torneo Online").
-        const modeSelectEl_ = document.getElementById("tournament-mode-select");
-        if (modeSelectEl_) modeSelectEl_.style.display = "none";
-        const lanBoxEl_ = document.getElementById("tournament-lan-box");
-        if (lanBoxEl_) lanBoxEl_.style.display = "none";
         if (!authListenerAttached) {
           authListenerAttached = true;
           firebase.auth().onAuthStateChanged((user) => {
-            // Si estamos conectados en modo LAN, currentUser lo maneja
-            // connectLan()/disconnectLan_(), no este listener: la
-            // resolución de la sesión de Google es asíncrona y, sin este
-            // chequeo, podía llegar DESPUÉS de conectarse a la sala LAN y
-            // pisar el currentUser recién asignado con el de Firebase
-            // (típicamente null), ocultando de golpe toda la pantalla del
-            // torneo (botón "Inscribirme", panel de administrador,
-            // "Generar próxima ronda", etc.) tanto para jugadores como
-            // para el anfitrión.
-            if (connectionMode === "lan") return;
             currentUser = user ? { email: (user.email || "").toLowerCase(), displayName: user.displayName || user.email } : null;
             updateAuthUI();
             renderTournamentState(lastTournamentState);
@@ -5581,15 +5477,12 @@
         const signinBtn = document.getElementById("tournament-google-signin-btn");
         const signoutBtn = document.getElementById("tournament-signout-btn");
         if (currentUser) {
-          statusEl.textContent =
-            connectionMode === "lan"
-              ? `Conectado como ${currentUser.displayName} — 📶 red local (sin internet)`
-              : `Conectado como ${currentUser.displayName} (${currentUser.email})`;
+          statusEl.textContent = `Conectado como ${currentUser.displayName} (${currentUser.email})`;
           signinBtn.style.display = "none";
           signoutBtn.style.display = "";
         } else {
           statusEl.textContent = "Iniciá sesión con tu cuenta de Gmail para jugar o administrar el torneo.";
-          signinBtn.style.display = connectionMode === "lan" ? "none" : "";
+          signinBtn.style.display = "";
           signoutBtn.style.display = "none";
         }
         updateModeBadge();
@@ -9505,29 +9398,8 @@
         }
       });
 
-      // Desconecta la sala LAN (si había una) y vuelve la pantalla de
-      // Torneo al estado inicial, para que puedan elegir modo de nuevo.
-      function disconnectLan_() {
-        if (lanClient_) {
-          lanClient_.close();
-          lanClient_ = null;
-        }
-        connectionMode = "online";
-        currentUser = null;
-        const lanBox = document.getElementById("tournament-lan-box");
-        if (lanBox) lanBox.style.display = "none";
-        const modeSelect = document.getElementById("tournament-mode-select");
-        if (modeSelect) modeSelect.style.display = "";
-        updateAuthUI();
-      }
-
       document.getElementById("tournament-signout-btn").addEventListener("click", async () => {
         try {
-          if (connectionMode === "lan") {
-            disconnectLan_();
-            toast("🚪 Saliste de la sala LAN");
-            return;
-          }
           await firebase.auth().signOut();
         } catch (err) {
           showError(err);
@@ -9538,86 +9410,11 @@
       if (configSignoutBtn) {
         configSignoutBtn.addEventListener("click", async () => {
           try {
-            if (connectionMode === "lan") {
-              disconnectLan_();
-              toast("🚪 Saliste de la sala LAN");
-              return;
-            }
             await firebase.auth().signOut();
             toast("🚪 Sesión cerrada");
           } catch (err) {
             toast("❌ No se pudo cerrar sesión: " + err.message);
           }
-        });
-      }
-
-      // --- Selección de modo (Online / LAN) y conexión a una sala LAN ---
-      const modeOnlineBtn = document.getElementById("tournament-mode-online-btn");
-      const modeLanBtn = document.getElementById("tournament-mode-lan-btn");
-      if (modeOnlineBtn) {
-        modeOnlineBtn.addEventListener("click", () => {
-          const lanBox = document.getElementById("tournament-lan-box");
-          if (lanBox) lanBox.style.display = "none";
-          // Antes esto solo reconectaba si connectionMode === "lan" en ese
-          // instante. Pero disconnectLan_() (usado por "Cerrar sesión" en
-          // modo LAN) ya deja connectionMode en "online" antes de volver a
-          // mostrar esta pantalla, así que ese chequeo quedaba en false y
-          // tocar "Torneo Online" no hacía nada: fbDb/fbRoomRef seguían
-          // apuntando al cliente LAN ya cerrado. Se saca el chequeo y se
-          // reconecta siempre (connectFirebase() es seguro de llamar de
-          // nuevo: no reinicializa la app de Firebase si ya existe).
-          if (lanClient_) {
-            lanClient_.close();
-            lanClient_ = null;
-          }
-          currentUser = null;
-          connectionMode = "online";
-          connectFirebase(getFirebaseConfig(), getTournamentRoom());
-        });
-      }
-      if (modeLanBtn) {
-        modeLanBtn.addEventListener("click", () => {
-          const lanBox = document.getElementById("tournament-lan-box");
-          if (lanBox) lanBox.style.display = "";
-          const nameInput = document.getElementById("lan-name-input");
-          if (nameInput) nameInput.focus();
-        });
-      }
-      const lanBackBtn = document.getElementById("lan-back-btn");
-      if (lanBackBtn) {
-        lanBackBtn.addEventListener("click", () => {
-          const lanBox = document.getElementById("tournament-lan-box");
-          if (lanBox) lanBox.style.display = "none";
-        });
-      }
-      const lanHostBtn = document.getElementById("lan-host-btn");
-      if (lanHostBtn) {
-        lanHostBtn.addEventListener("click", () => {
-          const name = (document.getElementById("lan-name-input").value || "").trim();
-          const room = (document.getElementById("lan-room-input").value || "").trim() || "main";
-          const addr = (document.getElementById("lan-host-address-input").value || "").trim() || "localhost:8080";
-          if (!name) {
-            document.getElementById("lan-connect-status").textContent = "❌ Ingresá tu nombre";
-            return;
-          }
-          connectLan(addr, room, name, true);
-        });
-      }
-      const lanJoinBtn = document.getElementById("lan-join-btn");
-      if (lanJoinBtn) {
-        lanJoinBtn.addEventListener("click", () => {
-          const name = (document.getElementById("lan-name-input").value || "").trim();
-          const room = (document.getElementById("lan-room-input").value || "").trim() || "main";
-          const addr = (document.getElementById("lan-host-input").value || "").trim();
-          if (!name) {
-            document.getElementById("lan-connect-status").textContent = "❌ Ingresá tu nombre";
-            return;
-          }
-          if (!addr) {
-            document.getElementById("lan-connect-status").textContent = "❌ Ingresá la dirección que te compartió el anfitrión";
-            return;
-          }
-          connectLan(addr, room, name, false);
         });
       }
 
