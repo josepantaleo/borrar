@@ -6879,6 +6879,10 @@
           }
           await gameDocRef.update(patch);
           const writtenGame = { ...cachedGame, ...patch };
+          // Reemplazar el placeholder de serverTimestamp por un timestamp
+          // local para que el cronómetro del cliente pueda calcular elapsed
+          // correctamente mientras espera el snapshot de Firestore.
+          if (isRealMove) writtenGame.turnStartAt = effectiveMoveAt;
           if (!gameOverResult) {
             return { gameRow: writtenGame };
           }
@@ -6952,6 +6956,10 @@
           }
           tx.update(gameDocRef, g);
           writtenGame = g;
+          // Reemplazar el placeholder de serverTimestamp por un timestamp
+          // local para que el cronómetro del cliente pueda calcular elapsed
+          // correctamente mientras espera el snapshot de Firestore.
+          if (g.clock && fen !== g.fen) writtenGame.turnStartAt = effectiveMoveAt;
         });
         // ANTES: acá se hacían dos lecturas de red MÁS, en serie, después de
         // que la transacción ya había confirmado la jugada: getTournamentStateOnce()

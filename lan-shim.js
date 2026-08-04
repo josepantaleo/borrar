@@ -35,6 +35,31 @@
     return obj;
   }
 
+  // Los objetos Timestamp de Firestore se serializan por WebSocket como
+  // { seconds, nanoseconds } perdiendo los métodos (toMillis, isEqual).
+  // Esta función reconstruye esos objetos al recibirlos del servidor.
+  function reviveTimestamps(obj) {
+    if (obj == null) return obj;
+    if (typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.map(reviveTimestamps);
+    if (
+      typeof obj.seconds === "number" &&
+      typeof obj.nanoseconds === "number" &&
+      typeof obj.toMillis !== "function"
+    ) {
+      const ms = obj.seconds * 1000 + Math.round(obj.nanoseconds / 1e6);
+      return {
+        toMillis: () => ms,
+        seconds: obj.seconds,
+        nanoseconds: obj.nanoseconds,
+        isEqual: (other) => other && typeof other.toMillis === "function" && other.toMillis() === ms,
+      };
+    }
+    const out = {};
+    for (const k of Object.keys(obj)) out[k] = reviveTimestamps(obj[k]);
+    return out;
+  }
+
   let ws;
   let reqId = 0;
   const pending = new Map(); // id → { resolve, reject }
@@ -91,7 +116,7 @@
           const key = `${msg.colPath}/${msg.docId}`;
           const cbs = docSubs.get(key);
           if (cbs) {
-            const snap = new LanDocumentSnapshot(msg.docId, msg.data, msg.exists, null);
+            const snap = new LanDocumentSnapshot(msg.docId, reviveTimestamps(msg.data), msg.exists, null);
             cbs.forEach((cb) => {
               try { cb(snap); } catch (e) {}
             });
@@ -101,7 +126,7 @@
             if (sub.colPath === msg.colPath) {
               // Re-evaluamos la query y notificamos
               send({ op: "query", colPath: sub.colPath, conditions: sub.conditions }).then((res) => {
-                const snap = buildQuerySnapshot(res.docs, sub.colPath);
+                const snap = buildQuerySnapshot(reviveTimestamps(res.docs), sub.colPath);
                 try { sub.callback(snap); } catch (e) {}
               });
             }
@@ -114,7 +139,7 @@
           querySubs.forEach((sub) => {
             if (sub.colPath === msg.colPath) {
               send({ op: "query", colPath: sub.colPath, conditions: sub.conditions }).then((res) => {
-                const snap = buildQuerySnapshot(res.docs, sub.colPath);
+                const snap = buildQuerySnapshot(reviveTimestamps(res.docs), sub.colPath);
                 try { sub.callback(snap); } catch (e) {}
               });
             }
@@ -203,7 +228,7 @@
     }
     get() {
       return send({ op: "get", colPath: this._colPath, docId: this._docId }).then((res) => {
-        return new LanDocumentSnapshot(res.docId, res.data, res.exists, this);
+        return new LanDocumentSnapshot(res.docId, reviveTimestamps(res.data), res.exists, this);
       });
     }
     onSnapshot(callback) {
@@ -212,7 +237,7 @@
       docSubs.get(key).add(callback);
       // Pedimos suscripción al servidor y notificamos estado inicial
       send({ op: "subscribeDoc", colPath: this._colPath, docId: this._docId, subId: key }).then((res) => {
-        const snap = new LanDocumentSnapshot(res.docId, res.data, res.exists, this);
+        const snap = new LanDocumentSnapshot(res.docId, reviveTimestamps(res.data), res.exists, this);
         try { callback(snap); } catch (e) {}
       });
       return () => {
@@ -263,14 +288,14 @@
     }
     get() {
       return send({ op: "query", colPath: this._colPath, conditions: this._conditions, orderBys: this._orderBys, limit: this._limit, limitToLast: this._limitToLast }).then((res) => {
-        return buildQuerySnapshot(res.docs, this._colPath);
+        return buildQuerySnapshot(reviveTimestamps(res.docs), this._colPath);
       });
     }
     onSnapshot(callback) {
       const subId = `q_${++subIdCounter}`;
       querySubs.set(subId, { colPath: this._colPath, conditions: this._conditions, orderBys: this._orderBys, limit: this._limit, limitToLast: this._limitToLast, callback });
       send({ op: "subscribeQuery", colPath: this._colPath, conditions: this._conditions, orderBys: this._orderBys, limit: this._limit, limitToLast: this._limitToLast, subId }).then((res) => {
-        const snap = buildQuerySnapshot(res.docs, this._colPath);
+        const snap = buildQuerySnapshot(reviveTimestamps(res.docs), this._colPath);
         try { callback(snap); } catch (e) {}
       });
       return () => {
@@ -343,7 +368,7 @@
     }
     async get(docRef) {
       const res = await send({ op: "get", colPath: docRef._colPath, docId: docRef._docId });
-      const snap = new LanDocumentSnapshot(res.docId, res.data, res.exists, docRef);
+      const snap = new LanDocumentSnapshot(res.docId, reviveTimestamps(res.data), res.exists, docRef);
       this._reads.push({ colPath: docRef._colPath, docId: docRef._docId, version: res.version || 0 });
       return snap;
     }
