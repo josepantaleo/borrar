@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Escuela de Ajedrez IPEM 146</title>
+    <title>Escuela de Ajedrez</title>
 
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -14,13 +14,17 @@
         <div class="brand">
           <div class="logo">♞</div>
           <div>
-            <h1>Escuela de Ajedrez</h1>
-            <p>IPEM N.º 146</p>
-            <br />
-            <h4>Profesores</h4>
-            <span><strong>Ajedrez:</strong> Gerardo Garro</span>
-            <br />
-            <span><strong>Web:</strong> José Pantaleo</span>
+            <h1>Escuela de Ajedrez <br> IPEM Nº 146 "Centenario" </h1>
+            
+            
+            <h5>Profesor Ajedrez: Gerardo Garro</h5>
+            <span><strong></strong> </span>
+           
+            <h5>Profesor Web: José Pantaleo</h5>
+            <span><strong></strong> </span>
+            <h5>Alumnos Informática 2026</h5>
+            <span><strong></strong> </span>
+            
           </div>
         </div>
 
@@ -30,8 +34,8 @@
           <button data-page="aprender">📚 Aprender</button>
           <button data-page="ejercicios">🧩 Ejercicios</button>
           <button data-page="torneo">🏆 Torneo</button>
+          <button data-page="pantalla-publica">📺 Pantalla pública</button>
           <button data-page="estadisticas">📊 Estadísticas</button>
-          <button data-page="temas">🎨 Temas</button>
           <button data-page="configuracion">⚙️ Configuración</button>
         </nav>
 
@@ -48,7 +52,7 @@
           <div>
             <h2 id="page-title">
               ¡Bienvenido a la Escuela de Ajedrez! 👋 <br />
-              IPEM N.º 146 "Centenario" Villa Dolores Cba
+              
             </h2>
             <p id="page-subtitle">
               Aprendé, jugá y mejorá tu nivel partida a partida.
@@ -322,17 +326,107 @@
                     <button class="btn" id="tournament-match-draw-btn">🤝 Ofrecer/aceptar tablas</button>
                     <button class="btn danger" id="tournament-match-resign-btn">🏳️ Abandonar</button>
                   </div>
+
+                  <div id="tournament-match-chat" style="display: none; margin-top: 14px">
+                    <button class="btn" id="tournament-match-chat-toggle-btn" type="button">
+                      💬 Chat <span id="tournament-match-chat-unread" class="chat-unread-badge" style="display: none">0</span>
+                    </button>
+                    <div id="tournament-match-chat-panel" class="chat-panel" style="display: none">
+                      <div class="chat-panel-header">
+                        <span class="chat-panel-title">Chat de la mesa</span>
+                        <div class="chat-panel-actions">
+                          <button
+                            class="chat-mute-btn"
+                            id="tournament-match-chat-mute-btn"
+                            type="button"
+                            title="Silenciar notificaciones de este chat"
+                          >
+                            🔔
+                          </button>
+                          <button
+                            class="chat-clear-btn"
+                            id="tournament-match-chat-clear-btn"
+                            type="button"
+                            title="Vaciar el chat de esta mesa"
+                          >
+                            🗑️ Vaciar
+                          </button>
+                        </div>
+                      </div>
+                      <div id="tournament-match-chat-messages" class="chat-messages"></div>
+                      <p class="muted" id="tournament-match-chat-note" style="margin: 6px 0 0; font-size: 0.85em"></p>
+                      <div class="chat-input-row">
+                        <input
+                          type="text"
+                          id="tournament-match-chat-input"
+                          maxlength="300"
+                          placeholder="Escribile a tu rival…"
+                          autocomplete="off"
+                        />
+                        <span class="chat-input-counter" id="tournament-match-chat-counter"></span>
+                        <button class="btn primary" id="tournament-match-chat-send-btn" type="button" disabled>Enviar</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="tournament-match-call" style="display: none; margin-top: 14px">
+                    <div id="tournament-match-call-idle">
+                      <button class="btn" id="tournament-match-call-btn" type="button">🎙️ Llamar por audio</button>
+                    </div>
+                    <div
+                      id="tournament-match-call-incoming"
+                      style="display: none; align-items: center; gap: 10px; flex-wrap: wrap"
+                    >
+                      <span>📞 Tu rival te está llamando por audio…</span>
+                      <button class="btn primary" id="tournament-match-call-accept-btn" type="button">Aceptar</button>
+                      <button class="btn danger" id="tournament-match-call-decline-btn" type="button">Rechazar</button>
+                    </div>
+                    <div
+                      id="tournament-match-call-outgoing"
+                      style="display: none; align-items: center; gap: 10px; flex-wrap: wrap"
+                    >
+                      <span>📞 Llamando a tu rival…</span>
+                      <button class="btn danger" id="tournament-match-call-cancel-btn" type="button">Cancelar</button>
+                    </div>
+                    <div
+                      id="tournament-match-call-active"
+                      style="display: none; align-items: center; gap: 10px; flex-wrap: wrap"
+                    >
+                      <span id="tournament-match-call-status">🔴 En llamada de audio</span>
+                      <button class="btn" id="tournament-match-call-mute-btn" type="button">🔇 Silenciar</button>
+                      <button class="btn danger" id="tournament-match-call-hangup-btn" type="button">📴 Cortar</button>
+                    </div>
+                    <p class="muted" id="tournament-match-call-note" style="margin: 6px 0 0; font-size: 0.85em"></p>
+                    <audio id="tournament-match-call-remote-audio" autoplay></audio>
+                  </div>
                 </div>
 
                 <div class="clock">
-                  <div id="clock-w">05:00</div>
-                  <div id="clock-b">05:00</div>
+                  <div id="clock-w">
+                    <span class="clock-player-name" id="clock-w-name"></span>
+                    <span class="clock-time">05:00</span>
+                  </div>
+                  <div id="clock-b">
+                    <span class="clock-player-name" id="clock-b-name"></span>
+                    <span class="clock-time">05:00</span>
+                  </div>
                 </div>
 
                 <div class="status" id="status">Turno de las Blancas</div>
 
                 <div class="board-frame">
                   <div class="board" id="board"></div>
+                </div>
+
+                <div id="captured-floating">
+                  <div class="captured-floating-row">
+                    <span class="captured-floating-label">Blancas</span>
+                    <span id="captured-w-float"></span>
+                  </div>
+                  <div class="captured-floating-row">
+                    <span class="captured-floating-label">Negras</span>
+                    <span id="captured-b-float"></span>
+                  </div>
                 </div>
 
                 <div class="controls controls-panel">
@@ -1708,18 +1802,24 @@
             <div class="card">
               <h2>🏆 Torneo</h2>
               <p class="muted">
-                Sistema suizo con base de datos compartida (Firebase / Firestore):
+                Sistema suizo con base de datos compartida en tiempo real. Esto significa que:
                 cada jugador puede abrir esta misma página desde su propio
                 celular o compu y va a ver los mismos emparejamientos y
-                resultados en tiempo real. Para jugar hace falta iniciar
-                sesión con una cuenta de Gmail. Solo la cuenta
-                <strong>ipem146centenario@gmail.com</strong> puede
-                administrar el torneo (crear, generar rondas, configurar,
-                finalizar o reiniciar); el resto de las cuentas juega o
-                mira en modo espectador.
+                resultados en tiempo real. Para inscribirte a un torneo o jugar hace falta iniciar
+                sesión con una cuenta de Gmail. 
               </p>
+            
 
-              <div id="tournament-connect-box">
+
+
+              <!-- Esta caja queda oculta a propósito: la configuración de
+                   Firebase de la escuela ya está fija en el código
+                   (DEFAULT_FIREBASE_CONFIG en app.js) y la conexión se hace
+                   sola al entrar a esta página, así que no hace falta
+                   mostrarle estos datos a los alumnos. Se deja el bloque en
+                   el HTML (oculto) por si en algún momento hiciera falta
+                   reconectar a otro proyecto de Firebase manualmente. -->
+              <div id="tournament-connect-box" style="display: none">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600"
                   >Configuración de Firebase (pegar el objeto "firebaseConfig" de tu proyecto)</label
                 >
@@ -1829,6 +1929,10 @@
                 El email tiene que ser la cuenta de Gmail con la que cada
                 jugador va a iniciar sesión — así la app sabe automáticamente
                 con quién juega cada uno, sin tener que elegir color a mano.
+                Podés dejar esta lista vacía y crear el torneo sin jugadores:
+                cada uno va a poder inscribirse solo, iniciando sesión con
+                Google, desde la pantalla del torneo. Vos generás la primera
+                ronda cuando ya se haya anotado suficiente gente.
               </p>
               <label style="display: block; margin: 14px 0 6px; font-weight: 600"
                 >Cantidad de rondas (opcional)</label
@@ -1852,12 +1956,246 @@
                 apenas se carga el resultado de la última partida de esa
                 ronda.
               </p>
+
+              <label for="tournament-time-mode" style="display: block; margin: 14px 0 6px; font-weight: 600"
+                >Tiempo por jugador</label
+              >
+              <select
+                id="tournament-time-mode"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                "
+              >
+                <option value="none">Sin reloj</option>
+                <option value="1">1 minuto</option>
+                <option value="3">3 minutos</option>
+                <option value="5" selected>5 minutos</option>
+                <option value="10">10 minutos</option>
+                <option value="15">15 minutos</option>
+                <option value="30">30 minutos</option>
+                <option value="custom">Personalizado</option>
+              </select>
+
+              <label
+                for="tournament-custom-minutes"
+                id="tournament-custom-time-label"
+                style="display: none; margin: 10px 0 6px; font-weight: 600"
+                >Minutos personalizados</label
+              >
+              <input
+                type="number"
+                id="tournament-custom-minutes"
+                min="1"
+                max="180"
+                value="5"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                "
+              />
+
+              <label for="tournament-increment" style="display: block; margin: 14px 0 6px; font-weight: 600"
+                >Incremento por jugada</label
+              >
+              <select
+                id="tournament-increment"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                "
+              >
+                <option value="0" selected>0 segundos</option>
+                <option value="2">2 segundos</option>
+                <option value="5">5 segundos</option>
+                <option value="10">10 segundos</option>
+                <option value="30">30 segundos</option>
+                <option value="custom">Personalizado</option>
+              </select>
+
+              <label
+                for="tournament-custom-increment"
+                id="tournament-custom-increment-label"
+                style="display: none; margin: 10px 0 6px; font-weight: 600"
+                >Incremento personalizado (segundos)</label
+              >
+              <input
+                type="number"
+                id="tournament-custom-increment"
+                min="0"
+                max="60"
+                value="0"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                "
+              />
+              <p class="muted" style="font-size: 13px; margin: 6px 0 0">
+                Este reloj se usa en todas las partidas del torneo. "Sin
+                reloj" deja las partidas sin límite de tiempo.
+              </p>
+
+              <label for="tournament-round-mode" style="display: block; margin: 14px 0 6px; font-weight: 600"
+                >Avance de ronda</label
+              >
+              <select
+                id="tournament-round-mode"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                "
+              >
+                <option value="manual" selected>Manual (requiere aprobación del administrador)</option>
+                <option value="auto">Automático (cuenta regresiva de 30 segundos)</option>
+              </select>
+              <p class="muted" style="font-size: 13px; margin: 6px 0 0">
+                Cuando terminan todas las partidas de una ronda, el torneo
+                queda "Pendiente de aprobación". En modo manual hay que
+                tocar "Aprobar ronda"; en modo automático arranca una cuenta
+                regresiva de 30s que se puede cancelar antes de que termine.
+              </p>
+
+              <label for="tournament-wo-grace-input" style="display: block; margin: 14px 0 6px; font-weight: 600"
+                >Tiempo reglamentario de espera (minutos)</label
+              >
+              <input
+                type="number"
+                id="tournament-wo-grace-input"
+                min="0"
+                step="1"
+                placeholder="Dejalo vacío o en 0 para desactivar"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  border-radius: 10px;
+                  border: 1px solid var(--surface2);
+                  background: var(--surface);
+                  color: var(--text);
+                "
+              />
+              <p class="muted" style="font-size: 13px; margin: 6px 0 0">
+                Si un jugador no entra a su partida dentro de este tiempo desde que arrancó la ronda (y el rival sí entró), se le
+                declara WO automáticamente. Dejalo vacío o en 0 para no usar esta regla: seguís pudiendo declarar WO a mano en
+                cualquier momento.
+              </p>
+
               <button class="btn primary" id="tournament-create-btn" style="margin-top: 14px">
                 Crear torneo y sortear ronda 1
               </button>
             </div>
 
             <div id="tournament-active-box" style="display: none">
+              <div id="tournament-announcement-banner" class="card" style="display: none; border-left: 4px solid #f5a524">
+                <p style="margin: 0; font-weight: 600">
+                  📢 <span id="tournament-announcement-text"></span>
+                </p>
+              </div>
+
+              <div id="tournament-round-countdown-banner" class="card round-countdown-banner" style="display: none">
+                <p style="margin: 0; font-weight: 600">
+                  ⏳ <span id="tournament-round-countdown-label"></span>
+                  <span id="tournament-round-countdown-time" class="round-countdown-time"></span>
+                </p>
+              </div>
+
+              <button
+                class="btn"
+                id="tournament-announcement-history-toggle"
+                type="button"
+                style="display: none; margin-bottom: 12px"
+              >
+                📋 Ver anuncios
+              </button>
+              <div
+                id="tournament-announcement-history-list"
+                class="card"
+                style="display: none"
+              ></div>
+
+              <div id="tournament-announcement-composer" class="card" style="display: none">
+                <h3 style="margin: 0 0 10px">📢 Anuncio del torneo</h3>
+                <p class="muted" style="font-size: 12px; margin: 0 0 10px">
+                  Mensaje visible para todos los conectados (jugadores, espectadores), sin necesidad de que tengan una mesa
+                  abierta. Ej: "La ronda 3 arranca en 10 minutos".
+                </p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                  <input
+                    type="text"
+                    id="tournament-announcement-input"
+                    placeholder="Escribí el anuncio…"
+                    maxlength="200"
+                    style="
+                      flex: 1;
+                      min-width: 200px;
+                      padding: 8px 10px;
+                      border-radius: 8px;
+                      border: 1px solid var(--surface2);
+                      background: var(--surface);
+                      color: var(--text);
+                    "
+                  />
+                  <button class="btn primary" id="tournament-announcement-send-btn" type="button">Anunciar</button>
+                </div>
+              </div>
+
+              <div id="tournament-round-countdown-composer" class="card" style="display: none">
+                <h3 style="margin: 0 0 10px">⏳ Countdown de ronda</h3>
+                <p class="muted" style="font-size: 12px; margin: 0 0 10px">
+                  Arranca una cuenta regresiva visible para todos (jugadores y espectadores), sincronizada con el reloj del
+                  servidor — no depende de que el reloj de cada celular esté bien puesto. Reemplaza al anuncio suelto tipo "la
+                  ronda arranca en 10 minutos".
+                </p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+                  <button class="btn" type="button" data-countdown-minutes="5">5 min</button>
+                  <button class="btn" type="button" data-countdown-minutes="10">10 min</button>
+                  <button class="btn" type="button" data-countdown-minutes="15">15 min</button>
+                  <input
+                    type="number"
+                    id="tournament-round-countdown-custom-minutes"
+                    placeholder="Otro (min)"
+                    min="1"
+                    max="180"
+                    style="
+                      width: 100px;
+                      padding: 8px 10px;
+                      border-radius: 8px;
+                      border: 1px solid var(--surface2);
+                      background: var(--surface);
+                      color: var(--text);
+                    "
+                  />
+                  <button class="btn primary" id="tournament-round-countdown-start-btn" type="button">Arrancar</button>
+                  <button
+                    class="btn"
+                    id="tournament-round-countdown-cancel-btn"
+                    type="button"
+                    style="display: none"
+                  >
+                    Cancelar countdown
+                  </button>
+                </div>
+              </div>
+
               <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px">
                   <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
@@ -1866,19 +2204,57 @@
                       id="tournament-mode-badge-active"
                       style="padding: 4px 10px; border-radius: 999px; background: var(--surface2); font-weight: 600; font-size: 12px"
                     ></span>
+                    <span
+                      id="tournament-pending-badge"
+                      style="display: none; padding: 4px 10px; border-radius: 999px; background: #f5a524; color: #1a1200; font-weight: 700; font-size: 12px"
+                    ></span>
                   </div>
                   <div style="display: flex; gap: 8px; flex-wrap: wrap">
                     <button class="btn" id="tournament-refresh-btn">🔄 Actualizar</button>
-                    <div id="tournament-admin-controls" style="display: none; gap: 8px; flex-wrap: wrap">
-                      <button class="btn" id="tournament-next-round-btn">➡️ Generar próxima ronda</button>
-                      <button class="btn" id="tournament-finish-btn">🏁 Finalizar torneo</button>
-                      <button class="btn" id="tournament-reopen-btn" style="display: none">↩️ Reabrir torneo</button>
-                      <button class="btn" id="tournament-settings-btn">⚙️ Configuración</button>
-                      <button class="btn" id="tournament-reset-btn">🗑️ Reiniciar torneo</button>
-                    </div>
                   </div>
                 </div>
                 <p class="muted" id="tournament-round-display"></p>
+              </div>
+
+              <div class="card" id="tournament-self-register-card" style="display: none">
+                <h3>📝 Inscripción</h3>
+                <p class="muted" id="tournament-self-register-status" style="display: none; margin: 0"></p>
+                <div id="tournament-self-register-form" style="display: flex; gap: 8px; flex-wrap: wrap">
+                  <input
+                    type="text"
+                    id="tournament-self-register-name"
+                    placeholder="Tu nombre"
+                    style="
+                      flex: 1;
+                      min-width: 160px;
+                      padding: 8px 10px;
+                      border-radius: 8px;
+                      border: 1px solid var(--surface2);
+                      background: var(--surface);
+                      color: var(--text);
+                    "
+                  />
+                  <button class="btn primary" id="tournament-self-register-btn">✅ Inscribirme</button>
+                </div>
+                <p class="muted" style="font-size: 12px; margin-top: 8px">
+                  Te anotás con el email de la cuenta de Google con la que iniciaste sesión (no se puede elegir otro): es la que se
+                  va a usar para asignarte tus partidas.
+                </p>
+              </div>
+
+              <div class="card" id="tournament-admin-panel" style="display: none; border: 2px solid var(--surface2)">
+                <h3 style="margin: 0 0 10px">🛠️ Panel de administrador</h3>
+                <p class="muted" style="font-size: 12px; margin: 0 0 10px">
+                  Acciones exclusivas de la cuenta administradora del torneo (<strong>ipem146centenario@gmail.com</strong>).
+                </p>
+                <div id="tournament-admin-controls" style="display: flex; gap: 8px; flex-wrap: wrap">
+                  <button class="btn" id="tournament-next-round-btn">➡️ Generar próxima ronda</button>
+                  <button class="btn" id="tournament-finish-btn">🏁 Finalizar torneo</button>
+                  <button class="btn" id="tournament-reopen-btn" style="display: none">↩️ Reabrir torneo</button>
+                  <button class="btn" id="tournament-settings-btn">⚙️ Configuración</button>
+                  <button class="btn" id="tournament-export-full-pdf-btn">📄 Imprimir resultados del torneo (PDF)</button>
+                  <button class="btn" id="tournament-reset-btn">🗑️ Reiniciar torneo</button>
+                </div>
               </div>
 
               <div class="card" id="tournament-settings-panel" style="display: none">
@@ -1912,6 +2288,149 @@
                     margin-bottom: 12px;
                   "
                 />
+
+                <label for="tournament-settings-time-mode" style="display: block; margin-bottom: 6px; font-weight: 600"
+                  >Tiempo por jugador</label
+                >
+                <select
+                  id="tournament-settings-time-mode"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 12px;
+                  "
+                >
+                  <option value="none">Sin reloj</option>
+                  <option value="1">1 minuto</option>
+                  <option value="3">3 minutos</option>
+                  <option value="5">5 minutos</option>
+                  <option value="10">10 minutos</option>
+                  <option value="15">15 minutos</option>
+                  <option value="30">30 minutos</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+
+                <label
+                  for="tournament-settings-custom-minutes"
+                  id="tournament-settings-custom-time-label"
+                  style="display: none; margin-bottom: 6px; font-weight: 600"
+                  >Minutos personalizados</label
+                >
+                <input
+                  type="number"
+                  id="tournament-settings-custom-minutes"
+                  min="1"
+                  max="180"
+                  value="5"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 12px;
+                  "
+                />
+
+                <label for="tournament-settings-increment" style="display: block; margin-bottom: 6px; font-weight: 600"
+                  >Incremento por jugada</label
+                >
+                <select
+                  id="tournament-settings-increment"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 12px;
+                  "
+                >
+                  <option value="0">0 segundos</option>
+                  <option value="2">2 segundos</option>
+                  <option value="5">5 segundos</option>
+                  <option value="10">10 segundos</option>
+                  <option value="30">30 segundos</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+
+                <label
+                  for="tournament-settings-custom-increment"
+                  id="tournament-settings-custom-increment-label"
+                  style="display: none; margin-bottom: 6px; font-weight: 600"
+                  >Incremento personalizado (segundos)</label
+                >
+                <input
+                  type="number"
+                  id="tournament-settings-custom-increment"
+                  min="0"
+                  max="60"
+                  value="0"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 12px;
+                  "
+                />
+                <p class="muted" style="font-size: 13px; margin-bottom: 12px">
+                  ⏱️ El nuevo tiempo se aplica a partir de la próxima ronda que
+                  se genere; las partidas ya en curso siguen con el reloj con
+                  el que empezaron.
+                </p>
+
+                <label for="tournament-settings-round-mode" style="display: block; margin-bottom: 6px; font-weight: 600"
+                  >Avance de ronda</label
+                >
+                <select
+                  id="tournament-settings-round-mode"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 12px;
+                  "
+                >
+                  <option value="manual">Manual (requiere aprobación del administrador)</option>
+                  <option value="auto">Automático (cuenta regresiva de 30 segundos)</option>
+                </select>
+
+                <label for="tournament-settings-wo-grace-input" style="display: block; margin-bottom: 6px; font-weight: 600"
+                  >Tiempo reglamentario de espera (minutos)</label
+                >
+                <input
+                  type="number"
+                  id="tournament-settings-wo-grace-input"
+                  min="0"
+                  step="1"
+                  placeholder="Dejalo vacío o en 0 para desactivar"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                    margin-bottom: 6px;
+                  "
+                />
+                <p class="muted" style="font-size: 13px; margin-bottom: 12px">
+                  Si un jugador no entra a su partida dentro de este tiempo (y el rival sí entró), se le declara WO automáticamente.
+                  Se aplica a la ronda en curso apenas se guarda.
+                </p>
+
                 <p class="muted" style="font-size: 13px; margin-bottom: 12px">
                   🔒 El administrador del torneo es fijo:
                   <strong>ipem146centenario@gmail.com</strong>.
@@ -1931,6 +2450,67 @@
                 <p id="tournament-champion-text" style="font-size: 18px; font-weight: 700; margin: 0"></p>
               </div>
 
+              <div
+                class="card"
+                id="tournament-approval-panel"
+                style="display: none; text-align: center; border: 2px solid var(--accent)"
+              >
+                <h3 style="margin: 0 0 6px">⏳ Ronda pendiente de aprobación</h3>
+                <p id="tournament-approval-status" style="margin: 0 0 10px"></p>
+                <div id="tournament-approval-admin-controls" style="display: none">
+                  <p class="muted" style="font-size: 12px; margin: 0 0 6px; font-weight: 600">🛠️ Acciones del administrador</p>
+                  <button class="btn primary" id="tournament-approve-round-btn">
+                    ✅ Aprobar ronda y generar la siguiente
+                  </button>
+                  <div id="tournament-auto-approve-box" style="display: none; margin-top: 10px">
+                    <p id="tournament-auto-approve-countdown" style="font-weight: 700; margin: 0 0 8px"></p>
+                    <button class="btn" id="tournament-cancel-auto-approve-btn">
+                      ✖️ Cancelar aprobación automática
+                    </button>
+                  </div>
+                </div>
+
+                <div id="tournament-referee-round-controls" style="display: none; margin-top: 12px">
+                  <p class="muted" style="font-size: 12px; margin: 0 0 8px; font-weight: 600">
+                    🧑‍⚖️ Acciones del árbitro — podés cerrar la ronda por separado (bloquea los resultados para todos menos vos) y
+                    generar la ronda siguiente en otro momento.
+                  </p>
+                  <div id="tournament-manual-bye-box" style="display: none; margin: 10px 0; text-align: left">
+                    <label for="tournament-manual-bye-select" class="muted" style="font-size: 12px; display: block; margin-bottom: 4px">
+                      🎯 Asignar BYE manualmente (queda un jugador impar esta ronda):
+                    </label>
+                    <select
+                      id="tournament-manual-bye-select"
+                      style="
+                        width: 100%;
+                        padding: 8px 10px;
+                        border-radius: 8px;
+                        border: 1px solid var(--surface2);
+                        background: var(--surface);
+                        color: var(--text);
+                      "
+                    >
+                      <option value="">Automático (por defecto)</option>
+                    </select>
+                  </div>
+                  <button class="btn" id="tournament-close-round-btn">🔒 Cerrar ronda</button>
+                  <button class="btn primary" id="tournament-generate-round-btn">▶️ Generar ronda siguiente</button>
+                </div>
+              </div>
+
+              <div class="card" id="tournament-referee-panel" style="display: none; border: 2px solid var(--surface2)">
+                <h3 style="margin: 0 0 10px">🧑‍⚖️ Panel de árbitro</h3>
+                <p class="muted" style="font-size: 12px; margin: 0 0 10px">
+                  Acciones exclusivas de la cuenta árbitro del torneo. Los controles para cerrar/generar ronda con BYE manual
+                  aparecen más abajo cuando la ronda está lista para eso.
+                </p>
+                <div id="tournament-referee-tools" style="display: none; gap: 8px; flex-wrap: wrap">
+                  <button class="btn" id="tournament-recalc-positions-btn">🔄 Recalcular posiciones</button>
+                  <button class="btn" id="tournament-print-pairings-btn">🖨️ Imprimir emparejamientos</button>
+                  <button class="btn" id="tournament-export-standings-pdf-btn">📄 Exportar posiciones a PDF</button>
+                </div>
+              </div>
+
               <div class="card" id="tournament-pairings-card">
                 <h3>Emparejamientos — ronda actual</h3>
                 <div id="tournament-pairings-list"></div>
@@ -1940,6 +2520,86 @@
                 <h3>Tabla de posiciones</h3>
                 <div id="tournament-standings-list"></div>
               </div>
+
+              <div class="card" id="tournament-players-card" style="display: none">
+                <h3>👥 Jugadores (panel de árbitro)</h3>
+                <div id="tournament-players-list"></div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px">
+                  <input
+                    type="text"
+                    id="tournament-add-player-name"
+                    placeholder="Nombre"
+                    style="
+                      flex: 1;
+                      min-width: 140px;
+                      padding: 8px 10px;
+                      border-radius: 8px;
+                      border: 1px solid var(--surface2);
+                      background: var(--surface);
+                      color: var(--text);
+                    "
+                  />
+                  <input
+                    type="email"
+                    id="tournament-add-player-email"
+                    placeholder="Email (opcional)"
+                    style="
+                      flex: 1;
+                      min-width: 180px;
+                      padding: 8px 10px;
+                      border-radius: 8px;
+                      border: 1px solid var(--surface2);
+                      background: var(--surface);
+                      color: var(--text);
+                    "
+                  />
+                  <button class="btn primary" id="tournament-add-player-btn">➕ Agregar jugador</button>
+                </div>
+                <p class="muted" style="font-size: 12px; margin-top: 8px">
+                  Un jugador agregado ya iniciado el torneo entra con 0 puntos y queda disponible recién para la próxima ronda que se
+                  genere. "Eliminar" solo funciona si todavía no jugó ninguna partida; si ya jugó, usá "Retirar" (o "Descalificar", si
+                  corresponde) para no perder su historial. Retirar/Reincorporar/Descalificar son acciones exclusivas del árbitro del
+                  torneo.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-pantalla-publica">
+          <div id="public-screen" class="public-screen">
+            <button class="btn public-screen-fullscreen-btn" id="public-screen-fullscreen-btn">⛶ Pantalla completa</button>
+
+            <div id="public-screen-empty" class="public-screen-empty" style="display: none">
+              <p>No hay un torneo en curso todavía.</p>
+            </div>
+
+            <div id="public-screen-content" style="display: none">
+              <header class="public-screen-header">
+                <h1 id="public-screen-name">Torneo</h1>
+                <p id="public-screen-round" class="public-screen-round"></p>
+              </header>
+
+              <div class="public-screen-grid">
+                <section class="public-screen-card">
+                  <h2>📊 Clasificación</h2>
+                  <div id="public-screen-standings"></div>
+                </section>
+
+                <section class="public-screen-card">
+                  <h2>♟️ Mesas activas</h2>
+                  <div id="public-screen-active-tables"></div>
+                </section>
+
+                <section class="public-screen-card">
+                  <h2>✅ Resultados recientes</h2>
+                  <div id="public-screen-recent-results"></div>
+                </section>
+              </div>
+
+              <footer class="public-screen-footer">
+                <p id="public-screen-next-round"></p>
+              </footer>
             </div>
           </div>
         </section>
@@ -1987,9 +2647,132 @@
           </div>
         </section>
 
-        <section class="page" id="page-temas">
+        <section class="page" id="page-configuracion">
           <div class="card">
-            <div class="panel-title">🎨 Personalización</div>
+            <div class="panel-title">⚙️ Configuración</div>
+            <p style="color: var(--muted); margin: 0 0 4px">
+              Tu perfil, tus ayudas de juego y tu apariencia, todo en un
+              mismo lugar.
+            </p>
+            <nav class="settings-quicknav">
+              <a href="#config-perfil">👤 Perfil</a>
+              <a href="#config-cuenta">🔑 Cuenta</a>
+              <a href="#config-ayudas">🎓 Ayudas y sonido</a>
+              <a href="#config-colores">🎨 Colores</a>
+              <a href="#config-fichas">♟️ Fichas</a>
+              <a href="#config-datos">💾 Datos y respaldo</a>
+            </nav>
+          </div>
+
+          <div class="card" id="config-perfil" style="margin-top: 20px">
+            <div class="panel-title">👤 Perfil</div>
+            <div class="settings" style="max-width: 500px">
+              <label for="student-name">
+                Nombre del alumno
+                <input id="student-name" placeholder="Escribí tu nombre" />
+              </label>
+
+              <label for="student-course">
+                Curso
+                <input id="student-course" placeholder="Ejemplo: 3.º Año" />
+              </label>
+
+              <button class="btn primary" id="save-profile">
+                💾 Guardar perfil
+              </button>
+              <button class="btn" id="config-avatar-btn" type="button">
+                🧑‍🎓 Cambiar avatar
+              </button>
+            </div>
+          </div>
+
+          <div class="card" id="config-cuenta" style="margin-top: 20px">
+            <div class="panel-title">🔑 Cuenta</div>
+            <p
+              id="config-account-status"
+              style="color: var(--muted); margin: 0 0 12px"
+            >
+              Iniciá sesión con tu cuenta de Gmail desde "Torneo" para jugar
+              partidas oficiales.
+            </p>
+            <button
+              class="btn danger"
+              id="config-signout-btn"
+              type="button"
+              style="display: none"
+            >
+              🚪 Cerrar sesión
+            </button>
+          </div>
+
+          <div class="card" id="config-ayudas" style="margin-top: 20px">
+            <div class="panel-title">🎓 Ayudas de juego y sonido</div>
+            <p style="color: var(--muted); margin: 0 0 12px">
+              Estas mismas opciones también se pueden cambiar al vuelo desde
+              la pantalla "Jugar"; acá quedan centralizadas para dejarlas
+              como querés antes de empezar.
+            </p>
+
+            <div class="toggle">
+              <div>
+                Movimientos legales<small
+                  >Mostrar dónde puede ir la pieza.</small
+                >
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-legal-cfg" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle">
+              <div>Amenazas<small>Resaltar piezas atacadas.</small></div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-threats-cfg" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle">
+              <div>
+                Explicaciones<small
+                  >Recibir consejos durante la partida.</small
+                >
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-explain-cfg" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle">
+              <div>
+                Sonido<small
+                  >Efectos de sonido al mover, capturar y dar jaque.</small
+                >
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-sound-cfg" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle">
+              <div>
+                Notificaciones de chat en partidas<small
+                  >Sonido y aviso al llegar un mensaje nuevo en el chat de una
+                  mesa de torneo.</small
+                >
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-chatnotif-cfg" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="card" id="config-colores" style="margin-top: 20px">
+            <div class="panel-title">🎨 Colores</div>
             <h2>Elegí tu estilo</h2>
             <p style="color: var(--muted); margin-bottom: 0">
               Personalizá la apariencia de la escuela y encontrá el ambiente que
@@ -2181,7 +2964,7 @@
             </div>
           </div>
 
-          <div class="card" style="margin-top: 20px">
+          <div class="card" id="config-fichas" style="margin-top: 20px">
             <div class="panel-title">♟️ Fichas</div>
             <h2>Elegí el estilo de las fichas</h2>
             <p style="color: var(--muted); margin-bottom: 0">
@@ -2424,29 +3207,8 @@
               </div>
             </div>
           </div>
-        </section>
 
-        <section class="page" id="page-configuracion">
-          <div class="card">
-            <div class="panel-title">⚙️ Configuración</div>
-            <div class="settings" style="max-width: 500px">
-              <label for="student-name">
-                Nombre del alumno
-                <input id="student-name" placeholder="Escribí tu nombre" />
-              </label>
-
-              <label for="student-course">
-                Curso
-                <input id="student-course" placeholder="Ejemplo: 3.º Año" />
-              </label>
-
-              <button class="btn primary" id="save-profile">
-                💾 Guardar perfil
-              </button>
-            </div>
-          </div>
-
-          <div class="card" style="margin-top: 20px">
+          <div class="card" id="config-datos" style="margin-top: 20px">
             <div class="panel-title">💾 Datos y respaldo</div>
             <button class="btn" id="export-json">📤 Exportar datos</button>
             <label class="btn" style="display: inline-block; cursor: pointer">
@@ -2459,6 +3221,9 @@
               />
             </label>
             <br />
+            <button class="btn" id="reset-preferences" style="margin-top: 15px">
+              ↺ Restaurar todas las preferencias
+            </button>
             <button class="btn danger" id="reset-data" style="margin-top: 15px">
               🗑️ Borrar progreso
             </button>
@@ -2479,6 +3244,9 @@
         >
           🔎 Analizar esta partida
         </button>
+        <button class="btn primary" id="alert-chat-btn" type="button" style="display: none; margin-top: 10px">
+          💬 Abrir chat
+        </button>
       </div>
     </div>
 
@@ -2489,7 +3257,7 @@
     <div id="analysis-modal" class="alert" style="display: none">
       <div class="analysis-modal-content">
         <div class="analysis-header">
-          <h3 id="analysis-title" style="margin: 0">🔎 Análisis de la partida</h3>
+          <h3 style="margin: 0">🔎 Análisis de la partida</h3>
           <button class="btn secondary" id="analysis-close">✖ Cerrar</button>
         </div>
         <div style="color: var(--muted); font-size: 0.85rem; margin-top: 4px">
@@ -2528,6 +3296,7 @@
     </div>
 
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
     <!-- Firebase (Firestore) — base de datos compartida del torneo -->
