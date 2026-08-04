@@ -41,6 +41,8 @@
       let explainMode;
       let lastTournamentState;
       let currentUser;
+      let tournamentClockOffsetMs = 0;
+      let lastTurnStartAtMs = 0;
       const TOURNAMENT_ADMIN_EMAIL = "ipem146centenario@gmail.com";
 
       // =========================
@@ -5335,6 +5337,12 @@
         return connectionMode === "lan" ? window.LAN.serverTimestamp() : firebase.firestore.FieldValue.serverTimestamp();
       }
 
+      function getTimestampMs(ts) {
+        if (ts && typeof ts.toMillis === "function") return ts.toMillis();
+        if (typeof ts === "number") return ts;
+        return 0;
+      }
+
       // Genera un "email" sintético a partir del nombre para identificar a
       // cada jugador en modo LAN (todo el resto del código de torneo ya
       // identifica jugadores por currentUser.email, así que no hace falta
@@ -6533,7 +6541,7 @@
           // Al reanudar, reiniciamos el "reloj de arranque" del turno actual
           // para no cobrarle a quien tiene el turno el tiempo que la partida
           // estuvo parada (ver updateTournamentClockDisplay).
-          if (!suspended && g.clock && g.turnStartAt) g.turnStartAt = Date.now();
+          if (!suspended && g.clock && g.turnStartAt) g.turnStartAt = srvTimestamp();
           tx.update(gameDocRef, g);
         });
         return getTournamentStateOnce();
@@ -6856,14 +6864,14 @@
           if (isRealMove) {
             const moverColor = new Chess(cachedGame.fen).turn();
             const elapsed = cachedGame.turnStartAt
-              ? Math.max(0, Math.round((effectiveMoveAt - cachedGame.turnStartAt) / 1000))
+              ? Math.max(0, Math.round((effectiveMoveAt - getTimestampMs(cachedGame.turnStartAt)) / 1000))
               : 0;
             const newClock = { ...cachedGame.clock, [moverColor]: Math.max(0, cachedGame.clock[moverColor] - elapsed) };
             if (!gameOverResult && cachedGame.increment) {
               newClock[moverColor] += cachedGame.increment;
             }
             patch.clock = newClock;
-            patch.turnStartAt = effectiveMoveAt;
+            patch.turnStartAt = srvTimestamp();
           }
           if (gameOverResult) {
             patch.status = "finished";
@@ -6909,12 +6917,12 @@
           // recién empieza a correr a partir de esta jugada.
           if (g.clock && fen !== g.fen) {
             const moverColor = new Chess(g.fen).turn();
-            const elapsed = g.turnStartAt ? Math.max(0, Math.round((effectiveMoveAt - g.turnStartAt) / 1000)) : 0;
+            const elapsed = g.turnStartAt ? Math.max(0, Math.round((effectiveMoveAt - getTimestampMs(g.turnStartAt)) / 1000)) : 0;
             g.clock = { ...g.clock, [moverColor]: Math.max(0, g.clock[moverColor] - elapsed) };
             if (!gameOverResult && g.increment) {
               g.clock = { ...g.clock, [moverColor]: g.clock[moverColor] + g.increment };
             }
-            g.turnStartAt = effectiveMoveAt;
+            g.turnStartAt = srvTimestamp();
           }
 
           g.fen = fen;
@@ -9092,8 +9100,16 @@
         const turn = game.turn();
         const finished = gameRow.status === "finished";
         const suspended = gameRow.status === "suspended";
+        const turnStartAtMs = getTimestampMs(gameRow.turnStartAt);
+        if (turnStartAtMs && turnStartAtMs !== lastTurnStartAtMs) {
+          lastTurnStartAtMs = turnStartAtMs;
+          tournamentClockOffsetMs = turnStartAtMs - Date.now();
+        }
+        const serverNow = Date.now() + tournamentClockOffsetMs;
         const elapsed =
-          finished || suspended ? 0 : Math.max(0, Math.round((Date.now() - (gameRow.turnStartAt || Date.now())) / 1000));
+          finished || suspended || !turnStartAtMs
+            ? 0
+            : Math.max(0, Math.round((serverNow - turnStartAtMs) / 1000));
         const remaining = {
           w: gameRow.clock.w - (turn === "w" && !finished && !suspended ? elapsed : 0),
           b: gameRow.clock.b - (turn === "b" && !finished && !suspended ? elapsed : 0),
@@ -9281,6 +9297,8 @@
         clearInterval(tournamentClockTimer);
         tournamentClockTimer = null;
         tournamentCurrentGameRow = null;
+        tournamentClockOffsetMs = 0;
+        lastTurnStartAtMs = 0;
         unsubscribeMatchChat();
         unsubscribeCallSignaling();
 
