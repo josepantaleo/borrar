@@ -9170,7 +9170,7 @@
 
       function tournamentMyColor() {
         if (!tournamentMatchCtx || !currentUser) return "";
-        const email = (currentUser.email || "").toLowerCase();
+        const email = currentUser.email;
         if (tournamentMatchCtx.whiteEmail && tournamentMatchCtx.whiteEmail.toLowerCase() === email) return "w";
         if (tournamentMatchCtx.blackEmail && tournamentMatchCtx.blackEmail.toLowerCase() === email) return "b";
         return "";
@@ -9270,8 +9270,7 @@
         const gameRow = tournamentCurrentGameRow;
         const wEl = document.getElementById("clock-w");
         const bEl = document.getElementById("clock-b");
-        const _clockDebugShouldLog = CLOCK_DEBUG && Date.now() - _clockDebugLastLog > 1000;
-        if (_clockDebugShouldLog) {
+        if (CLOCK_DEBUG && Date.now() - _clockDebugLastLog > 1000) {
           _clockDebugLastLog = Date.now();
           console.log("[CLOCK_DEBUG] tick", {
             hasGameRow: !!gameRow,
@@ -9305,11 +9304,18 @@
         // reloj de la PC/celular: así, aunque las dos pantallas conectadas
         // tengan el reloj del sistema puesto de forma completamente
         // distinta, ambas calculan el mismo tiempo transcurrido.
-        const serverNow = syncedNow_();
-        const elapsed =
-          finished || suspended || !turnStartAtMs
-            ? 0
-            : Math.max(0, Math.floor((serverNow - turnStartAtMs) / 1000));
+        const elapsed = (() => {
+          if (finished || suspended || !turnStartAtMs) return 0;
+          const serverNow = syncedNow_();
+          // Si el reloj sincronizado queda por detrás del servidor de
+          // Firestore (p. ej. reloj local atrasado o servidores de hora
+          // públicos desfasados), usamos Date.now() como fallback para
+          // que el reloj visual nunca se congele. El tiempo agotado se
+          // sigue validando con syncedNow_() en claimTournamentTimeout,
+          // así que no hay abuso.
+          const now = serverNow >= turnStartAtMs ? serverNow : Date.now();
+          return Math.max(0, Math.floor((now - turnStartAtMs) / 1000));
+        })();
         const remaining = {
           w: gameRow.clock.w - (turn === "w" && !finished && !suspended ? elapsed : 0),
           b: gameRow.clock.b - (turn === "b" && !finished && !suspended ? elapsed : 0),
@@ -9318,32 +9324,6 @@
         const bSecs = Math.max(0, remaining.b);
         const wTime = wEl.querySelector(".clock-time");
         const bTime = bEl.querySelector(".clock-time");
-        if (_clockDebugShouldLog) {
-          console.log("[CLOCK_DEBUG] compute", {
-            turn,
-            serverNow,
-            turnStartAtMs,
-            elapsed,
-            remainingW: remaining.w,
-            remainingB: remaining.b,
-            wSecs,
-            bSecs,
-            formattedW: formatTime(wSecs),
-            formattedB: formatTime(bSecs),
-            wTimeFound: !!wTime,
-            bTimeFound: !!bTime,
-            // Si hay MÁS de un elemento en la página con este id, getElementById
-            // siempre devuelve el primero del DOM, que puede no ser el que se
-            // ve en pantalla (por ejemplo, si quedó una mesa vieja sin destruir
-            // en el fondo). Esto lo detecta:
-            wElDuplicated: document.querySelectorAll("#clock-w").length,
-            bElDuplicated: document.querySelectorAll("#clock-b").length,
-            wElConnected: wEl.isConnected,
-            bElConnected: bEl.isConnected,
-            wElVisible: wEl.offsetParent !== null,
-            bElVisible: bEl.offsetParent !== null,
-          });
-        }
         (wTime || wEl).textContent = formatTime(wSecs);
         (bTime || bEl).textContent = formatTime(bSecs);
         wEl.classList.toggle("active", turn === "w" && !finished && !suspended);
