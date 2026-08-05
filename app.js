@@ -6824,7 +6824,22 @@
         // puede vaciar el reloj en 1-2 jugadas y dar la partida por
         // perdida injustamente. Usamos el sello del cliente, topado por las
         // dudas a que nunca sea posterior al "ahora" real.
-        const effectiveMoveAt = Math.min(clientMoveAt || Date.now(), Date.now());
+        //
+        // OJO: clientMoveAt y Date.now() acá son el reloj de la PC/celular
+        // de quien mueve, tal cual lo reporta el sistema operativo. Si esa
+        // PC tiene el reloj desincronizado respecto al real (mal
+        // configurado, sin NTP, otro huso horario, etc.), el "elapsed" que
+        // se calcula más abajo contra turnStartAt (que SÍ es un timestamp
+        // de servidor) queda mal: a un jugador con el reloj adelantado se
+        // le descontaría de más, y a uno atrasado, de menos. Por eso acá
+        // corregimos con tournamentClockOffsetMs, el mismo desfasaje
+        // cliente-servidor que ya calcula updateTournamentClockDisplay
+        // comparando Date.now() contra el turnStartAt real que llega por
+        // Firestore: convierte el sello de este cliente a la hora de
+        // servidor antes de usarlo, así que dos PCs con relojes distintos
+        // (o mal configurados) ya no afectan cuánto tiempo se descuenta.
+        const tournamentServerNowMs_ = Date.now() + tournamentClockOffsetMs;
+        const effectiveMoveAt = Math.min((clientMoveAt || Date.now()) + tournamentClockOffsetMs, tournamentServerNowMs_);
         const gameDocRef = gamesCollectionRef.doc(gameDocId_(round, board));
 
         // ATAJO para todo lo que NO sea un reclamo de tiempo agotado
