@@ -5357,57 +5357,6 @@
         return (base || "jugador") + "@lan.local";
       }
 
-      // En modo LAN, asegura que el anfitrión (admin) figure como jugador
-      // activo en la sala. Si el torneo todavía no existe, crea un documento
-      // mínimo en estado 'setup' con el anfitrión como primer jugador.
-      async function ensureLanHostIsPlayer_() {
-        if (connectionMode !== "lan" || !currentUser || currentUser.email !== TOURNAMENT_ADMIN_EMAIL) return;
-        const hostEmail = TOURNAMENT_ADMIN_EMAIL;
-        const hostName = currentUser.displayName || "Anfitrión";
-        try {
-          const snap = await fbRoomRef.get();
-          if (snap.exists) {
-            const data = snap.data();
-            const players = data.players || [];
-            if (!players.some((p) => (p.email || "").toLowerCase() === hostEmail)) {
-              let n = players.length + 1;
-              const usedIds = new Set(players.map((p) => p.id));
-              while (usedIds.has("p" + n)) n++;
-              await fbRoomRef.update({
-                players: players.concat([{
-                  id: "p" + n,
-                  name: hostName,
-                  email: hostEmail,
-                  points: 0,
-                  played: [],
-                  byes: 0,
-                  colorBalance: 0,
-                  status: "active",
-                }]),
-              });
-            }
-          } else {
-            await fbRoomRef.set({
-              meta: { name: "", round: 0, status: "setup", adminEmails: [TOURNAMENT_ADMIN_EMAIL], totalRounds: null },
-              players: [{
-                id: "p1",
-                name: hostName,
-                email: hostEmail,
-                points: 0,
-                played: [],
-                byes: 0,
-                colorBalance: 0,
-                status: "active",
-              }],
-              pairings: [],
-            });
-          }
-        } catch (e) {
-          // Silencioso: no queremos bloquear la conexión si esto falla
-          console.warn("ensureLanHostIsPlayer_:", e.message);
-        }
-      }
-
       // Conecta el torneo al servidor LAN (lan-server.js) en vez de a
       // Firebase. hostAddr es "ip:puerto" (por ej. "192.168.0.15:8080" o
       // "localhost:8080" si esta misma compu es la que corre el servidor).
@@ -5431,31 +5380,15 @@
             lanClient_ = null;
           }
           const roomName = room || "main";
-          // Seteamos el modo LAN *antes* del await para que el listener de
-          // onAuthStateChanged no pise currentUser si se ejecuta durante la
-          // conexión (condición de carrera). Si falla, restauramos el modo.
-          const previousMode = connectionMode;
-          connectionMode = "lan";
-          let client, db;
-          try {
-            const res = await window.LAN.connect("ws://" + addr, roomName, displayName);
-            client = res.client;
-            db = res.db;
-          } catch (err) {
-            connectionMode = previousMode;
-            throw err;
-          }
+          const { client, db } = await window.LAN.connect("ws://" + addr, roomName, displayName);
           lanClient_ = client;
+          connectionMode = "lan";
           fbDb = db;
           fbRoomRef = fbDb.collection("torneos").doc(roomName);
           gamesCollectionRef = fbRoomRef.collection("games");
           announcementsCollectionRef = fbRoomRef.collection("announcements");
           subscribedRound_ = undefined;
           lastRoundGames = [];
-          // Olvidamos el estado del torneo anterior para no mostrar datos de
-          // otra sala mientras llega el primer snapshot de LAN.
-          lastTournamentState = null;
-          lastKnownTournamentStatus_ = null;
           currentUser = {
             email: isHost ? TOURNAMENT_ADMIN_EMAIL : slugifyForLanEmail_(displayName),
             displayName: displayName,
@@ -5467,14 +5400,8 @@
           const modeSelect = document.getElementById("tournament-mode-select");
           if (modeSelect) modeSelect.style.display = "none";
           updateAuthUI();
-          // Renderizamos de inmediato para que el admin vea el panel de
-          // creación (setupBox) mientras llega el snapshot del servidor LAN.
-          renderTournamentState(null);
           subscribeTournament();
           subscribeAnnouncements();
-          if (isHost) {
-            await ensureLanHostIsPlayer_();
-          }
           if (statusEl) statusEl.textContent = "";
           toast(isHost ? "🖥️ Conectado como anfitrión (red local)" : "📲 Conectado a la sala LAN");
         } catch (err) {
@@ -5623,13 +5550,8 @@
         // cargadas, para que subscribeRoundGames() no se quede pensando
         // que ya está al día ni se muestren mesas de otra sala por un
         // instante mientras llega el primer snapshot de la nueva.
-        // También reseteamos el estado del torneo anterior para no
-        // mostrar datos de otra sala mientras llega el snapshot nuevo.
-        connectionMode = "online";
         subscribedRound_ = undefined;
         lastRoundGames = [];
-        lastTournamentState = null;
-        lastKnownTournamentStatus_ = null;
         document.getElementById("tournament-auth-box").style.display = "";
         // Igual que en connectLan(): una vez que efectivamente estamos
         // conectados (a Firebase, en este caso), hay que ocultar la
@@ -5907,7 +5829,7 @@
             seenEmails.add(email);
           }
         }
-        let players = playerEntries
+        const players = playerEntries
           .filter((p) => p.name)
           .map((p, i) => ({
             id: "p" + (i + 1),
@@ -5923,21 +5845,6 @@
             // para las acciones de árbitro que se agregan más adelante.
             status: "active",
           }));
-        // En modo LAN, el anfitrión también es jugador: asegurar que figure.
-        if (connectionMode === "lan" && currentUser && currentUser.email === TOURNAMENT_ADMIN_EMAIL) {
-          if (!players.some((p) => (p.email || "").toLowerCase() === TOURNAMENT_ADMIN_EMAIL)) {
-            players.push({
-              id: "p" + (players.length + 1),
-              name: currentUser.displayName || "Anfitrión",
-              email: TOURNAMENT_ADMIN_EMAIL,
-              points: 0,
-              played: [],
-              byes: 0,
-              colorBalance: 0,
-              status: "active",
-            });
-          }
-        }
         const rounds = Number(totalRounds);
         const tc = timeControl || { minutes: 0, increment: 0 };
         await fbRoomRef.set({
@@ -7123,20 +7030,7 @@
             await batch.commit();
           }
         }
-        let resetPlayers = [];
-        if (connectionMode === "lan" && currentUser && currentUser.email === TOURNAMENT_ADMIN_EMAIL) {
-          resetPlayers = [{
-            id: "p1",
-            name: currentUser.displayName || "Anfitrión",
-            email: TOURNAMENT_ADMIN_EMAIL,
-            points: 0,
-            played: [],
-            byes: 0,
-            colorBalance: 0,
-            status: "active",
-          }];
-        }
-        await fbRoomRef.set({ meta: { name: "", round: 0, status: "setup", adminEmails: [], totalRounds: null }, players: resetPlayers, pairings: [] });
+        await fbRoomRef.set({ meta: { name: "", round: 0, status: "setup", adminEmails: [], totalRounds: null }, players: [], pairings: [] });
         return getTournamentStateOnce();
       }
 
@@ -7969,27 +7863,15 @@
           return;
         }
 
-        const isLanSetup = connectionMode === "lan" && state && state.meta.status === "setup";
-        if (!state || (state.meta.status !== "active" && state.meta.status !== "finished" && !isLanSetup)) {
+        if (!state || (state.meta.status !== "active" && state.meta.status !== "finished")) {
           setupBox.style.display = isCurrentUserAdmin(state) ? "" : "none";
           activeBox.style.display = "none";
           stopWOGraceTimer();
           return;
         }
 
-        if (isLanSetup) {
-          if (isCurrentUserAdmin(state)) {
-            setupBox.style.display = "";
-            activeBox.style.display = "none";
-            stopWOGraceTimer();
-            return;
-          }
-          setupBox.style.display = "none";
-          activeBox.style.display = "";
-        } else {
-          setupBox.style.display = "none";
-          activeBox.style.display = "";
-        }
+        setupBox.style.display = "none";
+        activeBox.style.display = "";
         startWOGraceTimerIfNeeded(state);
 
         const isAdmin = isCurrentUserAdmin(state);
@@ -9773,7 +9655,7 @@
           toast("❌ Cargá al menos 2 jugadores, o dejá la lista vacía para que se inscriban ellos mismos");
           return;
         }
-        if (connectionMode !== "lan" && playerEntries.some((p) => !p.email)) {
+        if (playerEntries.some((p) => !p.email)) {
           toast("❌ Cada jugador necesita su email de Gmail (formato: Nombre, email)");
           return;
         }
