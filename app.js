@@ -5431,15 +5431,31 @@
             lanClient_ = null;
           }
           const roomName = room || "main";
-          const { client, db } = await window.LAN.connect("ws://" + addr, roomName, displayName);
-          lanClient_ = client;
+          // Seteamos el modo LAN *antes* del await para que el listener de
+          // onAuthStateChanged no pise currentUser si se ejecuta durante la
+          // conexión (condición de carrera). Si falla, restauramos el modo.
+          const previousMode = connectionMode;
           connectionMode = "lan";
+          let client, db;
+          try {
+            const res = await window.LAN.connect("ws://" + addr, roomName, displayName);
+            client = res.client;
+            db = res.db;
+          } catch (err) {
+            connectionMode = previousMode;
+            throw err;
+          }
+          lanClient_ = client;
           fbDb = db;
           fbRoomRef = fbDb.collection("torneos").doc(roomName);
           gamesCollectionRef = fbRoomRef.collection("games");
           announcementsCollectionRef = fbRoomRef.collection("announcements");
           subscribedRound_ = undefined;
           lastRoundGames = [];
+          // Olvidamos el estado del torneo anterior para no mostrar datos de
+          // otra sala mientras llega el primer snapshot de LAN.
+          lastTournamentState = null;
+          lastKnownTournamentStatus_ = null;
           currentUser = {
             email: isHost ? TOURNAMENT_ADMIN_EMAIL : slugifyForLanEmail_(displayName),
             displayName: displayName,
@@ -5451,6 +5467,9 @@
           const modeSelect = document.getElementById("tournament-mode-select");
           if (modeSelect) modeSelect.style.display = "none";
           updateAuthUI();
+          // Renderizamos de inmediato para que el admin vea el panel de
+          // creación (setupBox) mientras llega el snapshot del servidor LAN.
+          renderTournamentState(null);
           subscribeTournament();
           subscribeAnnouncements();
           if (isHost) {
@@ -5604,8 +5623,13 @@
         // cargadas, para que subscribeRoundGames() no se quede pensando
         // que ya está al día ni se muestren mesas de otra sala por un
         // instante mientras llega el primer snapshot de la nueva.
+        // También reseteamos el estado del torneo anterior para no
+        // mostrar datos de otra sala mientras llega el snapshot nuevo.
+        connectionMode = "online";
         subscribedRound_ = undefined;
         lastRoundGames = [];
+        lastTournamentState = null;
+        lastKnownTournamentStatus_ = null;
         document.getElementById("tournament-auth-box").style.display = "";
         // Igual que en connectLan(): una vez que efectivamente estamos
         // conectados (a Firebase, en este caso), hay que ocultar la
