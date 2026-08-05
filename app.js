@@ -1,13 +1,9 @@
       "use strict";
 
-      import {
-        formatTime,
-        capitalizeFirst,
-        dayOfYear,
-        cpToWin,
-        classifyLoss,
-        levelLabel,
-      } from "./utils.js";
+      // Nota: formatTime, capitalizeFirst, dayOfYear, cpToWin, classifyLoss
+      // y levelLabel vienen de utils.js, cargado como <script> clásico
+      // ANTES que este archivo en index.html (ya no se usa import de
+      // módulos ES para poder abrir la app con doble clic, sin servidor).
 
       // PWA: registra el service worker que cachea el "app shell" (ver
       // sw.js) para que la app se pueda instalar y las lecciones/
