@@ -5752,7 +5752,23 @@
         }
         gamesRoundUnsub = gamesCollectionRef.where("round", "==", round).onSnapshot(
           (qsnap) => {
-            lastRoundGames = qsnap.docs.map((d) => d.data());
+            // OJO clave para los cronómetros: cuando este mismo cliente
+            // acaba de escribir turnStartAt: srvTimestamp() (ver
+            // fbMakeMove), Firestore dispara ESTE listener de inmediato con
+            // la escritura optimista local, ANTES de que el servidor
+            // confirme el valor real — y en ese instante, por default,
+            // d.data() devuelve null para ese campo (no sabe todavía qué
+            // timestamp le va a poner el servidor). getTimestampMs(null) da
+            // 0, así que el reloj calculaba "elapsed = ahora - 0" (un
+            // montón de segundos) y quedaba pisado por el manotazo de
+            // seguridad Math.max(0, ...), mostrando otra vez el tiempo
+            // lleno (por eso el cronómetro parecía "congelado, vuelve a
+            // 10:00") hasta que llegaba el segundo snapshot con el valor ya
+            // confirmado por el servidor. Pidiendo { serverTimestamps:
+            // "estimate" } evitamos el null: mientras se confirma, usa una
+            // estimación con el reloj del dispositivo (en vez de null), y
+            // se corrige sola en cuanto llega el valor real.
+            lastRoundGames = qsnap.docs.map((d) => d.data({ serverTimestamps: "estimate" }));
             // Mientras hay una mesa abierta (tournamentMatchActive), el panel
             // de emparejamientos/clasificación está oculto detrás del
             // tablero: reconstruirlo en cada jugada de CUALQUIER mesa del
@@ -5817,7 +5833,7 @@
                 `[perf] room snapshot ~${(__bytes / 1024).toFixed(1)}KB | pairings=${(__raw.pairings || []).length} players=${(__raw.players || []).length}`
               );
             }
-            const state = normalizeTournamentState(snap.exists ? snap.data() : null);
+            const state = normalizeTournamentState(snap.exists ? snap.data({ serverTimestamps: "estimate" }) : null);
             const previousStatus = lastKnownTournamentStatus_;
             lastKnownTournamentStatus_ = state.meta.status;
             lastTournamentState = state;
