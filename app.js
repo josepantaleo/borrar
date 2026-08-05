@@ -1,251 +1,214 @@
-/**
- * Chess Master - Main Application Script
- * Full interactive logic, UI controls, tournament flow, engine integration, and fullscreen handler.
- */
-
-// --- Import Utilities ---
-import { 
-  formatTime, 
-  generatePGN, 
-  evaluateBoardState, 
-  saveGameToHistory, 
-  loadGameHistory 
-} from "./utils.js";
-
-// --- Global State ---
-let game = null; // Expects Chess() instance from chess.js
-let board = null;
-let currentMode = "pvp"; // 'pvp', 'ai', 'tournament'
-let aiDifficulty = "medium";
-let moveHistory = [];
-let gameTimer = null;
-let whiteTime = 300; // 5 minutes
-let blackTime = 300;
-let activePlayer = "w";
-let isGameActive = false;
-
-// --- DOM Selectors ---
-const boardElement = document.getElementById("board");
-const statusElement = document.getElementById("game-status");
-const timerWhiteElement = document.getElementById("timer-white");
-const timerBlackElement = document.getElementById("timer-black");
-const moveLogElement = document.getElementById("move-log");
-const btnRestart = document.getElementById("btn-restart");
-const btnUndo = document.getElementById("btn-undo");
-const btnFullscreen = document.getElementById("btn-fullscreen");
-const modeSelect = document.getElementById("mode-select");
-
-// --- Initialization ---
-function initApp() {
-  if (typeof Chess === "undefined") {
-    console.error("Chess.js library is missing! Make sure to include it in your HTML.");
-    if (statusElement) statusElement.innerText = "Error: Chess.js no encontrada.";
-    return;
-  }
-
-  game = new Chess();
-  setupEventListeners();
-  resetGame();
-  sizeFullscreenBoard();
-}
-
-// --- Game Logic ---
-function resetGame() {
-  game.reset();
-  moveHistory = [];
-  whiteTime = 300;
-  blackTime = 300;
-  activePlayer = "w";
-  isGameActive = true;
-  
-  updateTimersDisplay();
-  startTimer();
-  updateUI();
-}
-
-function startTimer() {
-  clearInterval(gameTimer);
-  gameTimer = setInterval(() => {
-    if (!isGameActive) return;
-
-    if (activePlayer === "w") {
-      whiteTime--;
-      if (whiteTime <= 0) handleTimeout("w");
-    } else {
-      blackTime--;
-      if (blackTime <= 0) handleTimeout("b");
-    }
-    updateTimersDisplay();
-  }, 1000);
-}
-
-function stopTimer() {
-  clearInterval(gameTimer);
-}
-
-function updateTimersDisplay() {
-  if (timerWhiteElement) timerWhiteElement.innerText = formatTime(whiteTime);
-  if (timerBlackElement) timerBlackElement.innerText = formatTime(blackTime);
-}
-
-function handleTimeout(player) {
-  isGameActive = false;
-  stopTimer();
-  const winner = player === "w" ? "Negras" : "Blancas";
-  if (statusElement) statusElement.innerText = `¡Tiempo agotado! Ganan las ${winner}.`;
-}
-
-function makeMove(source, target) {
-  if (!isGameActive) return false;
-
-  const move = game.move({
-    from: source,
-    to: target,
-    promotion: "q" // Default auto-promote to queen
-  });
-
-  if (move === null) return false; // Invalid move
-
-  moveHistory.push(move);
-  activePlayer = game.turn();
-  updateUI();
-
-  if (game.game_over()) {
-    handleGameOver();
-  } else if (currentMode === "ai" && activePlayer === "b") {
-    setTimeout(makeAIMove, 400);
-  }
-
-  return true;
-}
-
-function makeAIMove() {
-  if (!isGameActive || game.game_over()) return;
-
-  const possibleMoves = game.moves();
-  if (possibleMoves.length === 0) return;
-
-  const chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-
-  game.move(chosenMove);
-  activePlayer = game.turn();
-  updateUI();
-
-  if (game.game_over()) {
-    handleGameOver();
-  }
-}
-
-function undoMove() {
-  if (!isGameActive) return;
-  
-  game.undo();
-  if (currentMode === "ai") {
-    game.undo(); // Undo AI's response too
-  }
-  
-  activePlayer = game.turn();
-  updateUI();
-}
-
-function handleGameOver() {
-  isGameActive = false;
-  stopTimer();
-
-  let message = "Juego terminado: ";
-  if (game.in_checkmate()) {
-    const winner = game.turn() === "w" ? "Negras" : "Blancas";
-    message += `¡Jaque mate! Ganan las ${winner}.`;
-  } else if (game.in_draw()) {
-    message += "Tablas (Empate).";
-  } else if (game.in_stalemate()) {
-    message += "Tablas por ahogado.";
-  } else if (game.in_threefold_repetition()) {
-    message += "Tablas por repetición.";
-  } else {
-    message += "Fin de la partida.";
-  }
-
-  if (statusElement) statusElement.innerText = message;
-  saveGameToHistory(game.pgn());
-}
-
-// --- UI Rendering ---
-function updateUI() {
-  if (statusElement && isGameActive) {
-    const turnName = activePlayer === "w" ? "Blancas" : "Negras";
-    const checkText = game.in_check() ? " ¡JAQUE!" : "";
-    statusElement.innerText = `Turno de: ${turnName}${checkText}`;
-  }
-
-  renderMoveLog();
-}
-
-function renderMoveLog() {
-  if (!moveLogElement) return;
-  moveLogElement.innerHTML = "";
-  
-  const history = game.history({ verbose: true });
-  for (let i = 0; i < history.length; i += 2) {
-    const moveNum = Math.floor(i / 2) + 1;
-    const whiteMove = history[i] ? history[i].san : "";
-    const blackMove = history[i + 1] ? history[i + 1].san : "";
-
-    const row = document.createElement("div");
-    row.className = "log-row";
-    row.innerText = `${moveNum}. ${whiteMove} ${blackMove}`;
-    moveLogElement.appendChild(row);
-  }
-  moveLogElement.scrollTop = moveLogElement.scrollHeight;
-}
-
-// --- Responsive & Fullscreen Handling ---
-function toggleFullscreen() {
-  document.body.classList.toggle("fullscreen-game");
-  sizeFullscreenBoard();
-}
-
-function sizeFullscreenBoard() {
-  const bc = document.body.classList;
-  if (!bc.contains("fullscreen-game") && !bc.contains("tournament-match-active")) {
-    resetBoardFrameSize();
-    return;
-  }
-
-  const boardFrame = document.querySelector(".board-frame");
-  if (!boardFrame) return;
-
-  const availableWidth = window.innerWidth - 32;
-  const availableHeight = window.innerHeight - 160;
-  const size = Math.max(260, Math.min(availableWidth, availableHeight));
-
-  boardFrame.style.width = size + "px";
-  boardFrame.style.height = size + "px";
-}
-
 function resetBoardFrameSize() {
-  const boardFrame = document.querySelector(".board-frame");
-  if (boardFrame) {
-    boardFrame.style.width = "";
-    boardFrame.style.height = "";
-  }
-}
+        const boardFrame = document.querySelector(".board-frame");
+        if (boardFrame) {
+          boardFrame.style.width = "";
+          boardFrame.style.height = "";
+        }
+      }
 
-// --- Event Listeners Setup ---
-function setupEventListeners() {
-  if (btnRestart) btnRestart.addEventListener("click", resetGame);
-  if (btnUndo) btnUndo.addEventListener("click", undoMove);
-  if (btnFullscreen) btnFullscreen.addEventListener("click", toggleFullscreen);
+      window.addEventListener("resize", () => {
+        if (document.body.classList.contains("fullscreen-game") || document.body.classList.contains("tournament-board-max")) {
+          sizeFullscreenBoard();
+        }
+      });
 
-  if (modeSelect) {
-    modeSelect.addEventListener("change", (e) => {
-      currentMode = e.target.value;
-      resetGame();
-    });
-  }
+      // =========================
+      // MODO EDUCATIVO Y EXPLICACIONES
+      // =========================
+      explainMode = localStorage.getItem("chessExplainMode") !== "off";
+      const explainToggle = document.getElementById("toggle-explain");
+      const explainToggleCfg = document.getElementById("toggle-explain-cfg");
 
-  window.addEventListener("resize", sizeFullscreenBoard);
-}
+      function syncExplainUI() {
+        if (explainToggle) explainToggle.checked = explainMode;
+        if (explainToggleCfg) explainToggleCfg.checked = explainMode;
+      }
 
-// Initialize application on DOM content load
-document.addEventListener("DOMContentLoaded", initApp);
+      function setExplainMode(value) {
+        explainMode = value;
+        localStorage.setItem("chessExplainMode", value ? "on" : "off");
+        syncExplainUI();
+        toast(explainMode ? "💡 Explicaciones activadas" : "💡 Explicaciones desactivadas");
+      }
+
+      if (explainToggle) explainToggle.addEventListener("change", () => setExplainMode(explainToggle.checked));
+      if (explainToggleCfg) explainToggleCfg.addEventListener("change", () => setExplainMode(explainToggleCfg.checked));
+      syncExplainUI();
+
+      function resetEduPanel() {
+        const panel = document.getElementById("edu-panel");
+        if (panel) {
+          panel.style.display = "none";
+          panel.innerHTML = "";
+        }
+      }
+
+      function showMoveExplanation(fenBefore, move) {
+        if (!explainMode || tournamentMatchActive) return;
+        const panel = document.getElementById("edu-panel");
+        if (!panel) return;
+
+        const explanation = generateExplanation(fenBefore, move);
+        if (!explanation) {
+          panel.style.display = "none";
+          return;
+        }
+
+        panel.innerHTML = `
+          <div class="edu-card">
+            <div class="edu-title">💡 ¿Por qué esta jugada?</div>
+            <div class="edu-body">${escapeHtml_(explanation)}</div>
+          </div>
+        `;
+        panel.style.display = "block";
+      }
+
+      function generateExplanation(fenBefore, move) {
+        if (!move) return "";
+        const parts = [];
+        const pieceNames = { p: "El peón", n: "El caballo", b: "El alfil", r: "La torre", q: "La dama", k: "El rey" };
+        const pName = pieceNames[move.piece] || "La pieza";
+
+        if (move.flags && move.flags.includes("k")) return "🛈 Enroque corto: protege al rey y activa la torre en una sola jugada.";
+        if (move.flags && move.flags.includes("q")) return "🛈 Enroque largo: resguarda al rey y centraliza la torre de dama.";
+        if (move.flags && move.flags.includes("p")) parts.push(`🎉 Coronación: ${pName.toLowerCase()} llegó a la última fila y se convirtió en ${move.promotion === 'q' ? 'Dama' : 'otra pieza'}.`);
+
+        if (move.captured) {
+          const capNames = { p: "un peón", n: "un caballo", b: "un alfil", r: "una torre", q: "la dama" };
+          parts.push(`💥 Captura: ${pName.toLowerCase()} eliminó a ${capNames[move.captured] || "una pieza"} en ${move.to}.`);
+        }
+
+        if (move.san.includes("#")) {
+          parts.push("♚ ¡Jaque mate! Esta jugada deja al rey enemigo sin escape y finaliza la partida.");
+          return parts.join(" ");
+        } else if (move.san.includes("+")) {
+          parts.push("⚠️ Jaque: ataca directamente al rey enemigo, obligándolo a defenderse.");
+        }
+
+        if (!move.captured && !move.san.includes("+")) {
+          const isCenter = ["d4", "d5", "e4", "e5"].includes(move.to);
+          if (isCenter) {
+            parts.push(`🎯 Control del centro: ${pName.toLowerCase()} se ubica en ${move.to} para dominar el espacio clave del tablero.`);
+          } else {
+            parts.push(`♟️ Desarrollo: ${pName.toLowerCase()} se mueve a ${move.to} para mejorar su actividad y alcance.`);
+          }
+        }
+
+        return parts.join(" ");
+      }
+
+      // =========================
+      // HORAS Y SINCRONIZACIÓN DE RELOJ (NTP / SERVER)
+      // =========================
+      function syncedNow_() {
+        return Date.now() + internetClockOffsetMs;
+      }
+
+      async function syncInternetClock_() {
+        try {
+          const start = Date.now();
+          const res = await fetch("https://worldtimeapi.org/api/ip", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = await res.json();
+          const serverMs = new Date(data.utc_datetime).getTime();
+          const latency = (Date.now() - start) / 2;
+          internetClockOffsetMs = Math.round((serverMs + latency) - Date.now());
+        } catch (e) {
+          // Si falla o no hay internet, se mantiene la hora local
+        }
+      }
+
+      syncInternetClock_();
+      setInterval(syncInternetClock_, 10 * 60 * 1000);
+
+      // =========================
+      // TORNEO: RELOJES CORREGIDOS
+      // =========================
+      function updateTournamentClockDisplay() {
+        if (!tournamentMatchActive || !tournamentCurrentGameRow) return;
+
+        const gameRow = tournamentCurrentGameRow;
+        const wEl = document.getElementById("clock-w");
+        const bEl = document.getElementById("clock-b");
+        if (!wEl || !bEl) return;
+
+        renderBoardAvatars_();
+        const wTime = wEl.querySelector(".clock-time") || wEl;
+        const bTime = bEl.querySelector(".clock-time") || bEl;
+
+        const initialSecs = (gameRow.timeMinutes || 5) * 60;
+        let wSecs = gameRow.clock ? gameRow.clock.w : initialSecs;
+        let bSecs = gameRow.clock ? gameRow.clock.b : initialSecs;
+
+        // Descuenta tiempo solo si la partida está activa y ambos entraron ("joined")
+        if (gameRow.status === "active" && tournamentClockWaitingForBothPlayers() === false && gameRow.turnStartAt) {
+          const elapsed = Math.max(0, Math.floor((syncedNow_() - gameRow.turnStartAt) / 1000));
+          if (gameRow.fen.split(" ")[1] === "w") {
+            wSecs = Math.max(0, wSecs - elapsed);
+          } else {
+            bSecs = Math.max(0, bSecs - elapsed);
+          }
+        }
+
+        wTime.textContent = formatTime(wSecs);
+        bTime.textContent = formatTime(bSecs);
+
+        const currentTurnColor = gameRow.fen.split(" ")[1];
+        wEl.classList.toggle("active", currentTurnColor === "w" && gameRow.status === "active");
+        bEl.classList.toggle("active", currentTurnColor === "b" && gameRow.status === "active");
+
+        if (CLOCK_DEBUG && Date.now() - _clockDebugLastLog > 1000) {
+          _clockDebugLastLog = Date.now();
+          console.log("[CLOCK_DEBUG]", {
+            status: gameRow.status,
+            turn: currentTurnColor,
+            wSecs,
+            bSecs,
+            joinedW: gameRow.joinedW,
+            joinedB: gameRow.joinedB,
+            turnStartAt: gameRow.turnStartAt
+          });
+        }
+
+        // Detección de caída de bandera por tiempo
+        if (gameRow.status === "active" && !tournamentTimeoutClaimBusy) {
+          if (wSecs <= 0 || bSecs <= 0) {
+            const timeoutWinner = wSecs <= 0 ? "b" : "w";
+            claimTournamentTimeoutWin_(timeoutWinner);
+          }
+        }
+      }
+
+      function tournamentClockWaitingForBothPlayers() {
+        if (!tournamentCurrentGameRow) return true;
+        return !(tournamentCurrentGameRow.joinedW && tournamentCurrentGameRow.joinedB);
+      }
+
+      function tournamentMyColor() {
+        if (!tournamentCurrentGameRow || !currentUser) return "w";
+        if (tournamentCurrentGameRow.whiteEmail === currentUser.email) return "w";
+        if (tournamentCurrentGameRow.blackEmail === currentUser.email) return "b";
+        return "w"; // Espectador por defecto
+      }
+
+      async function claimTournamentTimeoutWin_(winnerColor) {
+        if (tournamentTimeoutClaimBusy || !tournamentCurrentGameRow) return;
+        tournamentTimeoutClaimBusy = true;
+        try {
+          const gameRef = gamesCollectionRef().doc(`${tournamentCurrentGameRow.round}_${tournamentCurrentGameRow.board}`);
+          await gameRef.update({
+            status: "finished",
+            result: winnerColor === "w" ? "1-0" : "0-1",
+            winReason: "tiempo"
+          });
+        } catch (err) {
+          console.error("Error al reclamar victoria por tiempo:", err);
+        } finally {
+          tournamentTimeoutClaimBusy = false;
+        }
+      }
+
+      // Inicializador principal
+      updateProfile();
+      renderSavedGamesList();
+      render();
