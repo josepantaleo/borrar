@@ -5763,6 +5763,7 @@
         }
         gamesRoundUnsub = gamesCollectionRef.where("round", "==", round).onSnapshot(
           (qsnap) => {
+            try {
             // OJO clave para los cronómetros: cuando este mismo cliente
             // acaba de escribir turnStartAt: srvTimestamp() (ver
             // fbMakeMove), Firestore dispara ESTE listener de inmediato con
@@ -5800,9 +5801,29 @@
             // en milisegundos), se usa el timestamp real del servidor
             // (nunca una estimación), que no depende para nada del reloj
             // de ningún dispositivo.
-            lastRoundGames = qsnap.docs.map((d) =>
-              d.data({ serverTimestamps: d.metadata.hasPendingWrites ? "none" : "estimate" })
-            );
+            lastRoundGames = qsnap.docs.map((d) => {
+              // Defensivo: en modo LAN (lan-shim.js) el objeto que imita un
+              // QueryDocumentSnapshot puede no traer .metadata en absoluto
+              // (a diferencia del SDK real de Firestore). Si accediéramos a
+              // d.metadata.hasPendingWrites directo y viniera undefined,
+              // esto tira TypeError y como pasa DENTRO del callback de
+              // onSnapshot, no lo agarra el manejador de error de más
+              // abajo: el listener entero deja de correr para siempre a
+              // partir de ahí (lastRoundGames nunca se vuelve a actualizar
+              // → los relojes, y todo lo demás que depende de esto, quedan
+              // congelados). Con el chequeo opcional, si no hay .metadata
+              // simplemente se trata como "ya confirmado" (mismo
+              // comportamiento que había antes de este cambio).
+              const pending = !!(d.metadata && d.metadata.hasPendingWrites);
+              if (CLOCK_DEBUG) {
+                console.log("[CLOCK_DEBUG] doc snapshot", {
+                  id: d.id,
+                  hasMetadata: !!d.metadata,
+                  hasPendingWrites: pending,
+                });
+              }
+              return d.data({ serverTimestamps: pending ? "none" : "estimate" });
+            });
             // Mientras hay una mesa abierta (tournamentMatchActive), el panel
             // de emparejamientos/clasificación está oculto detrás del
             // tablero: reconstruirlo en cada jugada de CUALQUIER mesa del
@@ -5825,6 +5846,16 @@
             refreshPublicScreenActiveMiniBoard_();
             renderPublicScreenZoomBoard_();
             handleLiveMatchUpdate(lastTournamentState);
+            } catch (err) {
+              // Red de seguridad: un error inesperado acá adentro (por
+              // ejemplo, otra diferencia entre el shim LAN y el SDK real de
+              // Firestore que todavía no contemplamos) no debe dejar
+              // lastRoundGames/los relojes congelados para siempre en
+              // silencio. Lo dejamos bien visible en consola para poder
+              // diagnosticarlo, y el próximo snapshot que llegue va a
+              // reintentar solo (el listener en sí sigue vivo).
+              console.error("[subscribeRoundGames] error procesando snapshot:", err);
+            }
           },
           () => {
             // Silencioso: el estado de conexión ya se informa en el
