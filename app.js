@@ -5357,15 +5357,31 @@
       // reloj del dispositivo tal cual (offset 0): nunca rompe el
       // cronómetro, en el peor caso deja de corregir el desfasaje.
       async function syncInternetClock_() {
+        // OJO: worldtimeapi.org (el endpoint que estaba acá antes) cerró
+        // definitivamente ("This service has now been sunset", según su
+        // propia página) y ya no responde nunca. Eso hacía que el primer
+        // intento fallara siempre y, si el segundo servidor tampoco
+        // contestaba a tiempo, el offset se quedaba en 0 (reloj propio de
+        // cada dispositivo) y los cronómetros de torneo terminaban
+        // desincronizados entre máquinas. gateway.timeapi.world es el
+        // reemplazo directo (mismo formato de respuesta, con "unixtime")
+        // pensado justamente para sustituir a worldtimeapi.org.
         const endpoints = [
-          { url: "https://worldtimeapi.org/api/timezone/Etc/UTC", parse: (d) => d.unixtime * 1000 },
+          { url: "https://gateway.timeapi.world/timezone/Etc/UTC", parse: (d) => d.unixtime * 1000 },
           { url: "https://timeapi.io/api/Time/current/zone?timeZone=UTC", parse: (d) => new Date(d.dateTime + "Z").getTime() },
         ];
         for (const { url, parse } of endpoints) {
           try {
+            // Si el servidor no contesta nada (ni siquiera un error), fetch
+            // se queda esperando indefinidamente y nunca se llega a probar
+            // el siguiente endpoint de la lista; con AbortController lo
+            // cortamos a los 4s y pasamos al que sigue.
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
             const t0 = Date.now();
-            const res = await fetch(url, { cache: "no-store" });
+            const res = await fetch(url, { cache: "no-store", signal: controller.signal });
             const t1 = Date.now();
+            clearTimeout(timeoutId);
             if (!res.ok) continue;
             const data = await res.json();
             const serverMs = parse(data);
@@ -5380,7 +5396,7 @@
             return true;
           } catch (err) {
             // Ese servidor de hora no respondió (sin conexión, CORS,
-            // bloqueado, etc.): probamos el siguiente de la lista.
+            // timeout, bloqueado, etc.): probamos el siguiente de la lista.
           }
         }
         return false;
