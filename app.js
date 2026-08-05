@@ -41,8 +41,10 @@
       let explainMode;
       let lastTournamentState;
       let currentUser;
-      let tournamentClockOffsetMs = 0;
-      let lastTurnStartAtMs = 0;
+      // Corrección del reloj de este dispositivo contra la hora real de
+      // Internet (ver syncInternetClock_ más abajo), no contra turnStartAt
+      // ni contra el reloj propio de la máquina.
+      let internetClockOffsetMs = 0;
       const TOURNAMENT_ADMIN_EMAIL = "ipem146centenario@gmail.com";
 
       // =========================
@@ -5347,6 +5349,69 @@
         return 0;
       }
 
+      // ---------------------------------------------------------------
+      // Reloj de Internet para los cronómetros de partida de torneo.
+      //
+      // Antes, para que dos PCs con relojes distintos coincidieran, se
+      // comparaba el Date.now() de cada máquina contra turnStartAt (un
+      // timestamp de servidor de Firestore) cada vez que arrancaba un
+      // turno nuevo. Eso corrige el desfasaje, pero sigue siendo "el
+      // reloj de la máquina, corregido"; acá vamos un paso más allá y
+      // sincronizamos directo contra la hora real por Internet (estilo
+      // NTP), consultando servidores de hora públicos por HTTP. Así el
+      // "ahora" que usan ambos cronómetros (blancas y negras) para
+      // calcular cuánto tiempo pasó no depende en absoluto de cómo esté
+      // puesto el reloj del sistema operativo de cada PC/celular.
+      //
+      // Si no hay conexión a ninguno de los servidores de hora (por
+      // ejemplo jugando en modo LAN sin Internet), se sigue usando el
+      // reloj del dispositivo tal cual (offset 0): nunca rompe el
+      // cronómetro, en el peor caso deja de corregir el desfasaje.
+      async function syncInternetClock_() {
+        const endpoints = [
+          { url: "https://worldtimeapi.org/api/timezone/Etc/UTC", parse: (d) => d.unixtime * 1000 },
+          { url: "https://timeapi.io/api/Time/current/zone?timeZone=UTC", parse: (d) => new Date(d.dateTime + "Z").getTime() },
+        ];
+        for (const { url, parse } of endpoints) {
+          try {
+            const t0 = Date.now();
+            const res = await fetch(url, { cache: "no-store" });
+            const t1 = Date.now();
+            if (!res.ok) continue;
+            const data = await res.json();
+            const serverMs = parse(data);
+            if (!Number.isFinite(serverMs)) continue;
+            // El servidor de hora generó su timestamp en algún punto entre
+            // que salió el pedido (t0) y llegó la respuesta (t1); tomamos
+            // la mitad del viaje de ida y vuelta como estimación (mismo
+            // principio que usa NTP) para no cargarle toda la latencia de
+            // red al offset.
+            const roundTrip = t1 - t0;
+            internetClockOffsetMs = serverMs + roundTrip / 2 - t1;
+            return true;
+          } catch (err) {
+            // Ese servidor de hora no respondió (sin conexión, CORS,
+            // bloqueado, etc.): probamos el siguiente de la lista.
+          }
+        }
+        return false;
+      }
+
+      // "Ahora" corregido: úsese SIEMPRE en vez de Date.now() a secas para
+      // cualquier cálculo de tiempo que dos dispositivos distintos tengan
+      // que coincidir (cronómetros de blancas/negras, descuento de tiempo
+      // al mover).
+      function syncedNow_() {
+        return Date.now() + internetClockOffsetMs;
+      }
+
+      // Primer ajuste apenas carga la página (no hace falta esperar a que
+      // se abra una partida de torneo), y uno nuevo cada 5 minutos para
+      // corregir el drift del reloj local si se va desviando con el correr
+      // del tiempo en partidas largas.
+      syncInternetClock_();
+      setInterval(syncInternetClock_, 5 * 60 * 1000);
+
       // Genera un "email" sintético a partir del nombre para identificar a
       // cada jugador en modo LAN (todo el resto del código de torneo ya
       // identifica jugadores por currentUser.email, así que no hace falta
@@ -6832,14 +6897,14 @@
         // se calcula más abajo contra turnStartAt (que SÍ es un timestamp
         // de servidor) queda mal: a un jugador con el reloj adelantado se
         // le descontaría de más, y a uno atrasado, de menos. Por eso acá
-        // corregimos con tournamentClockOffsetMs, el mismo desfasaje
-        // cliente-servidor que ya calcula updateTournamentClockDisplay
-        // comparando Date.now() contra el turnStartAt real que llega por
-        // Firestore: convierte el sello de este cliente a la hora de
-        // servidor antes de usarlo, así que dos PCs con relojes distintos
-        // (o mal configurados) ya no afectan cuánto tiempo se descuenta.
-        const tournamentServerNowMs_ = Date.now() + tournamentClockOffsetMs;
-        const effectiveMoveAt = Math.min((clientMoveAt || Date.now()) + tournamentClockOffsetMs, tournamentServerNowMs_);
+        // corregimos con internetClockOffsetMs, el desfasaje contra la
+        // hora real de Internet que calcula syncInternetClock_ (no el
+        // reloj de ninguna de las dos PCs): convierte el sello de este
+        // cliente a esa hora real antes de usarlo, así que dos PCs con
+        // relojes distintos (o mal configurados) ya no afectan cuánto
+        // tiempo se descuenta.
+        const tournamentServerNowMs_ = syncedNow_();
+        const effectiveMoveAt = Math.min((clientMoveAt || Date.now()) + internetClockOffsetMs, tournamentServerNowMs_);
         const gameDocRef = gamesCollectionRef.doc(gameDocId_(round, board));
 
         // ATAJO para todo lo que NO sea un reclamo de tiempo agotado
@@ -9128,11 +9193,11 @@
         const finished = gameRow.status === "finished";
         const suspended = gameRow.status === "suspended";
         const turnStartAtMs = getTimestampMs(gameRow.turnStartAt);
-        if (turnStartAtMs && turnStartAtMs !== lastTurnStartAtMs) {
-          lastTurnStartAtMs = turnStartAtMs;
-          tournamentClockOffsetMs = turnStartAtMs - Date.now();
-        }
-        const serverNow = Date.now() + tournamentClockOffsetMs;
+        // "ahora" viene del reloj de Internet (syncInternetClock_), no del
+        // reloj de la PC/celular: así, aunque las dos pantallas conectadas
+        // tengan el reloj del sistema puesto de forma completamente
+        // distinta, ambas calculan el mismo tiempo transcurrido.
+        const serverNow = syncedNow_();
         const elapsed =
           finished || suspended || !turnStartAtMs
             ? 0
@@ -9324,8 +9389,6 @@
         clearInterval(tournamentClockTimer);
         tournamentClockTimer = null;
         tournamentCurrentGameRow = null;
-        tournamentClockOffsetMs = 0;
-        lastTurnStartAtMs = 0;
         unsubscribeMatchChat();
         unsubscribeCallSignaling();
 
