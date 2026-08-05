@@ -1871,7 +1871,11 @@
         // contra cuántos ticks de 1s llegaron a correr (que en mobile
         // pueden haberse salteado si la pantalla estuvo bloqueada).
         if (clockEnabled && turnStartAt) {
-          const elapsed = Math.max(0, Math.round((Date.now() - turnStartAt) / 1000));
+          // Math.floor, no Math.round: redondear "para arriba" cobraría hasta
+          // medio segundo que en los hechos todavía no transcurrió (p. ej.
+          // 29.6s pensados pasaban a cobrarse como 30s). Con floor nunca se
+          // descuenta más tiempo real del que efectivamente pasó.
+          const elapsed = Math.max(0, Math.floor((Date.now() - turnStartAt) / 1000));
           clock[prevTurn] = Math.max(0, clock[prevTurn] - elapsed);
         }
         const increment = getIncrement();
@@ -1911,7 +1915,7 @@
       function getClockRemaining_(color) {
         if (!clockEnabled) return clock[color];
         if (game.turn() === color && turnStartAt && !game.game_over()) {
-          const elapsed = Math.max(0, Math.round((Date.now() - turnStartAt) / 1000));
+          const elapsed = Math.max(0, Math.floor((Date.now() - turnStartAt) / 1000));
           return Math.max(0, clock[color] - elapsed);
         }
         return clock[color];
@@ -6864,7 +6868,7 @@
           if (isRealMove) {
             const moverColor = new Chess(cachedGame.fen).turn();
             const elapsed = cachedGame.turnStartAt
-              ? Math.max(0, Math.round((effectiveMoveAt - getTimestampMs(cachedGame.turnStartAt)) / 1000))
+              ? Math.max(0, Math.floor((effectiveMoveAt - getTimestampMs(cachedGame.turnStartAt)) / 1000))
               : 0;
             const newClock = { ...cachedGame.clock, [moverColor]: Math.max(0, cachedGame.clock[moverColor] - elapsed) };
             if (!gameOverResult && cachedGame.increment) {
@@ -6921,7 +6925,7 @@
           // recién empieza a correr a partir de esta jugada.
           if (g.clock && fen !== g.fen) {
             const moverColor = new Chess(g.fen).turn();
-            const elapsed = g.turnStartAt ? Math.max(0, Math.round((effectiveMoveAt - getTimestampMs(g.turnStartAt)) / 1000)) : 0;
+            const elapsed = g.turnStartAt ? Math.max(0, Math.floor((effectiveMoveAt - getTimestampMs(g.turnStartAt)) / 1000)) : 0;
             g.clock = { ...g.clock, [moverColor]: Math.max(0, g.clock[moverColor] - elapsed) };
             if (!gameOverResult && g.increment) {
               g.clock = { ...g.clock, [moverColor]: g.clock[moverColor] + g.increment };
@@ -9117,7 +9121,7 @@
         const elapsed =
           finished || suspended || !turnStartAtMs
             ? 0
-            : Math.max(0, Math.round((serverNow - turnStartAtMs) / 1000));
+            : Math.max(0, Math.floor((serverNow - turnStartAtMs) / 1000));
         const remaining = {
           w: gameRow.clock.w - (turn === "w" && !finished && !suspended ? elapsed : 0),
           b: gameRow.clock.b - (turn === "b" && !finished && !suspended ? elapsed : 0),
@@ -9962,3 +9966,23 @@
       // Ya no hace falta un temporizador de sondeo: la página del torneo y
       // la partida en vivo se actualizan solas gracias al listener en tiempo
       // real de Firestore (subscribeTournament / onSnapshot).
+
+      // Al volver la pestaña/app a primer plano (se desbloquea la pantalla,
+      // se vuelve de otra app) los setInterval de los relojes pueden haber
+      // estado frenados por el navegador mientras estuvo en segundo plano.
+      // El cálculo en sí siempre es correcto porque se hace contra un
+      // timestamp real (ver updateClockDisplay/updateTournamentClockDisplay),
+      // pero sin esto la pantalla se queda mostrando el último valor pintado
+      // hasta que el próximo tick del intervalo llegue a dispararse. Acá lo
+      // refrescamos al toque en vez de esperar.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        if (tournamentMatchActive) {
+          updateTournamentClockDisplay();
+        } else {
+          updateClockDisplay();
+        }
+        if (lastTournamentState && lastTournamentState.meta) {
+          renderRoundCountdown_(lastTournamentState);
+        }
+      });
