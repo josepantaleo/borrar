@@ -1,13 +1,9 @@
       "use strict";
 
-      import {
-        formatTime,
-        capitalizeFirst,
-        dayOfYear,
-        cpToWin,
-        classifyLoss,
-        levelLabel,
-      } from "./utils.js";
+      // Nota: formatTime, capitalizeFirst, dayOfYear, cpToWin, classifyLoss
+      // y levelLabel vienen de utils.js, cargado como <script> clásico
+      // ANTES que este archivo en index.html (ya no se usa import de
+      // módulos ES para poder abrir la app con doble clic, sin servidor).
 
       // PWA: registra el service worker que cachea el "app shell" (ver
       // sw.js) para que la app se pueda instalar y las lecciones/
@@ -30,6 +26,17 @@
       // Queda apagada por defecto para no gastar CPU en la ruta crítica en
       // producción; para reactivarla al depurar, poner esto en true.
       const PERF_DEBUG = false;
+
+      // Instrumentación temporal para diagnosticar el bug reportado de
+      // "los cronómetros de la partida de torneo no cuentan hacia atrás".
+      // Loguea, como máximo una vez por segundo, el estado exacto que usa
+      // updateTournamentClockDisplay() para decidir si mueve el número o
+      // no, más el momento en que se marca "joined" y el momento en que se
+      // escribe turnStartAt en cada jugada. Poner en false para apagarlo
+      // (o borrar este bloque y los bloques marcados "CLOCK_DEBUG" más
+      // abajo una vez encontrada la causa).
+      const CLOCK_DEBUG = true;
+      let _clockDebugLastLog = 0;
 
       // Forward declarations para variables globales usadas en
       // funciones definidas antes de su inicialización.
@@ -1877,14 +1884,17 @@
           // medio segundo que en los hechos todavía no transcurrió (p. ej.
           // 29.6s pensados pasaban a cobrarse como 30s). Con floor nunca se
           // descuenta más tiempo real del que efectivamente pasó.
-          const elapsed = Math.max(0, Math.floor((Date.now() - turnStartAt) / 1000));
+          // syncedNow_() en vez de Date.now(): así tocar el reloj del
+          // sistema (a propósito o no) durante la partida no regala ni
+          // roba tiempo de pensada.
+          const elapsed = Math.max(0, Math.floor((syncedNow_() - turnStartAt) / 1000));
           clock[prevTurn] = Math.max(0, clock[prevTurn] - elapsed);
         }
         const increment = getIncrement();
         if (increment && clockEnabled && !game.game_over()) {
           clock[prevTurn] += increment;
         }
-        turnStartAt = clockEnabled ? Date.now() : null;
+        turnStartAt = clockEnabled ? syncedNow_() : null;
         updateClockDisplay();
       }
 
@@ -1894,7 +1904,7 @@
         clockEnabled = initial > 0;
         clock = { w: initial, b: initial };
         clockFlagged = false;
-        turnStartAt = start && initial > 0 ? Date.now() : null;
+        turnStartAt = start && initial > 0 ? syncedNow_() : null;
 
         if (start && initial > 0) {
           // El intervalo ya no resta segundos: solo refresca la pantalla
@@ -1917,7 +1927,7 @@
       function getClockRemaining_(color) {
         if (!clockEnabled) return clock[color];
         if (game.turn() === color && turnStartAt && !game.game_over()) {
-          const elapsed = Math.max(0, Math.floor((Date.now() - turnStartAt) / 1000));
+          const elapsed = Math.max(0, Math.floor((syncedNow_() - turnStartAt) / 1000));
           return Math.max(0, clock[color] - elapsed);
         }
         return clock[color];
@@ -4579,22 +4589,12 @@
       let publicScreenCycleTimer_ = null;
       let publicScreenZoomKey_ = null; // "round-board" de la mesa abierta en el modal de zoom, o null si está cerrado
 
-      // --- Countdown de ronda sincronizado con el reloj del servidor ---
-      // Firestore no tiene un equivalente al ".info/serverTimeOffset" de
-      // Realtime Database, así que lo estimamos nosotros: cada vez que nos
-      // llega (sin hasPendingWrites) el Timestamp server-side
-      // meta.roundCountdownSetAt, comparamos ese instante "real" contra
-      // nuestro Date.now() local en el momento de recibirlo. La diferencia
-      // (drift de reloj del dispositivo + latencia de red, en general
-      // despreciable) es countdownClockOffsetMs_, y de ahí en más
-      // syncedNow_() la usa para que la cuenta regresiva no dependa de que
+      // --- Countdown de ronda ---
+      // syncedNow_() (definida más abajo, junto con syncInternetClock_) ya
+      // nos da un "ahora" corregido contra la hora real de Internet; el
+      // countdown de ronda usa esa misma función para no depender de que
       // el celular de cada chico tenga bien puesta la hora.
-      let countdownClockOffsetMs_ = 0;
       let roundCountdownTimer_ = null;
-
-      function syncedNow_() {
-        return Date.now() + countdownClockOffsetMs_;
-      }
 
       function assertAdminOrReferee() {
         if (!isCurrentUserAdmin(lastTournamentState) && !isCurrentUserReferee()) {
@@ -5368,15 +5368,31 @@
       // reloj del dispositivo tal cual (offset 0): nunca rompe el
       // cronómetro, en el peor caso deja de corregir el desfasaje.
       async function syncInternetClock_() {
+        // OJO: worldtimeapi.org (el endpoint que estaba acá antes) cerró
+        // definitivamente ("This service has now been sunset", según su
+        // propia página) y ya no responde nunca. Eso hacía que el primer
+        // intento fallara siempre y, si el segundo servidor tampoco
+        // contestaba a tiempo, el offset se quedaba en 0 (reloj propio de
+        // cada dispositivo) y los cronómetros de torneo terminaban
+        // desincronizados entre máquinas. gateway.timeapi.world es el
+        // reemplazo directo (mismo formato de respuesta, con "unixtime")
+        // pensado justamente para sustituir a worldtimeapi.org.
         const endpoints = [
-          { url: "https://worldtimeapi.org/api/timezone/Etc/UTC", parse: (d) => d.unixtime * 1000 },
+          { url: "https://gateway.timeapi.world/timezone/Etc/UTC", parse: (d) => d.unixtime * 1000 },
           { url: "https://timeapi.io/api/Time/current/zone?timeZone=UTC", parse: (d) => new Date(d.dateTime + "Z").getTime() },
         ];
         for (const { url, parse } of endpoints) {
           try {
+            // Si el servidor no contesta nada (ni siquiera un error), fetch
+            // se queda esperando indefinidamente y nunca se llega a probar
+            // el siguiente endpoint de la lista; con AbortController lo
+            // cortamos a los 4s y pasamos al que sigue.
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
             const t0 = Date.now();
-            const res = await fetch(url, { cache: "no-store" });
+            const res = await fetch(url, { cache: "no-store", signal: controller.signal });
             const t1 = Date.now();
+            clearTimeout(timeoutId);
             if (!res.ok) continue;
             const data = await res.json();
             const serverMs = parse(data);
@@ -5391,7 +5407,7 @@
             return true;
           } catch (err) {
             // Ese servidor de hora no respondió (sin conexión, CORS,
-            // bloqueado, etc.): probamos el siguiente de la lista.
+            // timeout, bloqueado, etc.): probamos el siguiente de la lista.
           }
         }
         return false;
@@ -5747,7 +5763,67 @@
         }
         gamesRoundUnsub = gamesCollectionRef.where("round", "==", round).onSnapshot(
           (qsnap) => {
-            lastRoundGames = qsnap.docs.map((d) => d.data());
+            try {
+            // OJO clave para los cronómetros: cuando este mismo cliente
+            // acaba de escribir turnStartAt: srvTimestamp() (ver
+            // fbMakeMove), Firestore dispara ESTE listener de inmediato con
+            // la escritura optimista local, ANTES de que el servidor
+            // confirme el valor real.
+            //
+            // Antes acá se pedía SIEMPRE { serverTimestamps: "estimate" }
+            // para ese campo: mientras se confirma, Firestore rellena el
+            // valor con una ESTIMACIÓN basada en el reloj propio del
+            // DISPOSITIVO (sin corregir contra syncedNow_()/
+            // internetClockOffsetMs). Si la PC que acaba de mover tiene el
+            // reloj del sistema atrasado respecto a la hora real, esa
+            // estimación queda "en el pasado", y el próximo cálculo de
+            // elapsed (que sí usa la hora corregida por Internet) resta de
+            // golpe varios minutos del reloj del rival — pudiendo vaciarlo
+            // por completo o disparar un reclamo de tiempo agotado falso,
+            // justo apenas después de la primera jugada de la partida (que
+            // es cuando turnStartAt pasa de null a un valor por primera
+            // vez). Esto reemplazaba al bug anterior (ver comentario
+            // viejo abajo) por uno peor.
+            //
+            // Solución: usar "estimate" SOLO para los documentos ya
+            // confirmados por el servidor (metadata.hasPendingWrites ===
+            // false); para el/los documento(s) todavía pendientes de
+            // confirmación (típicamente el que este mismo cliente acaba de
+            // escribir), pedir "none" en su lugar. Así, mientras se
+            // confirma, el campo llega como null (en vez de una
+            // estimación potencialmente errónea basada en un reloj de
+            // sistema desincronizado): getTimestampMs(null) da 0 y
+            // updateTournamentClockDisplay/fbMakeMove tratan eso como
+            // "todavía no hay elapsed que cobrar" (mismo comportamiento
+            // seguro que la primerísima jugada de la partida, cuando
+            // turnStartAt arranca en null). En cuanto llega la confirmación
+            // real del servidor (uno o dos snapshots después, típicamente
+            // en milisegundos), se usa el timestamp real del servidor
+            // (nunca una estimación), que no depende para nada del reloj
+            // de ningún dispositivo.
+            lastRoundGames = qsnap.docs.map((d) => {
+              // Defensivo: en modo LAN (lan-shim.js) el objeto que imita un
+              // QueryDocumentSnapshot puede no traer .metadata en absoluto
+              // (a diferencia del SDK real de Firestore). Si accediéramos a
+              // d.metadata.hasPendingWrites directo y viniera undefined,
+              // esto tira TypeError y como pasa DENTRO del callback de
+              // onSnapshot, no lo agarra el manejador de error de más
+              // abajo: el listener entero deja de correr para siempre a
+              // partir de ahí (lastRoundGames nunca se vuelve a actualizar
+              // → los relojes, y todo lo demás que depende de esto, quedan
+              // congelados). Con el chequeo opcional, si no hay .metadata
+              // simplemente se trata como "ya confirmado" (mismo
+              // comportamiento que había antes de este cambio).
+              const pending = !!(d.metadata && d.metadata.hasPendingWrites);
+              if (CLOCK_DEBUG) {
+                console.log("[CLOCK_DEBUG] doc snapshot", {
+                  id: d.id,
+                  hasMetadata: !!d.metadata,
+                  hasPendingWrites: pending,
+                });
+              }
+              return d.data({ serverTimestamps: pending ? "none" : "estimate" });
+            });
             // Mientras hay una mesa abierta (tournamentMatchActive), el panel
             // de emparejamientos/clasificación está oculto detrás del
             // tablero: reconstruirlo en cada jugada de CUALQUIER mesa del
@@ -5770,6 +5846,16 @@
             refreshPublicScreenActiveMiniBoard_();
             renderPublicScreenZoomBoard_();
             handleLiveMatchUpdate(lastTournamentState);
+            } catch (err) {
+              // Red de seguridad: un error inesperado acá adentro (por
+              // ejemplo, otra diferencia entre el shim LAN y el SDK real de
+              // Firestore que todavía no contemplamos) no debe dejar
+              // lastRoundGames/los relojes congelados para siempre en
+              // silencio. Lo dejamos bien visible en consola para poder
+              // diagnosticarlo, y el próximo snapshot que llegue va a
+              // reintentar solo (el listener en sí sigue vivo).
+              console.error("[subscribeRoundGames] error procesando snapshot:", err);
+            }
           },
           () => {
             // Silencioso: el estado de conexión ya se informa en el
@@ -5812,16 +5898,7 @@
                 `[perf] room snapshot ~${(__bytes / 1024).toFixed(1)}KB | pairings=${(__raw.pairings || []).length} players=${(__raw.players || []).length}`
               );
             }
-            const state = normalizeTournamentState(snap.exists ? snap.data() : null);
-            // No recalculamos el offset con writes propios todavía pendientes
-            // de confirmar (el serverTimestamp() local vale null hasta que
-            // el server lo resuelve) para no contaminar la estimación.
-            if (!snap.metadata.hasPendingWrites) {
-              const setAt = state.meta.roundCountdownSetAt;
-              if (setAt && typeof setAt.toMillis === "function") {
-                countdownClockOffsetMs_ = setAt.toMillis() - Date.now();
-              }
-            }
+            const state = normalizeTournamentState(snap.exists ? snap.data({ serverTimestamps: "estimate" }) : null);
             const previousStatus = lastKnownTournamentStatus_;
             lastKnownTournamentStatus_ = state.meta.status;
             lastTournamentState = state;
@@ -6961,6 +7038,16 @@
             patch.status = "finished";
             patch.result = gameOverResult;
           }
+          if (CLOCK_DEBUG) {
+            console.log("[CLOCK_DEBUG] fbMakeMove fast-path", {
+              isRealMove,
+              hasClockOnCachedGame: !!cachedGame.clock,
+              cachedGameTurnStartAt: cachedGame.turnStartAt,
+              joined: cachedGame.joined,
+              patchHasTurnStartAt: "turnStartAt" in patch,
+              patchClock: patch.clock,
+            });
+          }
           await gameDocRef.update(patch);
           const writtenGame = { ...cachedGame, ...patch };
           // Reemplazar el placeholder de serverTimestamp por un timestamp
@@ -7084,7 +7171,11 @@
           if (!snap.exists) return;
           const g = snap.data();
           const joined = g.joined || { w: false, b: false };
-          if (joined[color]) return; // ya estaba marcado: no hace falta escribir de nuevo
+          if (joined[color]) {
+            if (CLOCK_DEBUG) console.log("[CLOCK_DEBUG] fbMarkJoined: ya estaba marcado", { round, board, color, joined });
+            return; // ya estaba marcado: no hace falta escribir de nuevo
+          }
+          if (CLOCK_DEBUG) console.log("[CLOCK_DEBUG] fbMarkJoined: marcando presencia", { round, board, color, joinedAntes: joined });
           tx.update(gameDocRef, { joined: { ...joined, [color]: true } });
         });
       }
@@ -9079,7 +9170,7 @@
 
       function tournamentMyColor() {
         if (!tournamentMatchCtx || !currentUser) return "";
-        const email = currentUser.email;
+        const email = (currentUser.email || "").toLowerCase();
         if (tournamentMatchCtx.whiteEmail && tournamentMatchCtx.whiteEmail.toLowerCase() === email) return "w";
         if (tournamentMatchCtx.blackEmail && tournamentMatchCtx.blackEmail.toLowerCase() === email) return "b";
         return "";
@@ -9179,6 +9270,23 @@
         const gameRow = tournamentCurrentGameRow;
         const wEl = document.getElementById("clock-w");
         const bEl = document.getElementById("clock-b");
+        const _clockDebugShouldLog = CLOCK_DEBUG && Date.now() - _clockDebugLastLog > 1000;
+        if (_clockDebugShouldLog) {
+          _clockDebugLastLog = Date.now();
+          console.log("[CLOCK_DEBUG] tick", {
+            hasGameRow: !!gameRow,
+            hasClock: !!(gameRow && gameRow.clock),
+            hasWEl: !!wEl,
+            hasBEl: !!bEl,
+            status: gameRow && gameRow.status,
+            joined: gameRow && gameRow.joined,
+            turnStartAtRaw: gameRow && gameRow.turnStartAt,
+            turnStartAtType: gameRow && gameRow.turnStartAt && typeof gameRow.turnStartAt,
+            turnStartAtHasToMillis: !!(gameRow && gameRow.turnStartAt && typeof gameRow.turnStartAt.toMillis === "function"),
+            tournamentMatchBusy,
+            clockRaw: gameRow && gameRow.clock,
+          });
+        }
         if (!gameRow || !gameRow.clock || !wEl || !bEl) return;
         // Mientras nuestra propia jugada se está sincronizando con Firestore
         // (tournamentMatchBusy), game.turn() ya cambió en el cliente pero
@@ -9210,6 +9318,32 @@
         const bSecs = Math.max(0, remaining.b);
         const wTime = wEl.querySelector(".clock-time");
         const bTime = bEl.querySelector(".clock-time");
+        if (_clockDebugShouldLog) {
+          console.log("[CLOCK_DEBUG] compute", {
+            turn,
+            serverNow,
+            turnStartAtMs,
+            elapsed,
+            remainingW: remaining.w,
+            remainingB: remaining.b,
+            wSecs,
+            bSecs,
+            formattedW: formatTime(wSecs),
+            formattedB: formatTime(bSecs),
+            wTimeFound: !!wTime,
+            bTimeFound: !!bTime,
+            // Si hay MÁS de un elemento en la página con este id, getElementById
+            // siempre devuelve el primero del DOM, que puede no ser el que se
+            // ve en pantalla (por ejemplo, si quedó una mesa vieja sin destruir
+            // en el fondo). Esto lo detecta:
+            wElDuplicated: document.querySelectorAll("#clock-w").length,
+            bElDuplicated: document.querySelectorAll("#clock-b").length,
+            wElConnected: wEl.isConnected,
+            bElConnected: bEl.isConnected,
+            wElVisible: wEl.offsetParent !== null,
+            bElVisible: bEl.offsetParent !== null,
+          });
+        }
         (wTime || wEl).textContent = formatTime(wSecs);
         (bTime || bEl).textContent = formatTime(bSecs);
         wEl.classList.toggle("active", turn === "w" && !finished && !suspended);
@@ -9336,6 +9470,15 @@
           tournamentCurrentGameRow = gameRow;
           clearInterval(tournamentClockTimer);
           const clockEl = document.querySelector("#page-jugar .clock");
+          if (CLOCK_DEBUG) {
+            console.log("[CLOCK_DEBUG] enterTournamentMatch", {
+              hasClockEl: !!clockEl,
+              gameRowClock: gameRow.clock,
+              gameRowJoined: gameRow.joined,
+              gameRowTurnStartAt: gameRow.turnStartAt,
+              gameRowStatus: gameRow.status,
+            });
+          }
           if (gameRow.clock) {
             if (clockEl) clockEl.style.display = "";
             updateTournamentClockDisplay();
