@@ -27,6 +27,17 @@
       // producción; para reactivarla al depurar, poner esto en true.
       const PERF_DEBUG = false;
 
+      // Instrumentación temporal para diagnosticar el bug reportado de
+      // "los cronómetros de la partida de torneo no cuentan hacia atrás".
+      // Loguea, como máximo una vez por segundo, el estado exacto que usa
+      // updateTournamentClockDisplay() para decidir si mueve el número o
+      // no, más el momento en que se marca "joined" y el momento en que se
+      // escribe turnStartAt en cada jugada. Poner en false para apagarlo
+      // (o borrar este bloque y los bloques marcados "CLOCK_DEBUG" más
+      // abajo una vez encontrada la causa).
+      const CLOCK_DEBUG = true;
+      let _clockDebugLastLog = 0;
+
       // Forward declarations para variables globales usadas en
       // funciones definidas antes de su inicialización.
       let state;
@@ -6973,6 +6984,16 @@
             patch.status = "finished";
             patch.result = gameOverResult;
           }
+          if (CLOCK_DEBUG) {
+            console.log("[CLOCK_DEBUG] fbMakeMove fast-path", {
+              isRealMove,
+              hasClockOnCachedGame: !!cachedGame.clock,
+              cachedGameTurnStartAt: cachedGame.turnStartAt,
+              joined: cachedGame.joined,
+              patchHasTurnStartAt: "turnStartAt" in patch,
+              patchClock: patch.clock,
+            });
+          }
           await gameDocRef.update(patch);
           const writtenGame = { ...cachedGame, ...patch };
           // Reemplazar el placeholder de serverTimestamp por un timestamp
@@ -7096,7 +7117,11 @@
           if (!snap.exists) return;
           const g = snap.data();
           const joined = g.joined || { w: false, b: false };
-          if (joined[color]) return; // ya estaba marcado: no hace falta escribir de nuevo
+          if (joined[color]) {
+            if (CLOCK_DEBUG) console.log("[CLOCK_DEBUG] fbMarkJoined: ya estaba marcado", { round, board, color, joined });
+            return; // ya estaba marcado: no hace falta escribir de nuevo
+          }
+          if (CLOCK_DEBUG) console.log("[CLOCK_DEBUG] fbMarkJoined: marcando presencia", { round, board, color, joinedAntes: joined });
           tx.update(gameDocRef, { joined: { ...joined, [color]: true } });
         });
       }
@@ -9191,6 +9216,22 @@
         const gameRow = tournamentCurrentGameRow;
         const wEl = document.getElementById("clock-w");
         const bEl = document.getElementById("clock-b");
+        if (CLOCK_DEBUG && Date.now() - _clockDebugLastLog > 1000) {
+          _clockDebugLastLog = Date.now();
+          console.log("[CLOCK_DEBUG] tick", {
+            hasGameRow: !!gameRow,
+            hasClock: !!(gameRow && gameRow.clock),
+            hasWEl: !!wEl,
+            hasBEl: !!bEl,
+            status: gameRow && gameRow.status,
+            joined: gameRow && gameRow.joined,
+            turnStartAtRaw: gameRow && gameRow.turnStartAt,
+            turnStartAtType: gameRow && gameRow.turnStartAt && typeof gameRow.turnStartAt,
+            turnStartAtHasToMillis: !!(gameRow && gameRow.turnStartAt && typeof gameRow.turnStartAt.toMillis === "function"),
+            tournamentMatchBusy,
+            clockRaw: gameRow && gameRow.clock,
+          });
+        }
         if (!gameRow || !gameRow.clock || !wEl || !bEl) return;
         // Mientras nuestra propia jugada se está sincronizando con Firestore
         // (tournamentMatchBusy), game.turn() ya cambió en el cliente pero
@@ -9348,6 +9389,15 @@
           tournamentCurrentGameRow = gameRow;
           clearInterval(tournamentClockTimer);
           const clockEl = document.querySelector("#page-jugar .clock");
+          if (CLOCK_DEBUG) {
+            console.log("[CLOCK_DEBUG] enterTournamentMatch", {
+              hasClockEl: !!clockEl,
+              gameRowClock: gameRow.clock,
+              gameRowJoined: gameRow.joined,
+              gameRowTurnStartAt: gameRow.turnStartAt,
+              gameRowStatus: gameRow.status,
+            });
+          }
           if (gameRow.clock) {
             if (clockEl) clockEl.style.display = "";
             updateTournamentClockDisplay();
