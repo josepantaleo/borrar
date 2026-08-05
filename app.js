@@ -9170,7 +9170,7 @@
 
       function tournamentMyColor() {
         if (!tournamentMatchCtx || !currentUser) return "";
-        const email = currentUser.email;
+        const email = (currentUser.email || "").toLowerCase();
         if (tournamentMatchCtx.whiteEmail && tournamentMatchCtx.whiteEmail.toLowerCase() === email) return "w";
         if (tournamentMatchCtx.blackEmail && tournamentMatchCtx.blackEmail.toLowerCase() === email) return "b";
         return "";
@@ -9270,7 +9270,8 @@
         const gameRow = tournamentCurrentGameRow;
         const wEl = document.getElementById("clock-w");
         const bEl = document.getElementById("clock-b");
-        if (CLOCK_DEBUG && Date.now() - _clockDebugLastLog > 1000) {
+        const _clockDebugShouldLog = CLOCK_DEBUG && Date.now() - _clockDebugLastLog > 1000;
+        if (_clockDebugShouldLog) {
           _clockDebugLastLog = Date.now();
           console.log("[CLOCK_DEBUG] tick", {
             hasGameRow: !!gameRow,
@@ -9317,6 +9318,32 @@
         const bSecs = Math.max(0, remaining.b);
         const wTime = wEl.querySelector(".clock-time");
         const bTime = bEl.querySelector(".clock-time");
+        if (_clockDebugShouldLog) {
+          console.log("[CLOCK_DEBUG] compute", {
+            turn,
+            serverNow,
+            turnStartAtMs,
+            elapsed,
+            remainingW: remaining.w,
+            remainingB: remaining.b,
+            wSecs,
+            bSecs,
+            formattedW: formatTime(wSecs),
+            formattedB: formatTime(bSecs),
+            wTimeFound: !!wTime,
+            bTimeFound: !!bTime,
+            // Si hay MÁS de un elemento en la página con este id, getElementById
+            // siempre devuelve el primero del DOM, que puede no ser el que se
+            // ve en pantalla (por ejemplo, si quedó una mesa vieja sin destruir
+            // en el fondo). Esto lo detecta:
+            wElDuplicated: document.querySelectorAll("#clock-w").length,
+            bElDuplicated: document.querySelectorAll("#clock-b").length,
+            wElConnected: wEl.isConnected,
+            bElConnected: bEl.isConnected,
+            wElVisible: wEl.offsetParent !== null,
+            bElVisible: bEl.offsetParent !== null,
+          });
+        }
         (wTime || wEl).textContent = formatTime(wSecs);
         (bTime || bEl).textContent = formatTime(bSecs);
         wEl.classList.toggle("active", turn === "w" && !finished && !suspended);
