@@ -35,7 +35,7 @@
       // escribe turnStartAt en cada jugada. Poner en false para apagarlo
       // (o borrar este bloque y los bloques marcados "CLOCK_DEBUG" más
       // abajo una vez encontrada la causa).
-      const CLOCK_DEBUG = true;
+      const CLOCK_DEBUG = false;
       let _clockDebugLastLog = 0;
 
       // Forward declarations para variables globales usadas en
@@ -5801,6 +5801,9 @@
             // en milisegundos), se usa el timestamp real del servidor
             // (nunca una estimación), que no depende para nada del reloj
             // de ningún dispositivo.
+            const previousGamesById = new Map(
+              lastRoundGames.map((g) => [gameDocId_(g.round, g.board), g])
+            );
             lastRoundGames = qsnap.docs.map((d) => {
               // Defensivo: en modo LAN (lan-shim.js) el objeto que imita un
               // QueryDocumentSnapshot puede no traer .metadata en absoluto
@@ -5822,7 +5825,18 @@
                   hasPendingWrites: pending,
                 });
               }
-              return d.data({ serverTimestamps: pending ? "none" : "estimate" });
+              const nextGame = d.data({ serverTimestamps: pending ? "none" : "estimate" });
+              const activeGameId =
+                tournamentMatchCtx &&
+                gameDocId_(tournamentMatchCtx.round, tournamentMatchCtx.board);
+              const previousGame =
+                activeGameId === d.id && tournamentCurrentGameRow
+                  ? tournamentCurrentGameRow
+                  : previousGamesById.get(d.id);
+              if (pending && !nextGame.turnStartAt && previousGame && previousGame.turnStartAt) {
+                nextGame.turnStartAt = previousGame.turnStartAt;
+              }
+              return nextGame;
             });
             // Mientras hay una mesa abierta (tournamentMatchActive), el panel
             // de emparejamientos/clasificación está oculto detrás del
@@ -7065,6 +7079,7 @@
         let writtenGame = null;
         await fbDb.runTransaction(async (tx) => {
           const snap = await tx.get(gameDocRef);
+          const isRealMove = snap.exists && !!(snap.data().clock && fen !== snap.data().fen);
           if (!snap.exists) throw new Error("No se encontró esa partida");
           const g = { ...snap.data() };
           if (g.status === "finished") throw new Error("Esa partida ya terminó");
@@ -7076,7 +7091,7 @@
           // correr mientras no está mirando la pantalla. Esto es un
           // resguardo extra del lado del servidor; el botón de mover ya
           // está bloqueado del lado del cliente en ese caso.
-          if (g.clock && fen !== g.fen) {
+          if (isRealMove) {
             const joined = g.joined || { w: false, b: false };
             if (!joined.w || !joined.b) {
               throw new Error("Todavía no entraron los dos jugadores a la partida");
@@ -7090,7 +7105,7 @@
           // no tocan el reloj acá). Si es la primera jugada de la partida
           // (turnStartAt todavía en null), no se descuenta nada: el reloj
           // recién empieza a correr a partir de esta jugada.
-          if (g.clock && fen !== g.fen) {
+          if (isRealMove) {
             const moverColor = new Chess(g.fen).turn();
             const elapsed = g.turnStartAt ? Math.max(0, Math.floor((effectiveMoveAt - getTimestampMs(g.turnStartAt)) / 1000)) : 0;
             g.clock = { ...g.clock, [moverColor]: Math.max(0, g.clock[moverColor] - elapsed) };
@@ -7130,7 +7145,7 @@
           // Reemplazar el placeholder de serverTimestamp por un timestamp
           // local para que el cronómetro del cliente pueda calcular elapsed
           // correctamente mientras espera el snapshot de Firestore.
-          if (g.clock && fen !== g.fen) writtenGame.turnStartAt = effectiveMoveAt;
+          if (isRealMove) writtenGame.turnStartAt = effectiveMoveAt;
         });
         // ANTES: acá se hacían dos lecturas de red MÁS, en serie, después de
         // que la transacción ya había confirmado la jugada: getTournamentStateOnce()
@@ -7172,11 +7187,31 @@
           const g = snap.data();
           const joined = g.joined || { w: false, b: false };
           if (joined[color]) {
+            if (
+              g.clock &&
+              g.status === "ongoing" &&
+              !g.turnStartAt &&
+              joined.w &&
+              joined.b
+            ) {
+              tx.update(gameDocRef, { turnStartAt: srvTimestamp() });
+            }
             if (CLOCK_DEBUG) console.log("[CLOCK_DEBUG] fbMarkJoined: ya estaba marcado", { round, board, color, joined });
             return; // ya estaba marcado: no hace falta escribir de nuevo
           }
           if (CLOCK_DEBUG) console.log("[CLOCK_DEBUG] fbMarkJoined: marcando presencia", { round, board, color, joinedAntes: joined });
-          tx.update(gameDocRef, { joined: { ...joined, [color]: true } });
+          const nextJoined = { ...joined, [color]: true };
+          const patch = { joined: nextJoined };
+          if (
+            g.clock &&
+            g.status === "ongoing" &&
+            !g.turnStartAt &&
+            nextJoined.w &&
+            nextJoined.b
+          ) {
+            patch.turnStartAt = srvTimestamp();
+          }
+          tx.update(gameDocRef, patch);
         });
       }
 
@@ -9183,7 +9218,7 @@
         const gameRow = tournamentCurrentGameRow;
         if (!gameRow || !gameRow.clock) return false;
         const joined = gameRow.joined || { w: false, b: false };
-        return !(joined.w && joined.b);
+        return !(joined.w && joined.b) || !getTimestampMs(gameRow.turnStartAt);
       }
 
       function updateTournamentMatchBar(gameRow) {
@@ -9221,8 +9256,12 @@
         const turnName = turn === "w" ? tournamentMatchCtx.whiteName : tournamentMatchCtx.blackName;
         if (tournamentClockWaitingForBothPlayers()) {
           const joined = (gameRow && gameRow.joined) || { w: false, b: false };
-          const missing = !joined.w ? tournamentMatchCtx.whiteName : tournamentMatchCtx.blackName;
-          statusEl.textContent = `⏳ Esperando a que entre ${missing}. El reloj arranca recién con la primera jugada.`;
+          if (joined.w && joined.b) {
+            statusEl.textContent = "Sincronizando el reloj de la partida...";
+          } else {
+            const missing = !joined.w ? tournamentMatchCtx.whiteName : tournamentMatchCtx.blackName;
+            statusEl.textContent = `Esperando a que entre ${missing}. El reloj arrancara cuando esten los dos jugadores.`;
+          }
         } else {
           statusEl.textContent = !myColor
             ? `Turno de ${turnName}.`
@@ -9295,17 +9334,17 @@
         // tiempo agotado falso apenas después de la primera jugada de cada
         // uno. Nos salteamos el chequeo y esperamos al próximo tick, que ya
         // va a tener el gameRow actualizado.
-        if (tournamentMatchBusy) return;
         const turn = game.turn();
         const finished = gameRow.status === "finished";
         const suspended = gameRow.status === "suspended";
+        const waitingForPlayers = tournamentClockWaitingForBothPlayers();
         const turnStartAtMs = getTimestampMs(gameRow.turnStartAt);
         // "ahora" viene del reloj de Internet (syncInternetClock_), no del
         // reloj de la PC/celular: así, aunque las dos pantallas conectadas
         // tengan el reloj del sistema puesto de forma completamente
         // distinta, ambas calculan el mismo tiempo transcurrido.
         const elapsed = (() => {
-          if (finished || suspended || !turnStartAtMs) return 0;
+          if (finished || suspended || waitingForPlayers || !turnStartAtMs) return 0;
           const serverNow = syncedNow_();
           let now = serverNow;
           if (serverNow < turnStartAtMs) {
@@ -9322,8 +9361,8 @@
           return Math.max(0, Math.floor((now - turnStartAtMs) / 1000));
         })();
         const remaining = {
-          w: gameRow.clock.w - (turn === "w" && !finished && !suspended ? elapsed : 0),
-          b: gameRow.clock.b - (turn === "b" && !finished && !suspended ? elapsed : 0),
+          w: gameRow.clock.w - (turn === "w" && !finished && !suspended && !waitingForPlayers ? elapsed : 0),
+          b: gameRow.clock.b - (turn === "b" && !finished && !suspended && !waitingForPlayers ? elapsed : 0),
         };
         const wSecs = Math.max(0, remaining.w);
         const bSecs = Math.max(0, remaining.b);
@@ -9331,10 +9370,10 @@
         const bTime = bEl.querySelector(".clock-time");
         (wTime || wEl).textContent = formatTime(wSecs);
         (bTime || bEl).textContent = formatTime(bSecs);
-        wEl.classList.toggle("active", turn === "w" && !finished && !suspended);
-        bEl.classList.toggle("active", turn === "b" && !finished && !suspended);
+        wEl.classList.toggle("active", turn === "w" && !finished && !suspended && !waitingForPlayers);
+        bEl.classList.toggle("active", turn === "b" && !finished && !suspended && !waitingForPlayers);
 
-        if (!finished && !suspended && ((turn === "w" && remaining.w <= 0) || (turn === "b" && remaining.b <= 0))) {
+        if (!finished && !suspended && !waitingForPlayers && ((turn === "w" && remaining.w <= 0) || (turn === "b" && remaining.b <= 0))) {
           claimTournamentTimeout(turn);
         }
       }
@@ -9582,11 +9621,35 @@
       async function syncTournamentMove() {
         if (!tournamentMatchActive || !tournamentMatchCtx) return;
         if (!tournamentMyColor()) return; // espectador/admin mirando: no sincroniza jugadas propias
-        tournamentMatchBusy = true;
         // Se toma acá, antes de cualquier ida y vuelta con Firestore: es el
         // instante real en que el jugador movió, y es lo que fbMakeMove usa
         // para descontar el reloj (ver el comentario en esa función).
         const clientMoveAt = Date.now();
+        const clientMoveAtSynced = clientMoveAt + internetClockOffsetMs;
+        const previousGameRow = tournamentCurrentGameRow;
+        if (previousGameRow && previousGameRow.clock) {
+          const nextTurn = game.turn();
+          const moverColor = nextTurn === "w" ? "b" : "w";
+          const startedAtMs = getTimestampMs(previousGameRow.turnStartAt);
+          const elapsed = startedAtMs
+            ? Math.max(0, Math.floor((clientMoveAtSynced - startedAtMs) / 1000))
+            : 0;
+          const nextClock = {
+            ...previousGameRow.clock,
+            [moverColor]: Math.max(0, previousGameRow.clock[moverColor] - elapsed),
+          };
+          if (!game.game_over() && previousGameRow.increment) {
+            nextClock[moverColor] += previousGameRow.increment;
+          }
+          tournamentCurrentGameRow = {
+            ...previousGameRow,
+            fen: game.fen(),
+            clock: nextClock,
+            turnStartAt: clientMoveAtSynced,
+          };
+          updateTournamentClockDisplay();
+        }
+        tournamentMatchBusy = true;
         try {
           let gameOverResult = null;
           if (game.in_checkmate()) {
@@ -9619,6 +9682,14 @@
           }
           updateTournamentMatchBar(gameRow);
         } catch (err) {
+          if (previousGameRow) {
+            tournamentCurrentGameRow = previousGameRow;
+            game.load(previousGameRow.fen);
+            selected = null;
+            validMoves = [];
+            render();
+            updateTournamentClockDisplay();
+          }
           toast("❌ No se pudo sincronizar la jugada: " + err.message);
         } finally {
           tournamentMatchBusy = false;
