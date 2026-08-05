@@ -9307,13 +9307,18 @@
         const elapsed = (() => {
           if (finished || suspended || !turnStartAtMs) return 0;
           const serverNow = syncedNow_();
-          // Si el reloj sincronizado queda por detrás del servidor de
-          // Firestore (p. ej. reloj local atrasado o servidores de hora
-          // públicos desfasados), usamos Date.now() como fallback para
-          // que el reloj visual nunca se congele. El tiempo agotado se
-          // sigue validando con syncedNow_() en claimTournamentTimeout,
-          // así que no hay abuso.
-          const now = serverNow >= turnStartAtMs ? serverNow : Date.now();
+          let now = serverNow;
+          if (serverNow < turnStartAtMs) {
+            // El reloj sincronizado queda por detrás del servidor de
+            // Firestore (reloj local atrasado o servidores de hora
+            // públicos desfasados). Forzamos una re-sincronización con
+            // Internet para corregir el offset, y usamos Date.now()
+            // como fallback temporal de este tick para que el reloj
+            // visual nunca se congele. El tiempo agotado se sigue
+            // validando con syncedNow_() en claimTournamentTimeout.
+            syncInternetClock_();
+            now = Date.now();
+          }
           return Math.max(0, Math.floor((now - turnStartAtMs) / 1000));
         })();
         const remaining = {
@@ -9397,6 +9402,12 @@
             toast("❌ No se encontró esa partida");
             return;
           }
+
+          // Antes de arrancar el reloj de torneo, forzamos una
+          // sincronización con el reloj de Internet para partir con el
+          // offset más actualizado posible (evita que el primer tick
+          // calcule mal si el reloj local cambió desde que cargó la app).
+          syncInternetClock_();
 
           tournamentMatchCtx = { round, board, whiteName, blackName, whiteEmail: whiteEmail || "", blackEmail: blackEmail || "" };
           tournamentMatchActive = true;
