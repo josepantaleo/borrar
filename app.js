@@ -1873,14 +1873,17 @@
           // medio segundo que en los hechos todavía no transcurrió (p. ej.
           // 29.6s pensados pasaban a cobrarse como 30s). Con floor nunca se
           // descuenta más tiempo real del que efectivamente pasó.
-          const elapsed = Math.max(0, Math.floor((Date.now() - turnStartAt) / 1000));
+          // syncedNow_() en vez de Date.now(): así tocar el reloj del
+          // sistema (a propósito o no) durante la partida no regala ni
+          // roba tiempo de pensada.
+          const elapsed = Math.max(0, Math.floor((syncedNow_() - turnStartAt) / 1000));
           clock[prevTurn] = Math.max(0, clock[prevTurn] - elapsed);
         }
         const increment = getIncrement();
         if (increment && clockEnabled && !game.game_over()) {
           clock[prevTurn] += increment;
         }
-        turnStartAt = clockEnabled ? Date.now() : null;
+        turnStartAt = clockEnabled ? syncedNow_() : null;
         updateClockDisplay();
       }
 
@@ -1890,7 +1893,7 @@
         clockEnabled = initial > 0;
         clock = { w: initial, b: initial };
         clockFlagged = false;
-        turnStartAt = start && initial > 0 ? Date.now() : null;
+        turnStartAt = start && initial > 0 ? syncedNow_() : null;
 
         if (start && initial > 0) {
           // El intervalo ya no resta segundos: solo refresca la pantalla
@@ -1913,7 +1916,7 @@
       function getClockRemaining_(color) {
         if (!clockEnabled) return clock[color];
         if (game.turn() === color && turnStartAt && !game.game_over()) {
-          const elapsed = Math.max(0, Math.floor((Date.now() - turnStartAt) / 1000));
+          const elapsed = Math.max(0, Math.floor((syncedNow_() - turnStartAt) / 1000));
           return Math.max(0, clock[color] - elapsed);
         }
         return clock[color];
@@ -4575,22 +4578,12 @@
       let publicScreenCycleTimer_ = null;
       let publicScreenZoomKey_ = null; // "round-board" de la mesa abierta en el modal de zoom, o null si está cerrado
 
-      // --- Countdown de ronda sincronizado con el reloj del servidor ---
-      // Firestore no tiene un equivalente al ".info/serverTimeOffset" de
-      // Realtime Database, así que lo estimamos nosotros: cada vez que nos
-      // llega (sin hasPendingWrites) el Timestamp server-side
-      // meta.roundCountdownSetAt, comparamos ese instante "real" contra
-      // nuestro Date.now() local en el momento de recibirlo. La diferencia
-      // (drift de reloj del dispositivo + latencia de red, en general
-      // despreciable) es countdownClockOffsetMs_, y de ahí en más
-      // syncedNow_() la usa para que la cuenta regresiva no dependa de que
+      // --- Countdown de ronda ---
+      // syncedNow_() (definida más abajo, junto con syncInternetClock_) ya
+      // nos da un "ahora" corregido contra la hora real de Internet; el
+      // countdown de ronda usa esa misma función para no depender de que
       // el celular de cada chico tenga bien puesta la hora.
-      let countdownClockOffsetMs_ = 0;
       let roundCountdownTimer_ = null;
-
-      function syncedNow_() {
-        return Date.now() + countdownClockOffsetMs_;
-      }
 
       function assertAdminOrReferee() {
         if (!isCurrentUserAdmin(lastTournamentState) && !isCurrentUserReferee()) {
@@ -5809,15 +5802,6 @@
               );
             }
             const state = normalizeTournamentState(snap.exists ? snap.data() : null);
-            // No recalculamos el offset con writes propios todavía pendientes
-            // de confirmar (el serverTimestamp() local vale null hasta que
-            // el server lo resuelve) para no contaminar la estimación.
-            if (!snap.metadata.hasPendingWrites) {
-              const setAt = state.meta.roundCountdownSetAt;
-              if (setAt && typeof setAt.toMillis === "function") {
-                countdownClockOffsetMs_ = setAt.toMillis() - Date.now();
-              }
-            }
             const previousStatus = lastKnownTournamentStatus_;
             lastKnownTournamentStatus_ = state.meta.status;
             lastTournamentState = state;
