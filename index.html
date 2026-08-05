@@ -1799,6 +1799,106 @@
 
         <section class="page" id="page-torneo">
           <div class="grid" style="grid-template-columns: 1fr; gap: 20px">
+            <!-- Pantalla "¿Cómo querés jugar?": app.js ya tenía toda la
+                 lógica para esto (modeOnlineBtn/modeLanBtn/lanHostBtn/
+                 lanJoinBtn en initTournamentPage, y connectLan()/
+                 disconnectLan_()) pero faltaba este bloque de HTML, así
+                 que ninguno de esos botones existía en la página y la
+                 función quedaba invisible. Se muestra al entrar a la
+                 página (display normal) y se oculta sola apenas se logra
+                 conectar, ya sea online (connectFirebase) o por LAN
+                 (connectLan). -->
+            <div id="tournament-mode-select" class="card">
+              <h3>¿Cómo querés jugar?</h3>
+              <p class="muted">
+                Elegí si te conectás al torneo online de la escuela (necesita Internet) o a una sala por
+                red local sin Internet (una compu hace de "anfitrión" con <code>lan-server.js</code> y el
+                resto se conecta a su dirección en la misma red Wi-Fi).
+              </p>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px">
+                <button class="btn primary" id="tournament-mode-online-btn">🌐 Torneo online</button>
+                <button class="btn" id="tournament-mode-lan-btn">🖥️ Red local (LAN)</button>
+              </div>
+
+              <div id="tournament-lan-box" style="display: none; margin-top: 18px">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600">Tu nombre</label>
+                <input
+                  type="text"
+                  id="lan-name-input"
+                  placeholder="Nombre y apellido"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                  "
+                />
+                <label style="display: block; margin: 10px 0 6px; font-weight: 600">Sala (opcional)</label>
+                <input
+                  type="text"
+                  id="lan-room-input"
+                  placeholder="main"
+                  style="
+                    width: 100%;
+                    max-width: 260px;
+                    padding: 10px 12px;
+                    border-radius: 10px;
+                    border: 1px solid var(--surface2);
+                    background: var(--surface);
+                    color: var(--text);
+                  "
+                />
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px">
+                  <div style="flex: 1; min-width: 220px">
+                    <h4 style="margin: 0 0 6px">Soy el anfitrión</h4>
+                    <p class="muted" style="font-size: 13px; margin: 0 0 8px">
+                      Esta compu corre <code>lan-server.js</code>. El resto se conecta a la dirección de acá abajo.
+                    </p>
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600">Dirección (ip:puerto)</label>
+                    <input
+                      type="text"
+                      id="lan-host-address-input"
+                      placeholder="localhost:8080"
+                      style="
+                        width: 100%;
+                        padding: 10px 12px;
+                        border-radius: 10px;
+                        border: 1px solid var(--surface2);
+                        background: var(--surface);
+                        color: var(--text);
+                      "
+                    />
+                    <button class="btn primary" id="lan-host-btn" style="margin-top: 10px">🖥️ Iniciar como anfitrión</button>
+                  </div>
+                  <div style="flex: 1; min-width: 220px">
+                    <h4 style="margin: 0 0 6px">Unirme a una sala</h4>
+                    <p class="muted" style="font-size: 13px; margin: 0 0 8px">Pedile la dirección al anfitrión.</p>
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600">Dirección del anfitrión</label>
+                    <input
+                      type="text"
+                      id="lan-host-input"
+                      placeholder="192.168.0.15:8080"
+                      style="
+                        width: 100%;
+                        padding: 10px 12px;
+                        border-radius: 10px;
+                        border: 1px solid var(--surface2);
+                        background: var(--surface);
+                        color: var(--text);
+                      "
+                    />
+                    <button class="btn" id="lan-join-btn" style="margin-top: 10px">📲 Unirme</button>
+                  </div>
+                </div>
+
+                <p class="lesson-gate-note" id="lan-connect-status"></p>
+                <button class="btn" id="lan-back-btn" style="margin-top: 6px">⬅ Volver</button>
+              </div>
+            </div>
+
             <div class="card">
               <h2>🏆 Torneo</h2>
               <p class="muted">
@@ -1808,7 +1908,9 @@
                 resultados en tiempo real. Para inscribirte a un torneo o jugar hace falta iniciar
                 sesión con una cuenta de Gmail. 
               </p>
-            
+            </div>
+
+            <div class="card">
 
 
 
