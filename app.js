@@ -5767,19 +5767,42 @@
             // acaba de escribir turnStartAt: srvTimestamp() (ver
             // fbMakeMove), Firestore dispara ESTE listener de inmediato con
             // la escritura optimista local, ANTES de que el servidor
-            // confirme el valor real — y en ese instante, por default,
-            // d.data() devuelve null para ese campo (no sabe todavía qué
-            // timestamp le va a poner el servidor). getTimestampMs(null) da
-            // 0, así que el reloj calculaba "elapsed = ahora - 0" (un
-            // montón de segundos) y quedaba pisado por el manotazo de
-            // seguridad Math.max(0, ...), mostrando otra vez el tiempo
-            // lleno (por eso el cronómetro parecía "congelado, vuelve a
-            // 10:00") hasta que llegaba el segundo snapshot con el valor ya
-            // confirmado por el servidor. Pidiendo { serverTimestamps:
-            // "estimate" } evitamos el null: mientras se confirma, usa una
-            // estimación con el reloj del dispositivo (en vez de null), y
-            // se corrige sola en cuanto llega el valor real.
-            lastRoundGames = qsnap.docs.map((d) => d.data({ serverTimestamps: "estimate" }));
+            // confirme el valor real.
+            //
+            // Antes acá se pedía SIEMPRE { serverTimestamps: "estimate" }
+            // para ese campo: mientras se confirma, Firestore rellena el
+            // valor con una ESTIMACIÓN basada en el reloj propio del
+            // DISPOSITIVO (sin corregir contra syncedNow_()/
+            // internetClockOffsetMs). Si la PC que acaba de mover tiene el
+            // reloj del sistema atrasado respecto a la hora real, esa
+            // estimación queda "en el pasado", y el próximo cálculo de
+            // elapsed (que sí usa la hora corregida por Internet) resta de
+            // golpe varios minutos del reloj del rival — pudiendo vaciarlo
+            // por completo o disparar un reclamo de tiempo agotado falso,
+            // justo apenas después de la primera jugada de la partida (que
+            // es cuando turnStartAt pasa de null a un valor por primera
+            // vez). Esto reemplazaba al bug anterior (ver comentario
+            // viejo abajo) por uno peor.
+            //
+            // Solución: usar "estimate" SOLO para los documentos ya
+            // confirmados por el servidor (metadata.hasPendingWrites ===
+            // false); para el/los documento(s) todavía pendientes de
+            // confirmación (típicamente el que este mismo cliente acaba de
+            // escribir), pedir "none" en su lugar. Así, mientras se
+            // confirma, el campo llega como null (en vez de una
+            // estimación potencialmente errónea basada en un reloj de
+            // sistema desincronizado): getTimestampMs(null) da 0 y
+            // updateTournamentClockDisplay/fbMakeMove tratan eso como
+            // "todavía no hay elapsed que cobrar" (mismo comportamiento
+            // seguro que la primerísima jugada de la partida, cuando
+            // turnStartAt arranca en null). En cuanto llega la confirmación
+            // real del servidor (uno o dos snapshots después, típicamente
+            // en milisegundos), se usa el timestamp real del servidor
+            // (nunca una estimación), que no depende para nada del reloj
+            // de ningún dispositivo.
+            lastRoundGames = qsnap.docs.map((d) =>
+              d.data({ serverTimestamps: d.metadata.hasPendingWrites ? "none" : "estimate" })
+            );
             // Mientras hay una mesa abierta (tournamentMatchActive), el panel
             // de emparejamientos/clasificación está oculto detrás del
             // tablero: reconstruirlo en cada jugada de CUALQUIER mesa del
