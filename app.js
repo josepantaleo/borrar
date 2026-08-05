@@ -7969,15 +7969,27 @@
           return;
         }
 
-        if (!state || (state.meta.status !== "active" && state.meta.status !== "finished")) {
+        const isLanSetup = connectionMode === "lan" && state && state.meta.status === "setup";
+        if (!state || (state.meta.status !== "active" && state.meta.status !== "finished" && !isLanSetup)) {
           setupBox.style.display = isCurrentUserAdmin(state) ? "" : "none";
           activeBox.style.display = "none";
           stopWOGraceTimer();
           return;
         }
 
-        setupBox.style.display = "none";
-        activeBox.style.display = "";
+        if (isLanSetup) {
+          if (isCurrentUserAdmin(state)) {
+            setupBox.style.display = "";
+            activeBox.style.display = "none";
+            stopWOGraceTimer();
+            return;
+          }
+          setupBox.style.display = "none";
+          activeBox.style.display = "";
+        } else {
+          setupBox.style.display = "none";
+          activeBox.style.display = "";
+        }
         startWOGraceTimerIfNeeded(state);
 
         const isAdmin = isCurrentUserAdmin(state);
@@ -9761,7 +9773,7 @@
           toast("❌ Cargá al menos 2 jugadores, o dejá la lista vacía para que se inscriban ellos mismos");
           return;
         }
-        if (playerEntries.some((p) => !p.email)) {
+        if (connectionMode !== "lan" && playerEntries.some((p) => !p.email)) {
           toast("❌ Cada jugador necesita su email de Gmail (formato: Nombre, email)");
           return;
         }
