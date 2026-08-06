@@ -1,16 +1,16 @@
 "use strict";
 
 (() => {
-  const version = "20260806-6";
+  const version = "20260806-7";
   const modules = [
-    "./js/modules/01-core-ui.js",
-    "./js/modules/02-gameplay.js",
-    "./js/modules/03-analysis-tutor.js",
-    "./js/modules/04-learning.js",
-    "./js/modules/05-online-services.js",
-    "./js/modules/06-tournament-data.js",
-    "./js/modules/07-tournament-ui.js",
-    "./js/modules/08-tournament-match.js",
+    "./01-core-ui.js",
+    "./02-gameplay.js",
+    "./03-analysis-tutor.js",
+    "./04-learning.js",
+    "./05-online-services.js",
+    "./06-tournament-data.js",
+    "./07-tournament-ui.js",
+    "./08-tournament-match.js",
   ];
 
   async function loadApplication() {
