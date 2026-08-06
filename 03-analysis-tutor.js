@@ -489,7 +489,7 @@ const PIECE_NAMES = {
     b: ["c1", "f1", "c8", "f8"],
   },
   TUTOR_CENTER_SQUARES = ["d4", "d5", "e4", "e5"];
-let tutorRunToken = 0,
+var tutorRunToken = 0,
   lastTutorFen = null,
   lastTutorMove = null,
   practiceAIBusy = !1,

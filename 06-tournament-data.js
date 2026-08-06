@@ -1332,11 +1332,33 @@ function pdfDrawPairingsTable_(e, t, a, n) {
     a
   );
 }
-function exportStandingsPDF(e) {
-  if (!window.jspdf || !window.jspdf.jsPDF)
+let jsPdfLoadPromise_ = null;
+function ensureJsPdfLoaded_() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(!0);
+  if (jsPdfLoadPromise_) return jsPdfLoadPromise_;
+  return (
+    (jsPdfLoadPromise_ = new Promise((e, t) => {
+      const a = document.createElement("script");
+      ((a.src =
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
+        (a.async = !0),
+        (a.onload = () => e(!0)),
+        (a.onerror = () => t(new Error("No se pudo cargar jsPDF."))),
+        document.head.appendChild(a));
+    }).catch((e) => {
+      throw ((jsPdfLoadPromise_ = null), e);
+    })),
+    jsPdfLoadPromise_
+  );
+}
+async function exportStandingsPDF(e) {
+  try {
+    await ensureJsPdfLoaded_();
+  } catch (e) {
     return void toast(
       "❌ No se pudo cargar la librería de PDF. Revisá tu conexión e intentá de nuevo.",
     );
+  }
   const t = rankPlayers_(e.players, e.pairings),
     a = new window.jspdf.jsPDF();
   let n = 18;
@@ -1352,11 +1374,14 @@ function exportStandingsPDF(e) {
     .toLowerCase();
   a.save(`posiciones_${o}_ronda${e.meta.round}.pdf`);
 }
-function exportFullTournamentPDF(e) {
-  if (!window.jspdf || !window.jspdf.jsPDF)
+async function exportFullTournamentPDF(e) {
+  try {
+    await ensureJsPdfLoaded_();
+  } catch (e) {
     return void toast(
       "❌ No se pudo cargar la librería de PDF. Revisá tu conexión e intentá de nuevo.",
     );
+  }
   const t = new window.jspdf.jsPDF(),
     a = 14;
   let n = 18;
