@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Escuela de Ajedrez</title>
 
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260805-6" />
   </head>
 
   <body>
@@ -436,6 +436,15 @@
                   <button class="btn" id="undo" data-tooltip="Deshacer la última jugada">↩️ Deshacer</button>
                   <button class="btn danger" id="resign" data-tooltip="Abandonar la partida actual">🏳️ Rendirse</button>
                   <button class="btn" id="copy-game" data-tooltip="Copiar la notación de la partida">📋 Copiar partida</button>
+                  <button
+                    class="btn secondary"
+                    id="quick-ai-help-btn"
+                    type="button"
+                    disabled
+                    data-tooltip="Muestra la mejor jugada sin moverla"
+                  >
+                    💡 Ayuda IA
+                  </button>
                   <button
                     class="btn secondary"
                     id="toggle-legal-btn"
@@ -3304,8 +3313,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 
-    <script src="utils.js"></script>
-    <script src="lan-shim.js"></script>
-    <script src="app.js"></script>
+    <script src="utils.js?v=20260805-6"></script>
+    <script src="app.js?v=20260806-6"></script>
   </body>
 </html>
