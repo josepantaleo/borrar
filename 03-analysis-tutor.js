@@ -2,7 +2,8 @@
 let analysisCurrentRecord = null,
   analysisPly = 0,
   analysisRunToken = 0,
-  sfAnalysisWorker = null;
+  sfAnalysisWorker = null,
+  analysisWorkerLoadPromise_ = null;
 const ANALYSIS_DEPTH = 12,
   MATE_SCORE = 1e5,
   TAG_INFO = {
@@ -12,31 +13,41 @@ const ANALYSIS_DEPTH = 12,
     mistake: { icon: "❌", label: "Error", cls: "tag-mistake" },
     blunder: { icon: "‼️", label: "Blunder", cls: "tag-blunder" },
   };
-function initAnalysisWorker() {
+async function initAnalysisWorker() {
+  const e =
+    "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
   try {
     ((sfAnalysisWorker = new Worker(
-      "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js",
+      e,
     )),
       sfAnalysisWorker.postMessage("uci"),
       sfAnalysisWorker.postMessage("setoption name Skill Level value 20"));
-  } catch (e) {
+  } catch (t) {
+    const a = await fetch(e, { cache: "force-cache" });
+    if (!a.ok) throw new Error(`No se pudo cargar Stockfish (HTTP ${a.status}).`);
+    const n = new Blob([await a.text()], { type: "application/javascript" }),
+      o = URL.createObjectURL(n);
     try {
-      fetch(
-        "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js",
-      )
-        .then((e) => e.text())
-        .then((e) => {
-          const t = new Blob([e], { type: "application/javascript" });
-          ((sfAnalysisWorker = new Worker(URL.createObjectURL(t))),
-            sfAnalysisWorker.postMessage("uci"),
-            sfAnalysisWorker.postMessage(
-              "setoption name Skill Level value 20",
-            ));
-        });
-    } catch (e) {
-      console.error("No se pudo iniciar el motor de análisis", e);
+      ((sfAnalysisWorker = new Worker(o)),
+        sfAnalysisWorker.postMessage("uci"),
+        sfAnalysisWorker.postMessage("setoption name Skill Level value 20"));
+    } finally {
+      URL.revokeObjectURL(o);
     }
   }
+  return sfAnalysisWorker;
+}
+function ensureAnalysisWorker_() {
+  return sfAnalysisWorker
+    ? Promise.resolve(sfAnalysisWorker)
+    : analysisWorkerLoadPromise_ ||
+        (analysisWorkerLoadPromise_ = initAnalysisWorker().catch((e) => {
+          return (
+            console.error("No se pudo iniciar el motor de análisis", e),
+            (analysisWorkerLoadPromise_ = null),
+            null
+          );
+        }));
 }
 function heuristicEval(e) {
   try {
@@ -98,11 +109,9 @@ function sfEvalFen(e, t) {
 }
 async function evalPosition(e, t) {
   const a = new Chess(e);
-  return a.in_checkmate()
-    ? { score: -1e5, bestMove: null, pv: [] }
-    : a.game_over()
-      ? { score: 0, bestMove: null, pv: [] }
-      : sfEvalFen(e, t);
+  if (a.in_checkmate()) return { score: -1e5, bestMove: null, pv: [] };
+  if (a.game_over()) return { score: 0, bestMove: null, pv: [] };
+  return (await ensureAnalysisWorker_(), sfEvalFen(e, t));
 }
 function uciToSan(e, t) {
   if (!t || t.length < 4) return null;
@@ -363,8 +372,7 @@ function renderAnalysisMoveList() {
       t.appendChild(e));
   }
 }
-(initAnalysisWorker(),
-  (document.getElementById("analysis-close").onclick = closeAnalysisModal),
+((document.getElementById("analysis-close").onclick = closeAnalysisModal),
   (document.getElementById("analysis-first").onclick = () => {
     ((analysisPly = 0), renderAnalysisResults(analysisCurrentRecord));
   }),

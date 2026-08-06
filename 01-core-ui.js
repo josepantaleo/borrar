@@ -9,24 +9,22 @@ let state,
   lastTournamentState,
   currentUser;
 "serviceWorker" in navigator &&
-  location.protocol.startsWith("http") &&
+  location.hostname.endsWith(".github.io") &&
   window.addEventListener("load", async () => {
-    if (location.hostname.endsWith(".github.io"))
-      try {
-        const e = await navigator.serviceWorker.getRegistrations();
-        if (
-          (await Promise.all(e.map((e) => e.unregister())), "caches" in window)
-        ) {
-          const e = await caches.keys();
-          await Promise.all(e.map((e) => caches.delete(e)));
-        }
-      } catch (e) {
-        console.warn(
-          "No se pudo limpiar la cache anterior de GitHub Pages:",
-          e,
-        );
+    const e = "20260806-11";
+    if (localStorage.getItem("chessServiceWorkerCleanup") === e) return;
+    try {
+      const t = await navigator.serviceWorker.getRegistrations();
+      if (
+        (await Promise.all(t.map((e) => e.unregister())), "caches" in window)
+      ) {
+        const e = await caches.keys();
+        await Promise.all(e.map((e) => caches.delete(e)));
       }
-    else navigator.serviceWorker.register("./sw.js").catch(() => {});
+      localStorage.setItem("chessServiceWorkerCleanup", e);
+    } catch (e) {
+      console.warn("No se pudo limpiar la cache anterior de GitHub Pages:", e);
+    }
   });
 let internetClockOffsetMs = 0,
   internetClockAnchorUtcMs_ = 0,
