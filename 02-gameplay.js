@@ -142,6 +142,10 @@ let tournamentMatchCtx = null,
   tournamentResultShown = !1,
   tournamentClockTimer = null,
   tournamentCurrentGameRow = null,
+  opponentSelectedSquare = null,
+  tournamentSelectionLastSent_ = null,
+  tournamentSelectionSyncTimer_ = null,
+  tournamentSelectionWriteChain_ = Promise.resolve(),
   matchChatUnsub = null,
   matchChatMessages = [];
 matchChatPanelOpen = !1;
@@ -354,6 +358,7 @@ function render() {
   for (const [e, t] of boardSquareEls_) {
     t.classList.remove(
       "selected",
+      "opponent-selected",
       "last",
       "opp-move",
       "check",
@@ -364,6 +369,7 @@ function render() {
     const r = t.querySelector(".piece:not(.piece-captured-ghost)");
     (r && r.remove(),
       selected === e && t.classList.add("selected"),
+      opponentSelectedSquare === e && t.classList.add("opponent-selected"),
       !g || (g.from !== e && g.to !== e) || t.classList.add("last"),
       !opponentMoveHighlight ||
         (opponentMoveHighlight.from !== e && opponentMoveHighlight.to !== e) ||
@@ -547,7 +553,11 @@ function attachPieceDrag(e, t) {
     if (void 0 !== a.button && 0 !== a.button) return;
     if (!gameStarted || game.game_over() || botThinking) return;
     if (botEnabled && game.turn() === botColor) return;
+    if (tournamentMatchActive && tournamentMatchBusy)
+      return void toast("Esperá a que termine de sincronizar la jugada anterior.");
     if (tournamentMatchActive && game.turn() !== tournamentMyColor()) return;
+    if (tournamentMatchActive && tournamentActiveClockExpired_())
+      return void toast("El tiempo de esta partida ya se agotó.");
     if (tournamentMatchActive && tournamentClockWaitingForBothPlayers())
       return void toast("⏳ Esperando a que el rival entre a la partida.");
     if (
@@ -585,6 +595,9 @@ function updateSelectionHighlights() {
       e
         .querySelectorAll(".square.hint")
         .forEach((e) => e.classList.remove("hint")),
+      e
+        .querySelectorAll(".square.opponent-selected")
+        .forEach((e) => e.classList.remove("opponent-selected")),
       selected)
     ) {
       const t = e.querySelector(`.square[data-square="${selected}"]`);
@@ -595,7 +608,72 @@ function updateSelectionHighlights() {
         const a = e.querySelector(`.square[data-square="${t}"]`);
         a && a.classList.add("hint");
       }
+    if (opponentSelectedSquare) {
+      const t = e.querySelector(
+        `.square[data-square="${opponentSelectedSquare}"]`,
+      );
+      t && t.classList.add("opponent-selected");
+    }
   }
+}
+function tournamentOpponentSelectionFromRow_(e) {
+  const t = tournamentMyColor(),
+    a = e && /^[a-h][1-8]$/.test(e.selectedSquare || "") ? e.selectedSquare : "";
+  return a && e.selectedColor && e.selectedColor !== t ? a : null;
+}
+function applyTournamentOpponentSelection_(e) {
+  const t = tournamentOpponentSelectionFromRow_(e);
+  return t === opponentSelectedSquare
+    ? !1
+    : ((opponentSelectedSquare = t), !0);
+}
+function clearTournamentSelectionForMove_() {
+  const e = tournamentCurrentGameRow;
+  (clearTimeout(tournamentSelectionSyncTimer_),
+    (tournamentSelectionSyncTimer_ = null),
+    (tournamentSelectionLastSent_ = ""),
+    e &&
+      (tournamentCurrentGameRow = {
+        ...e,
+        selectedSquare: "",
+        selectedColor: "",
+        selectedAt: null,
+      }));
+}
+function syncTournamentSelection_(e) {
+  if (!tournamentMatchActive || !tournamentMatchCtx) return;
+  const t = tournamentMyColor();
+  if (!t) return;
+  const a = /^[a-h][1-8]$/.test(e || "") ? e : "",
+    n = tournamentCurrentGameRow;
+  if (
+    !a &&
+    !tournamentSelectionLastSent_ &&
+    (!n || !n.selectedSquare || (n.selectedColor && n.selectedColor !== t))
+  )
+    return void (tournamentSelectionLastSent_ = "");
+  if (a === tournamentSelectionLastSent_) return;
+  const o = tournamentMatchCtx.round,
+    r = tournamentMatchCtx.board;
+  (clearTimeout(tournamentSelectionSyncTimer_),
+    (tournamentSelectionLastSent_ = a),
+    n &&
+      (tournamentCurrentGameRow = {
+        ...n,
+        selectedSquare: a,
+        selectedColor: a ? t : "",
+        selectedAt: a ? syncedNow_() : null,
+      }),
+    (tournamentSelectionSyncTimer_ = setTimeout(() => {
+      ((tournamentSelectionSyncTimer_ = null),
+        (tournamentSelectionWriteChain_ = tournamentSelectionWriteChain_
+          .catch(() => {})
+          .then(() => fbSetSelectedSquare(o, r, a, t))
+          .catch(() => {
+            tournamentSelectionLastSent_ === a &&
+              (tournamentSelectionLastSent_ = null);
+          })));
+    }, 120)));
 }
 function onPieceDragMove(e) {
   if (!dragCtx) return;
@@ -607,7 +685,8 @@ function onPieceDragMove(e) {
     const e = game.moves({ square: dragCtx.from, verbose: !0 });
     ((validMoves = e.map((e) => e.to)),
       SoundFX.select(),
-      updateSelectionHighlights());
+      updateSelectionHighlights(),
+      syncTournamentSelection_(selected));
     const n = dragCtx.pieceEl.closest(".square");
     (dragCtx.pieceEl.classList.add("dragging"),
       (dragCtx.pieceEl.style.width = dragCtx.width + "px"),
@@ -631,40 +710,138 @@ function onPieceDragMove(e) {
 function isPromotionMove(e, t, a) {
   const n = e.get(t);
   if (!n || "p" !== n.type) return !1;
-  const o = a[1];
-  return "8" === o || "1" === o;
+  if (!/^[a-h][1-8]$/.test(String(a || ""))) return !1;
+  const o = "w" === n.color ? "8" : "1";
+  if (a[1] !== o) return !1;
+  try {
+    return e
+      .moves({ square: t, verbose: !0 })
+      .some(
+        (e) =>
+          e.to === a &&
+          (!!e.promotion || (e.flags && e.flags.includes("p"))),
+      );
+  } catch (e) {
+    return !1;
+  }
+}
+let promotionPickerResolve_ = null,
+  promotionOverlayHome_ = null;
+function closePromotionPicker_(e) {
+  if (promotionPickerResolve_) return void promotionPickerResolve_(e || null);
+  const t = document.getElementById("promo");
+  (t && (t.classList.remove("show"), t.setAttribute("aria-hidden", "true")),
+    document.body.classList.remove("promotion-open"));
 }
 function askPromotion(e) {
+  closePromotionPicker_(null);
   return new Promise((t) => {
     const a = document.getElementById("promo"),
       n = document.getElementById("promo-box");
     if (!a || !n) return void t("q");
+    const o = document.fullscreenElement;
+    if (o && !o.contains(a)) {
+      const e = a.parentNode;
+      ((promotionOverlayHome_ = { parent: e, next: a.nextSibling }),
+        o.appendChild(a));
+    }
+    let r = !1;
+    const s = (e) => {
+        if (r) return;
+        ((r = !0),
+          (promotionPickerResolve_ = null),
+          document.removeEventListener("keydown", l, !0),
+          a.removeEventListener("click", i),
+          a.classList.remove("show"),
+          a.setAttribute("aria-hidden", "true"),
+          document.body.classList.remove("promotion-open"));
+        if (promotionOverlayHome_) {
+          const e = promotionOverlayHome_;
+          (e.next && e.next.parentNode === e.parent
+            ? e.parent.insertBefore(a, e.next)
+            : e.parent.appendChild(a),
+            (promotionOverlayHome_ = null));
+        }
+        t(e || null);
+      },
+      l = (e) => {
+        const t = String(e.key || "").toLowerCase(),
+          a = {
+            q: "q",
+            d: "q",
+            r: "r",
+            t: "r",
+            b: "b",
+            a: "b",
+            n: "n",
+            c: "n",
+          }[t];
+        if (a) return (e.preventDefault(), void s(a));
+        "escape" === t && (e.preventDefault(), s(null));
+      },
+      i = (e) => {
+        e.target === a && s(null);
+      };
+    promotionPickerResolve_ = s;
     n.innerHTML = "";
-    const o = document.createElement("div");
-    ((o.className = "promo-title"),
-      (o.textContent = "Elegí la pieza para coronar"),
-      n.appendChild(o),
+    const c = document.createElement("div");
+    ((c.className = "promo-title"),
+      (c.textContent = "Coronación de peón"),
+      n.appendChild(c));
+    const d = document.createElement("div");
+    ((d.className = "promo-subtitle"),
+      (d.textContent = "Elegí la pieza nueva"),
+      n.appendChild(d),
       [
-        { code: "q", label: "Dama" },
-        { code: "r", label: "Torre" },
-        { code: "b", label: "Alfil" },
-        { code: "n", label: "Caballo" },
-      ].forEach((o) => {
-        const r = document.createElement("button");
-        ((r.type = "button"),
-          (r.textContent = PIECES[e + o.code.toUpperCase()]),
-          r.setAttribute("aria-label", o.label),
-          (r.title = o.label),
-          r.addEventListener(
+        { code: "q", label: "Dama", key: "D" },
+        { code: "r", label: "Torre", key: "T" },
+        { code: "b", label: "Alfil", key: "A" },
+        { code: "n", label: "Caballo", key: "C" },
+      ].forEach((t) => {
+        const a = document.createElement("button"),
+          o = document.createElement("span"),
+          r = document.createElement("span");
+        ((a.type = "button"),
+          (a.className = "promo-choice"),
+          a.setAttribute("aria-label", `${t.label}. Tecla ${t.key}`),
+          (a.title = `${t.label} (${t.key})`),
+          (o.className = "promo-piece"),
+          (o.textContent = PIECES[e + t.code.toUpperCase()]),
+          (r.className = "promo-label"),
+          (r.textContent = t.label),
+          a.append(o, r),
+          a.addEventListener(
             "click",
             () => {
-              (a.classList.remove("show"), t(o.code));
+              s(t.code);
             },
             { once: !0 },
           ),
-          n.appendChild(r));
+          n.appendChild(a));
       }),
-      a.classList.add("show"));
+      (() => {
+        const e = document.createElement("button");
+        return (
+          (e.type = "button"),
+          (e.className = "promo-cancel"),
+          (e.textContent = "Cancelar jugada"),
+          e.addEventListener("click", () => s(null), { once: !0 }),
+          n.appendChild(e),
+          e
+        );
+      })(),
+      a.setAttribute("role", "dialog"),
+      a.setAttribute("aria-modal", "true"),
+      a.setAttribute("aria-label", "Elegir pieza para coronación"),
+      a.setAttribute("aria-hidden", "false"),
+      a.addEventListener("click", i),
+      document.addEventListener("keydown", l, !0),
+      document.body.classList.add("promotion-open"),
+      a.classList.add("show"),
+      requestAnimationFrame(() => {
+        const e = n.querySelector(".promo-choice");
+        e && e.focus();
+      }));
   });
 }
 async function onPieceDragUp(e) {
@@ -677,6 +854,16 @@ async function onPieceDragUp(e) {
     n = a ? a.closest(".square") : null,
     o = n ? n.dataset.square : null;
   if (
+    tournamentMatchActive &&
+    (tournamentMatchBusy || tournamentActiveClockExpired_())
+  )
+    return (
+      (selected = null),
+      (validMoves = []),
+      syncTournamentSelection_(null),
+      void render()
+    );
+  if (
     (document
       .querySelectorAll(".square.drop-target")
       .forEach((e) => e.classList.remove("drop-target")),
@@ -686,8 +873,16 @@ async function onPieceDragUp(e) {
     o && validMoves.includes(o))
   ) {
     let e = "q";
-    isPromotionMove(game, t.from, o) &&
+    if (isPromotionMove(game, t.from, o)) {
       (render(), (e = await askPromotion(game.turn())));
+      if (!e)
+        return (
+          (selected = null),
+          (validMoves = []),
+          syncTournamentSelection_(null),
+          void render()
+        );
+    }
     const a = game.fen(),
       n = game.move({ from: t.from, to: o, promotion: e });
     if (n) {
@@ -695,6 +890,7 @@ async function onPieceDragUp(e) {
         (addIncrement(),
         (selected = null),
         (validMoves = []),
+        clearTournamentSelectionForMove_(),
         markMoveForAnimation(n),
         playSoundForMove(n, game),
         showMoveExplanation(a, n),
@@ -708,6 +904,7 @@ async function onPieceDragUp(e) {
   }
   ((selected = null),
     (validMoves = []),
+    syncTournamentSelection_(null),
     o && o !== t.from && SoundFX.invalid(),
     render());
 }
@@ -715,7 +912,11 @@ async function clickSquare(e) {
   if (Date.now() < justDraggedUntil) return;
   if (!gameStarted || game.game_over() || botThinking) return;
   if (botEnabled && game.turn() === botColor) return;
+  if (tournamentMatchActive && tournamentMatchBusy)
+    return void toast("Esperá a que termine de sincronizar la jugada anterior.");
   if (tournamentMatchActive && game.turn() !== tournamentMyColor()) return;
+  if (tournamentMatchActive && tournamentActiveClockExpired_())
+    return void toast("El tiempo de esta partida ya se agotó.");
   if (tournamentMatchActive && tournamentClockWaitingForBothPlayers())
     return void toast("⏳ Esperando a que el rival entre a la partida.");
   if (
@@ -728,12 +929,22 @@ async function clickSquare(e) {
     return (
       (selected = null),
       (validMoves = []),
+      syncTournamentSelection_(null),
       void updateSelectionHighlights()
     );
   if (selected) {
     const t = selected;
     let a = "q";
-    isPromotionMove(game, t, e) && (a = await askPromotion(game.turn()));
+    if (isPromotionMove(game, t, e)) {
+      a = await askPromotion(game.turn());
+      if (!a)
+        return (
+          (selected = null),
+          (validMoves = []),
+          syncTournamentSelection_(null),
+          void render()
+        );
+    }
     const n = game.fen(),
       o = game.move({ from: t, to: e, promotion: a });
     if (o)
@@ -741,6 +952,7 @@ async function clickSquare(e) {
         addIncrement(),
         (selected = null),
         (validMoves = []),
+        clearTournamentSelectionForMove_(),
         markMoveForAnimation(o),
         playSoundForMove(o, game),
         showMoveExplanation(n, o),
@@ -755,7 +967,7 @@ async function clickSquare(e) {
     const t = game.moves({ square: e, verbose: !0 });
     ((validMoves = t.map((e) => e.to)), SoundFX.select());
   } else (selected && SoundFX.invalid(), (selected = null), (validMoves = []));
-  updateSelectionHighlights();
+  (updateSelectionHighlights(), syncTournamentSelection_(selected));
 }
 function checkGameOver() {
   if (!tournamentMatchActive && game.game_over()) {
@@ -1441,6 +1653,7 @@ function sizeFullscreenBoard() {
   const n = a.querySelector(".clock"),
     o = a.querySelector(".controls-panel"),
     r = document.getElementById("tournament-match-bar"),
+    v = a.querySelector(".tournament-moves-popup"),
     s = getComputedStyle(a),
     l = parseFloat(s.rowGap || s.gap || "12") || 12,
     i = (parseFloat(s.paddingTop) || 0) + (parseFloat(s.paddingBottom) || 0),
@@ -1449,11 +1662,28 @@ function sizeFullscreenBoard() {
     u = window.visualViewport
       ? window.visualViewport.height
       : window.innerHeight,
-    m = a.getBoundingClientRect(),
-    p = n ? n.getBoundingClientRect().height : 0,
+    m = a.getBoundingClientRect();
+  if (
+    e.contains("tournament-board-max") &&
+    window.matchMedia(
+      "(orientation: landscape) and (max-height: 600px) and (max-width: 1000px)",
+    ).matches
+  ) {
+    const e = Math.min(290, Math.max(190, Math.floor(0.34 * d))),
+      n = Math.max(180, Math.floor(Math.min((m.width || d) - c - e - l, (m.height || u) - i)));
+    return ((t.style.width = n + "px"), void (t.style.height = n + "px"));
+  }
+  const p = n ? n.getBoundingClientRect().height : 0,
     g = o ? o.getBoundingClientRect().height : 0,
     f = r && null !== r.offsetParent ? r.getBoundingClientRect().height : 0,
-    h = (m.height || u) - p - g - f - 2 * l - i,
+    k =
+      v &&
+      null !== v.offsetParent &&
+      "static" === getComputedStyle(v).position
+        ? v.getBoundingClientRect().height
+        : 0,
+    x = [p, g, f, k].filter((e) => e > 0).length,
+    h = (m.height || u) - p - g - f - k - x * l - i,
     y = (m.width || d) - c,
     b = Math.max(140, Math.floor(Math.min(y, h)));
   ((t.style.width = b + "px"), (t.style.height = b + "px"));
@@ -1465,7 +1695,8 @@ function resetBoardFrameSize() {
 (movesToggleBtn &&
   floatingMovesCard &&
   movesToggleBtn.addEventListener("click", () => {
-    floatingMovesCard.classList.toggle("collapsed");
+    (floatingMovesCard.classList.toggle("collapsed"),
+      setTimeout(sizeFullscreenBoard, 30));
   }),
   setupFullscreenToggle("game-fullscreen"),
   (function () {
@@ -1485,8 +1716,12 @@ function resetBoardFrameSize() {
       e.observe(a);
       const n = a.querySelector(".clock"),
         o = a.querySelector(".controls-panel"),
-        r = document.getElementById("tournament-match-bar");
-      (n && e.observe(n), o && e.observe(o), r && e.observe(r));
+        r = document.getElementById("tournament-match-bar"),
+        s = document.querySelector(".floating-moves-card");
+      (n && e.observe(n),
+        o && e.observe(o),
+        r && e.observe(r),
+        s && e.observe(s));
     }
   })());
 const THEMES = {

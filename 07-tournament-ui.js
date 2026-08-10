@@ -1,11 +1,80 @@
 /* Tournament timers, rendering, public screen, and result UI. Generated from the verified legacy bundle. */
 let tournamentAutoApproveTimer = null;
+let tournamentResultReturnTimer_ = null;
 function stopAutoApproveTimer() {
   (clearInterval(tournamentAutoApproveTimer),
     (tournamentAutoApproveTimer = null));
 }
+function clearTournamentResultReturnTimer_() {
+  (clearTimeout(tournamentResultReturnTimer_),
+    (tournamentResultReturnTimer_ = null));
+}
 let tournamentWOGraceTimer = null,
   alertedDoubleNoShowBoards_ = new Set();
+let tournamentJoinReminderTimer_ = null,
+  tournamentJoinReminderSent_ = new Set();
+let tournamentRoundCompleteNoticeKey_ = "";
+let tournamentWOAutoFailureCount_ = 0;
+function stopTournamentJoinReminder_() {
+  (clearInterval(tournamentJoinReminderTimer),
+    (tournamentJoinReminderTimer_ = null));
+}
+function checkTournamentJoinReminder_(e) {
+  if (
+    !e ||
+    !e.meta ||
+    "active" !== e.meta.status ||
+    "playing" !== e.meta.roundStatus ||
+    !currentUser ||
+    !currentUser.email ||
+    tournamentMatchActive
+  )
+    return;
+  const t = currentUser.email.toLowerCase(),
+    a = (e.pairings || []).find(
+      (a) =>
+        a.round === e.meta.round &&
+        "" !== a.blackId &&
+        !a.result &&
+        ((a.whiteEmail || "").toLowerCase() === t ||
+          (a.blackEmail || "").toLowerCase() === t),
+    );
+  if (!a) return;
+  const n = lastRoundGames.find(
+    (e) => e.round === a.round && e.board === a.board,
+  );
+  if (!n || "ongoing" !== n.status) return;
+  const o =
+      (a.whiteEmail || "").toLowerCase() === t ? "w" : "b",
+    r = (n.joined || { w: !1, b: !1 })[o],
+    s = getTimestampMs(n.startedAt);
+  if (r || !s || syncedNow_() - s < 6e4) return;
+  const l = `${a.round}:${a.board}:${s}:${o}`;
+  if (tournamentJoinReminderSent_.has(l)) return;
+  tournamentJoinReminderSent_.add(l);
+  const i = "w" === o ? a.blackName : a.whiteName;
+  (toast(
+    `Recordatorio: ronda ${a.round}, mesa #${a.board}. Todavia no ingresaste a tu partida con ${i}.`,
+    7e3,
+  ),
+    SoundFX.announcement());
+}
+function startTournamentJoinReminder_(e) {
+  if (
+    !e ||
+    !e.meta ||
+    "active" !== e.meta.status ||
+    "playing" !== e.meta.roundStatus ||
+    !currentUser
+  )
+    return void stopTournamentJoinReminder_();
+  (checkTournamentJoinReminder_(e),
+    tournamentJoinReminderTimer_ ||
+      (tournamentJoinReminderTimer_ = setInterval(
+        () => checkTournamentJoinReminder_(lastTournamentState),
+        15e3,
+      )));
+}
 function checkDoubleNoShowBoards_(e) {
   const t = Number(e.meta.woGraceMinutes) || 0;
   if (!t) return;
@@ -41,7 +110,7 @@ function startWOGraceTimerIfNeeded(e) {
   const t = Number(e.meta.woGraceMinutes) || 0;
   if (
     !(
-      isCurrentUserReferee() &&
+      isCurrentUserReferee(e) &&
       t > 0 &&
       "active" === e.meta.status &&
       "playing" === e.meta.roundStatus
@@ -52,6 +121,7 @@ function startWOGraceTimerIfNeeded(e) {
   const a = async () => {
     try {
       const e = await fbAutoDeclareForfeits();
+      tournamentWOAutoFailureCount_ = 0;
       e &&
         e.length > 0 &&
         e.forEach((e) => {
@@ -59,10 +129,19 @@ function startWOGraceTimerIfNeeded(e) {
             `⏱️ WO automático — mesa #${e.board}: gana ${e.winner} (${e.absent} no se presentó a tiempo)`,
           );
         });
-    } catch (e) {}
+    } catch (e) {
+      (console.error("[WO automático] Falló la verificación:", e),
+        (tournamentWOAutoFailureCount_ += 1),
+        2 === tournamentWOAutoFailureCount_ &&
+          toast(
+            "⚠️ No se pudieron verificar W.O. automáticos. Revisá la conexión con Firebase.",
+            7e3,
+          ));
+    }
     try {
       lastTournamentState && checkDoubleNoShowBoards_(lastTournamentState);
     } catch (e) {}
+    lastTournamentState && renderTournamentState(lastTournamentState);
   };
   (a(), (tournamentWOGraceTimer = setInterval(a, 15e3)));
 }
@@ -71,7 +150,7 @@ function renderApprovalPanel(e, t, a) {
     o = document.getElementById("tournament-approval-status"),
     r = document.getElementById("tournament-approval-admin-controls"),
     s = document.getElementById("tournament-auto-approve-box"),
-    l = isCurrentUserReferee(),
+    l = isCurrentUserOfficial(e),
     i = "closed" === e.meta.roundStatus;
   if (!a) {
     ((n.style.display = "none"), stopAutoApproveTimer());
@@ -81,10 +160,10 @@ function renderApprovalPanel(e, t, a) {
   ((n.style.display = ""),
     (r.style.display = t && !i ? "" : "none"),
     (o.textContent = i
-      ? "El árbitro ya cerró esta ronda: los resultados quedaron bloqueados y solo él puede corregirlos. Falta generar la ronda siguiente."
+      ? "La ronda está cerrada y los resultados quedaron bloqueados. La publicación de la siguiente ronda sigue disponible para administración o arbitraje."
       : t
-        ? "Ya están cargados todos los resultados de esta ronda. Revisá la tabla de posiciones y los resultados abajo; podés corregir cualquier resultado antes de aprobar."
-        : "Ya terminaron todas las partidas de esta ronda. Falta que el administrador la revise y apruebe para que se genere la ronda siguiente."));
+        ? "Ya están cargados todos los resultados de esta ronda. Revisá la tabla de posiciones y los resultados abajo; el administrador o el árbitro pueden aprobarla."
+        : "Ya terminaron todas las partidas de esta ronda. Falta que el administrador o el árbitro la revisen y aprueben para generar la ronda siguiente."));
   const c = document.getElementById("tournament-referee-round-controls");
   if (c) {
     c.style.display = l ? "" : "none";
@@ -168,6 +247,17 @@ function renderSelfRegisterCard(e, t) {
     e.value || (e.value = currentUser.displayName || "");
   }
 }
+function promptTournamentDecisionReason_(e) {
+  const t = prompt(
+    `${e}\n\nIngresá el motivo obligatorio (máximo 300 caracteres):`,
+  );
+  if (null === t) return null;
+  try {
+    return requireTournamentDecisionReason_(t, e.toLowerCase());
+  } catch (e) {
+    return (showError(e), null);
+  }
+}
 let pairingsDelegationSetup_ = !1;
 function setupPairingsListDelegation_(e) {
   pairingsDelegationSetup_ ||
@@ -192,17 +282,29 @@ function setupPairingsListDelegation_(e) {
               if ("1" !== e.dataset.isAdmin && !isCurrentUserReferee())
                 throw new Error("No tenés permiso para cargar resultados");
               const t = n.dataset.result;
+              let r = "";
               if (
-                ("wo-black" === t || "wo-white" === t) &&
+                ["wo-black", "wo-white", "double-wo"].includes(t) &&
                 !confirm(
-                  "¿Confirmás declarar esta partida como W.O. (incomparecencia)?",
+                  "double-wo" === t
+                    ? "¿Confirmás declarar Doble W.O.? Ningún jugador recibirá puntos."
+                    : "¿Confirmás declarar esta partida como W.O. (incomparecencia)?",
                 )
               )
                 return void (tournamentBusy = !1);
+              if (["wo-black", "wo-white", "double-wo"].includes(t)) {
+                r = promptTournamentDecisionReason_("Motivo del W.O.");
+                if (null === r) return;
+              }
               const a =
                   lastTournamentState &&
                   "pending_approval" === lastTournamentState.meta.roundStatus,
-                o = await fbSubmitResult(n.dataset.round, n.dataset.board, t);
+                o = await fbSubmitResult(
+                  n.dataset.round,
+                  n.dataset.board,
+                  t,
+                  r,
+                );
               a || "pending_approval" !== o.meta.roundStatus
                 ? a ||
                   "finished" !== o.meta.status ||
@@ -223,11 +325,16 @@ function setupPairingsListDelegation_(e) {
           if (!tournamentBusy) {
             tournamentBusy = !0;
             try {
-              const e = "suspend" === o.dataset.suspendAction;
+              const e = "suspend" === o.dataset.suspendAction,
+                t = e
+                  ? promptTournamentDecisionReason_("Motivo de la suspensión")
+                  : "";
+              if (e && null === t) return;
               (await fbSetGameSuspended(
                 o.dataset.suspendRound,
                 o.dataset.suspendBoard,
                 e,
+                t,
               ),
                 toast(e ? "⏸️ Partida suspendida" : "▶️ Partida reanudada"));
             } catch (e) {
@@ -239,31 +346,458 @@ function setupPairingsListDelegation_(e) {
         })();
     }));
 }
+function renderTournamentRoleSummary_(e) {
+  const t = document.getElementById("tournament-roles-summary");
+  if (!t) return;
+  const a = tournamentRoleEmails_(
+      e,
+      "adminEmails",
+      TOURNAMENT_ADMIN_EMAIL,
+    ),
+    n = tournamentRoleEmails_(
+      e,
+      "refereeEmails",
+      TOURNAMENT_REFEREE_EMAIL,
+    );
+  t.textContent = `${a.length} administrador${1 === a.length ? "" : "es"} · ${n.length} árbitro${1 === n.length ? "" : "s"}`;
+}
+function formatTournamentDiagnosticTime_(e) {
+  if (!e) return "Aun sin datos";
+  const t = Date.now() - e;
+  if (t >= 0 && t < 6e4) return `Hace ${Math.max(1, Math.round(t / 1e3))} s`;
+  if (t >= 0 && t < 36e5) return `Hace ${Math.round(t / 6e4)} min`;
+  return new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(e));
+}
+function tournamentRoundStatusLabel_(e) {
+  return {
+    playing: "En juego",
+    pending_approval: "Pendiente de aprobacion",
+    closed: "Cerrada",
+  }[e] || "Sin ronda activa";
+}
+function renderTournamentDiagnostics_(e) {
+  const t = document.getElementById("tournament-diagnostics-panel");
+  if (!t) return;
+  const a = isCurrentUserAdmin(e),
+    n = isCurrentUserReferee(e),
+    o = !!currentUser && (a || n);
+  if (!o) return void (t.style.display = "none");
+  t.style.display = "";
+  const r = document.getElementById("tournament-diagnostics-round"),
+    s = document.getElementById("tournament-diagnostics-round-status"),
+    l = document.getElementById("tournament-diagnostics-account"),
+    i = document.getElementById("tournament-diagnostics-role"),
+    c = document.getElementById("tournament-diagnostics-room-sync"),
+    d = document.getElementById("tournament-diagnostics-games-sync"),
+    u = document.getElementById("tournament-diagnostics-connection"),
+    m = document.getElementById("tournament-diagnostics-detail"),
+    g = Math.max(
+      tournamentLastRoomSnapshotAt_ || 0,
+      tournamentLastGamesSnapshotAt_ || 0,
+    ),
+    f =
+      tournamentLastFirebaseErrorAt_ > g
+        ? tournamentLastFirebaseError_
+        : "";
+  (r && (r.textContent = e && e.meta ? String(e.meta.round || 0) : "-"),
+    s &&
+      (s.textContent =
+        e && e.meta
+          ? `${e.meta.status === "finished" ? "Torneo finalizado · " : ""}${tournamentRoundStatusLabel_(e.meta.roundStatus)}`
+          : "Sin torneo activo"),
+    l && (l.textContent = currentUser.email || "Cuenta sin email"),
+    i &&
+      (i.textContent =
+        a && n ? "Administrador y arbitro" : a ? "Administrador" : "Arbitro"),
+    c &&
+      (c.textContent = formatTournamentDiagnosticTime_(
+        tournamentLastRoomSnapshotAt_,
+      )),
+    d &&
+      (d.textContent = formatTournamentDiagnosticTime_(
+        tournamentLastGamesSnapshotAt_,
+      )));
+  if (u) {
+    const e = !navigator.onLine
+        ? "offline"
+        : f
+          ? "error"
+          : g
+            ? "online"
+            : "waiting",
+      t =
+        "offline" === e
+          ? "Sin conexion"
+          : "error" === e
+            ? "Error de Firebase"
+            : "online" === e
+              ? "Firebase conectado"
+              : "Esperando datos";
+    ((u.dataset.state = e), (u.textContent = t));
+  }
+  m &&
+    (m.textContent = f
+      ? `Ultimo error: ${f}`
+      : tournamentMatchActive && tournamentLastConfirmedSnapshotAt_
+        ? `Partida actual: confirmada ${formatTournamentDiagnosticTime_(tournamentLastConfirmedSnapshotAt_)}${Number.isFinite(tournamentLastLatencyMs_) ? ` · latencia ${Math.max(0, Math.round(tournamentLastLatencyMs_))} ms` : ""}.`
+        : g
+          ? `Ultima sincronizacion recibida ${formatTournamentDiagnosticTime_(g)}.`
+          : "Esperando la primera actualizacion de Firebase.");
+}
+function renderTournamentOfficialRoles_(e) {
+  const t = document.getElementById("tournament-official-roles-panel"),
+    a = document.getElementById("tournament-official-roles-summary");
+  if (!t || !a) return;
+  const n = isCurrentUserAdmin(e),
+    o = isCurrentUserReferee(e);
+  if (!n && !o) return void (t.style.display = "none");
+  ((t.style.display = ""),
+    (a.textContent =
+      n && o
+        ? "Tu cuenta tiene ambos roles. Conserva las responsabilidades separadas: configuracion como administrador y decisiones operativas como arbitro."
+        : n
+          ? "Tu cuenta administra el torneo y tambien puede usar el control compartido de ronda. Las sanciones y correcciones operativas siguen reservadas al arbitro."
+        : "Tu cuenta arbitra la competencia y puede usar el control compartido de ronda. La configuracion institucional y los roles siguen reservados a administracion."));
+}
+function renderTournamentRoundCompleteNotice_(e) {
+  const t = document.getElementById("tournament-round-complete-notice"),
+    a = document.getElementById("tournament-round-complete-text");
+  if (!t || !a) return;
+  const n =
+    e &&
+    e.meta &&
+    "active" === e.meta.status &&
+    "pending_approval" === e.meta.roundStatus &&
+    isCurrentUserOfficial(e);
+  if (!n)
+    return (
+      (t.style.display = "none"),
+      void (tournamentRoundCompleteNoticeKey_ = "")
+    );
+  const o = `${e.meta.name || "torneo"}:${e.meta.round}`,
+    r =
+      e.meta.totalRounds && e.meta.round >= e.meta.totalRounds
+        ? `La ronda final ${e.meta.round} está lista para validar y cerrar el torneo.`
+        : `La ronda ${e.meta.round} está completa. Revisá los resultados y aprobá la publicación de la siguiente ronda.`;
+  ((t.style.display = "flex"),
+    (a.textContent = r),
+    tournamentRoundCompleteNoticeKey_ !== o &&
+      ((tournamentRoundCompleteNoticeKey_ = o),
+      SoundFX.announcement(),
+      toast(`Atención: todas las mesas de la ronda ${e.meta.round} finalizaron.`, 7000)));
+}
+let tournamentOfficialTabsReady_ = !1,
+  tournamentOfficialActiveTab_ = "admin",
+  tournamentOfficialLastStatus_ = "",
+  tournamentAdminActiveSubtab_ = "actions",
+  tournamentRefereeActiveSubtab_ = "round";
+function buildTournamentOfficialSubtabs_(container, idPrefix, groups, getActive, setActive) {
+  if (!container) return;
+  const tablist = document.createElement("div");
+  (tablist.className = "tournament-official-subtablist",
+    tablist.setAttribute("role", "tablist"),
+    tablist.setAttribute("aria-label", "Opciones"));
+  const contentWrap = document.createElement("div");
+  contentWrap.className = "tournament-official-subtabs-content";
+  const panels = [];
+  groups.forEach((g) => {
+    const btn = document.createElement("button");
+    (btn.type = "button",
+      (btn.className = "tournament-official-subtab"),
+      btn.setAttribute("role", "tab"),
+      (btn.dataset.subtab = g.key),
+      (btn.id = `${idPrefix}-subtab-${g.key}`),
+      (btn.textContent = g.label));
+    tablist.appendChild(btn);
+    const panel = document.createElement("div");
+    (panel.className = "tournament-official-subtab-panel",
+      (panel.dataset.subtabPanel = g.key),
+      panel.setAttribute("role", "tabpanel"),
+      panel.setAttribute("aria-labelledby", btn.id));
+    g.ids.forEach((elId) => {
+      const el = document.getElementById(elId);
+      el && panel.appendChild(el);
+    });
+    (contentWrap.appendChild(panel), panels.push({ btn, panel, key: g.key }));
+  });
+  function activate(key, focus) {
+    const match = panels.find((p) => p.key === key) || panels[0];
+    if (!match) return;
+    setActive(match.key);
+    panels.forEach((p) => {
+      const active = p === match;
+      (p.btn.setAttribute("aria-selected", active ? "true" : "false"),
+        (p.btn.tabIndex = active ? 0 : -1),
+        p.btn.classList.toggle("is-active", active),
+        (p.panel.hidden = !active));
+    });
+    focus && match.btn.focus();
+  }
+  panels.forEach((p, idx) => {
+    (p.btn.addEventListener("click", () => activate(p.key, !1)),
+      p.btn.addEventListener("keydown", (e) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+        e.preventDefault();
+        let n = idx;
+        ("Home" === e.key
+          ? (n = 0)
+          : "End" === e.key
+            ? (n = panels.length - 1)
+            : (n = (idx + ("ArrowRight" === e.key ? 1 : -1) + panels.length) % panels.length));
+        activate(panels[n].key, !0);
+      }));
+  });
+  (container.insertBefore(tablist, container.firstChild),
+    container.appendChild(contentWrap),
+    activate(getActive(), !1));
+}
+function activateTournamentOfficialTab_(e, t) {
+  if (!tournamentOfficialTabsReady_) setupTournamentOfficialTabs_();
+  const a = document.getElementById("tournament-official-tabs");
+  if (!a) return;
+  const n = Array.from(
+      a.querySelectorAll("[data-tournament-official-tab]"),
+    ).filter((e) => !e.hidden),
+    o = n.find((t) => t.dataset.tournamentOfficialTab === e) || n[0];
+  if (!o) return;
+  ((tournamentOfficialActiveTab_ = o.dataset.tournamentOfficialTab),
+    n.forEach((e) => {
+      const t = e === o;
+      (e.setAttribute("aria-selected", t ? "true" : "false"),
+        (e.tabIndex = t ? 0 : -1),
+        e.classList.toggle("is-active", t));
+    }),
+    a.querySelectorAll("[data-tournament-official-panel]").forEach((e) => {
+      e.hidden =
+        e.dataset.tournamentOfficialPanel !== tournamentOfficialActiveTab_;
+    }),
+    t && o.focus());
+}
+function setupTournamentOfficialTabs_() {
+  if (tournamentOfficialTabsReady_) return;
+  const e = document.getElementById("tournament-audit-panel"),
+    t = e && e.parentElement;
+  if (!e || !t) return;
+  const a = document.createElement("section");
+  ((a.id = "tournament-official-tabs"),
+    (a.className = "tournament-official-workspace"),
+    (a.style.display = "none"),
+    (a.innerHTML = `
+      <div class="tournament-official-tabs-heading">
+        <div>
+          <h3>Gestión oficial</h3>
+          <p class="muted">Las herramientas están agrupadas por responsabilidad.</p>
+        </div>
+        <div class="tournament-official-tablist" role="tablist" aria-label="Opciones de gestión oficial">
+          <button
+            class="tournament-official-tab"
+            id="tournament-official-admin-tab"
+            type="button"
+            role="tab"
+            aria-controls="tournament-official-admin-content"
+            data-tournament-official-tab="admin"
+          >Administrador</button>
+          <button
+            class="tournament-official-tab"
+            id="tournament-official-referee-tab"
+            type="button"
+            role="tab"
+            aria-controls="tournament-official-referee-content"
+            data-tournament-official-tab="referee"
+          >Árbitro / control</button>
+          <button
+            class="tournament-official-tab"
+            id="tournament-official-audit-tab"
+            type="button"
+            role="tab"
+            aria-controls="tournament-official-audit-content"
+            data-tournament-official-tab="audit"
+          >Auditoría <span class="tournament-official-tab-count" id="tournament-official-audit-tab-count">0</span></button>
+        </div>
+      </div>
+      <div
+        class="tournament-official-tab-content"
+        id="tournament-official-admin-content"
+        role="tabpanel"
+        aria-labelledby="tournament-official-admin-tab"
+        data-tournament-official-panel="admin"
+      ></div>
+      <div
+        class="tournament-official-tab-content"
+        id="tournament-official-referee-content"
+        role="tabpanel"
+        aria-labelledby="tournament-official-referee-tab"
+        data-tournament-official-panel="referee"
+        hidden
+      ></div>
+      <div
+        class="tournament-official-tab-content"
+        id="tournament-official-audit-content"
+        role="tabpanel"
+        aria-labelledby="tournament-official-audit-tab"
+        data-tournament-official-panel="audit"
+        hidden
+      ></div>
+    `),
+    t.insertBefore(a, e));
+  const n = a.querySelector('[data-tournament-official-panel="admin"]'),
+    o = a.querySelector('[data-tournament-official-panel="referee"]'),
+    s = a.querySelector('[data-tournament-official-panel="audit"]');
+  [
+    "tournament-admin-panel",
+    "tournament-settings-panel",
+    "tournament-roles-panel",
+  ].forEach((e) => {
+    const t = document.getElementById(e);
+    t && n.appendChild(t);
+  });
+  [
+    "tournament-round-command-center",
+    "tournament-announcement-composer",
+    "tournament-round-countdown-composer",
+    "tournament-approval-panel",
+    "tournament-referee-panel",
+    "tournament-players-card",
+    "tournament-diagnostics-panel",
+  ].forEach((e) => {
+    const t = document.getElementById(e);
+    t && o.appendChild(t);
+  });
+  buildTournamentOfficialSubtabs_(
+    n,
+    "tournament-admin",
+    [
+      { key: "actions", label: "Acciones", ids: ["tournament-admin-panel"] },
+      { key: "settings", label: "Configuración", ids: ["tournament-settings-panel"] },
+      { key: "roles", label: "Roles", ids: ["tournament-roles-panel"] },
+    ],
+    () => tournamentAdminActiveSubtab_,
+    (k) => {
+      tournamentAdminActiveSubtab_ = k;
+    },
+  );
+  buildTournamentOfficialSubtabs_(
+    o,
+    "tournament-referee",
+    [
+      {
+        key: "round",
+        label: "Ronda",
+        ids: ["tournament-round-command-center", "tournament-approval-panel"],
+      },
+      {
+        key: "announce",
+        label: "Anuncios",
+        ids: ["tournament-announcement-composer", "tournament-round-countdown-composer"],
+      },
+      { key: "tools", label: "Herramientas", ids: ["tournament-referee-panel"] },
+      { key: "players", label: "Jugadores", ids: ["tournament-players-card"] },
+      { key: "diagnostics", label: "Diagnóstico", ids: ["tournament-diagnostics-panel"] },
+    ],
+    () => tournamentRefereeActiveSubtab_,
+    (k) => {
+      tournamentRefereeActiveSubtab_ = k;
+    },
+  );
+  const l = document.getElementById("tournament-audit-panel");
+  l && s.appendChild(l);
+  const r = Array.from(
+    a.querySelectorAll("[data-tournament-official-tab]"),
+  );
+  (r.forEach((e) => {
+    (e.addEventListener("click", () =>
+      activateTournamentOfficialTab_(
+        e.dataset.tournamentOfficialTab,
+        !1,
+      ),
+    ),
+      e.addEventListener("keydown", (e) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
+          return;
+        e.preventDefault();
+        const t = r.filter((e) => !e.hidden);
+        if (!t.length) return;
+        const a = t.indexOf(e.currentTarget);
+        let n =
+          "Home" === e.key
+            ? 0
+            : "End" === e.key
+              ? t.length - 1
+              : (a + ("ArrowRight" === e.key ? 1 : -1) + t.length) %
+                t.length;
+        activateTournamentOfficialTab_(
+          t[n].dataset.tournamentOfficialTab,
+          !0,
+        );
+      }));
+  }),
+    (tournamentOfficialTabsReady_ = !0),
+    activateTournamentOfficialTab_(tournamentOfficialActiveTab_, !1));
+}
+function renderTournamentOfficialTabs_(e) {
+  setupTournamentOfficialTabs_();
+  const t = document.getElementById("tournament-official-tabs"),
+    a = document.getElementById("tournament-official-admin-tab"),
+    n = document.getElementById("tournament-official-referee-tab"),
+    l = document.getElementById("tournament-official-audit-tab"),
+    o = isCurrentUserAdmin(e),
+    r = isCurrentUserReferee(e),
+    s = Boolean(currentUser && (o || r)),
+    i = e && e.meta ? e.meta.status || "" : "",
+    c = "finished" === i && "finished" !== tournamentOfficialLastStatus_;
+  if (!t || !a || !n || !l) return;
+  ((t.style.display = s ? "" : "none"),
+    (a.hidden = !o),
+    (n.hidden = !s),
+    (l.hidden = !s),
+    (tournamentOfficialLastStatus_ = i));
+  if (!s) return;
+  const d = c
+    ? "audit"
+    : "admin" === tournamentOfficialActiveTab_ && !o
+      ? "referee"
+      : tournamentOfficialActiveTab_;
+  activateTournamentOfficialTab_(d, !1);
+}
 function renderTournamentState(e) {
   const t = document.getElementById("tournament-setup-box"),
     a = document.getElementById("tournament-active-box");
   if ((updateModeBadge(), !currentUser))
     return (
+      renderTournamentOfficialTabs_(null),
       (t.style.display = "none"),
       (a.style.display = "none"),
-      void stopWOGraceTimer()
+      stopWOGraceTimer(),
+      void stopTournamentJoinReminder_()
     );
   if (!e || ("active" !== e.meta.status && "finished" !== e.meta.status))
     return (
       (t.style.display = isCurrentUserAdmin(e) ? "" : "none"),
       (a.style.display = "none"),
-      void stopWOGraceTimer()
+      stopWOGraceTimer(),
+      void stopTournamentJoinReminder_()
     );
   ((t.style.display = "none"),
     (a.style.display = ""),
-    startWOGraceTimerIfNeeded(e));
+    startWOGraceTimerIfNeeded(e),
+    startTournamentJoinReminder_(e));
   const n = isCurrentUserAdmin(e),
+    p = isCurrentUserReferee(e),
     o = "finished" === e.meta.status,
     r =
       !o &&
       ("pending_approval" === e.meta.roundStatus ||
         "closed" === e.meta.roundStatus),
     s = e.meta.totalRounds ? ` de ${e.meta.totalRounds}` : "";
+  renderTournamentOfficialTabs_(e);
+  renderTournamentDiagnostics_(e);
+  renderTournamentOfficialRoles_(e);
+  renderTournamentRoundCompleteNotice_(e);
+  renderTournamentAuditHistory_();
   ((document.getElementById("tournament-title-display").textContent =
     "🏆 " + e.meta.name),
     (document.getElementById("tournament-round-display").textContent = o
@@ -281,26 +815,110 @@ function renderTournamentState(e) {
         (l.title = "Ir a las inscripciones pendientes"))
       : (l.style.display = "none"));
   const c = document.getElementById("tournament-announcement-composer");
-  c && (c.style.display = n || isCurrentUserReferee() ? "" : "none");
+  c && (c.style.display = !o && (n || isCurrentUserReferee(e)) ? "" : "none");
   const d = document.getElementById("tournament-round-countdown-composer");
-  (d && (d.style.display = n || isCurrentUserReferee() ? "" : "none"),
+  (d &&
+      (d.style.display = !o && (n || isCurrentUserReferee(e)) ? "" : "none"),
     renderRoundCountdown_(e),
     (document.getElementById("tournament-admin-panel").style.display = n
       ? ""
       : "none"),
-    (document.getElementById("tournament-next-round-btn").style.display =
-      o || 0 !== e.meta.round ? "none" : ""),
+    (document.getElementById("tournament-open-admin-btn").style.display = n
+      ? ""
+      : "none"),
+    (() => {
+      const t = document.getElementById("tournament-next-round-btn"),
+        a =
+          n &&
+          !o &&
+          (0 === e.meta.round ||
+            "pending_approval" === e.meta.roundStatus ||
+            "closed" === e.meta.roundStatus);
+      t &&
+        ((t.style.display = a ? "" : "none"),
+        (t.textContent =
+          0 === e.meta.round
+            ? "Generar ronda 1"
+            : "pending_approval" === e.meta.roundStatus
+              ? "Aprobar y generar nueva ronda"
+              : "Generar nueva ronda"));
+    })(),
     (document.getElementById("tournament-finish-btn").style.display = o
       ? "none"
       : ""),
     (document.getElementById("tournament-reopen-btn").style.display = o
       ? ""
       : "none"),
+    (document.getElementById("tournament-settings-btn").style.display = o
+      ? "none"
+      : ""),
     n ||
-      (document.getElementById("tournament-settings-panel").style.display =
+      ((document.getElementById("tournament-settings-panel").style.display =
         "none"),
+      (document.getElementById("tournament-roles-panel").style.display =
+        "none")),
+    renderTournamentRoleSummary_(e),
     renderSelfRegisterCard(e, o),
-    renderApprovalPanel(e, n, r));
+    renderApprovalPanel(e, n || p, r));
+  const z = document.getElementById("tournament-auto-round-control"),
+    A = document.getElementById("tournament-auto-round-mode"),
+    B = document.getElementById("tournament-auto-round-status");
+  z &&
+    ((z.style.display = n && !o ? "" : "none"),
+    A && (A.value = "auto" === e.meta.roundApprovalMode ? "auto" : "manual"),
+    B &&
+      (B.textContent =
+        "auto" === e.meta.roundApprovalMode
+          ? "Activo: cuando finalicen todas las partidas, la siguiente ronda se publicara automaticamente despues de 30 segundos."
+          : "Manual: al finalizar una ronda, el administrador o arbitro debe aprobarla."));
+  const C = document.getElementById("tournament-round-command-center"),
+    D = document.getElementById("tournament-round-command-title"),
+    F = document.getElementById("tournament-round-command-status"),
+    G = document.getElementById("tournament-round-command-action"),
+    H = isCurrentUserOfficial(e);
+  if (C && D && F && G) {
+    ((C.style.display = H ? "" : "none"), (G.style.display = "none"));
+    if (H)
+      if (o)
+        ((D.textContent = "Torneo finalizado"),
+          (F.textContent =
+            "La ultima ronda quedo cerrada. Podes consultar resultados o reabrir el torneo como administrador."));
+      else if (0 === e.meta.round)
+        ((D.textContent = "Ronda inicial pendiente"),
+          (F.textContent =
+            "Todavia no se genero la ronda 1. El administrador puede crear los emparejamientos."),
+          n &&
+            ((G.style.display = ""),
+            (G.textContent = "Generar ronda 1"),
+            (G.dataset.roundAction = "generate-first")));
+      else if ("pending_approval" === e.meta.roundStatus)
+        ((D.textContent = `Ronda ${e.meta.round} lista para avanzar`),
+          (F.textContent =
+            e.meta.totalRounds && e.meta.round >= e.meta.totalRounds
+              ? "Todos los resultados estan cargados. El administrador o arbitro deben validar la ronda final para cerrar el torneo."
+              : "Todos los resultados estan cargados. El administrador o arbitro pueden aprobar la ronda actual y publicar la siguiente."),
+          H &&
+            ((G.style.display = ""),
+            (G.textContent =
+              e.meta.totalRounds && e.meta.round >= e.meta.totalRounds
+                ? "Validar ronda final y cerrar torneo"
+                : "Aprobar y publicar nueva ronda"),
+            (G.dataset.roundAction = "approve")));
+      else if ("closed" === e.meta.roundStatus)
+        ((D.textContent = `Ronda ${e.meta.round} cerrada`),
+          (F.textContent =
+            H
+              ? "Los resultados fueron bloqueados. Ya se puede publicar la ronda siguiente."
+              : "Los resultados fueron validados y bloqueados. El administrador debe publicar la ronda siguiente."),
+          H &&
+            ((G.style.display = ""),
+            (G.textContent = "Generar nueva ronda"),
+            (G.dataset.roundAction = "generate-closed")));
+      else
+        ((D.textContent = `Ronda ${e.meta.round} en juego`),
+          (F.textContent =
+            "Esperando que finalicen todas las partidas. El estado se actualiza automaticamente."));
+  }
   const u = document.getElementById("tournament-champion-banner");
   if (o) {
     const t = rankPlayers_(e.players, e.pairings),
@@ -315,7 +933,6 @@ function renderTournamentState(e) {
   } else u.style.display = "none";
   const m =
       currentUser && currentUser.email ? currentUser.email.toLowerCase() : "",
-    p = isCurrentUserReferee(),
     g = e.pairings.filter((t) => t.round === e.meta.round),
     f = document.getElementById("tournament-pairings-list"),
     h = lastRoundGames;
@@ -334,7 +951,7 @@ function renderTournamentState(e) {
       b.add(String(t.board));
       const a = "" === t.blackId,
         o = a ? null : v.get(t.round + "_" + t.board) || null,
-        r = JSON.stringify([t, o, n, p, m]);
+        r = JSON.stringify([t, o, n, p, m, Math.floor(syncedNow_() / 15e3)]);
       let s = E.get(String(t.board));
       if (s && s.dataset.sig === r) return;
       if (
@@ -352,6 +969,14 @@ function renderTournamentState(e) {
         i = Number(e.meta.woGraceMinutes) || 0,
         c = (o && o.joined) || { w: !1, b: !1 },
         d = o && "ongoing" === o.status && c.w !== c.b,
+        q =
+          i > 0 &&
+          o &&
+          "ongoing" === o.status &&
+          o.startedAt &&
+          !c.w &&
+          !c.b &&
+          syncedNow_() - getTimestampMs(o.startedAt) >= 6e4 * i,
         u =
           i > 0 && d && o.startedAt
             ? (() => {
@@ -363,7 +988,9 @@ function renderTournamentState(e) {
               })()
             : "",
         g =
-          o && "finished" !== o.status && "suspended" !== o.status && u
+          !t.result && o && "finished" === o.status && o.result
+            ? `Resultado declarado desde el tablero: ${resultLabel(o.result)}. Requiere confirmación del árbitro.`
+            : o && "finished" !== o.status && "suspended" !== o.status && u
             ? u
             : o &&
                 "finished" !== o.status &&
@@ -376,20 +1003,18 @@ function renderTournamentState(e) {
         ? ("pending_approval" !== e.meta.roundStatus || t.locked
             ? "wo-black" === t.result || "wo-white" === t.result
               ? ((h = "wo"), (y = "⚫ Incomparecencia"))
+              : "double-wo" === t.result
+                ? ((h = "no-show"), (y = "🔴 Doble W.O. · sin puntos"))
               : "1/2-1/2" === t.result
                 ? ((h = "draw"), (y = "🔵 Tablas acordadas"))
                 : ((h = "finished"), (y = "⚪ Finalizada"))
             : ((h = "pending"), (y = "🟣 Resultado pendiente de confirmar")),
           t.locked && (y += " 🔒"))
+        : o && "finished" === o.status && o.result
+            ? ((h = "pending"), (y = "🟣 Resultado pendiente del árbitro"))
         : o && "suspended" === o.status
           ? ((h = "suspended"), (y = "⏸️ Suspendida"))
-          : i > 0 &&
-              o &&
-              "ongoing" === o.status &&
-              o.startedAt &&
-              !c.w &&
-              !c.b &&
-              syncedNow_() - o.startedAt >= 6e4 * i
+          : q
             ? ((h = "no-show"), (y = "🔴 Nadie se presentó"))
             : o && o.clock && !l
               ? ((h = "waiting"), (y = "🟡 Esperando jugadores"))
@@ -401,16 +1026,18 @@ function renderTournamentState(e) {
         C =
           (t.whiteEmail && t.whiteEmail.toLowerCase() === m) ||
           (t.blackEmail && t.blackEmail.toLowerCase() === m),
-        S = n || C,
+        S = "finished" !== e.meta.status && C,
         x = [
           ["1-0", "1-0"],
           ["1/2-1/2", "½-½"],
           ["0-1", "0-1"],
         ];
       p &&
-        (x.push(["wo-black", "WO Blancas"]), x.push(["wo-white", "WO Negras"]));
+        (x.push(["wo-black", "WO Blancas"]),
+        x.push(["wo-white", "WO Negras"]),
+        q && x.push(["double-wo", "Doble W.O. (0-0)"]));
       const I =
-          (!n && !p) || (t.locked && !p)
+          "finished" === e.meta.status || (!n && !p) || (t.locked && !p)
             ? t.result
               ? `<span class="muted">${resultLabel(t.result)}${t.locked ? " 🔒" : ""}</span>`
               : ""
@@ -422,7 +1049,10 @@ function renderTournamentState(e) {
                 .join(""),
         T = `<button class="btn" data-play-round="${t.round}" data-play-board="${t.board}" data-white="${escapeHtml_(t.whiteName)}" data-black="${escapeHtml_(t.blackName)}" data-white-email="${escapeHtml_(t.whiteEmail || "")}" data-black-email="${escapeHtml_(t.blackEmail || "")}">${S ? "▶️ Jugar" : "👁️ Ver"}</button>`,
         k =
-          p && o && "finished" !== o.status
+          "finished" !== e.meta.status &&
+          p &&
+          o &&
+          "finished" !== o.status
             ? `<button class="btn" data-suspend-round="${t.round}" data-suspend-board="${t.board}" data-suspend-action="${"suspended" === o.status ? "resume" : "suspend"}">${"suspended" === o.status ? "▶️ Reanudar" : "⏸️ Suspender"}</button>`
             : "";
       s.innerHTML = `\n            <div class="pairing-card-header">\n              <div class="pairing-card-board">Mesa ${t.board}</div>\n              <span class="pairing-status pairing-status-${h}">${y}</span>\n            </div>\n            <div class="pairing-card-names">\n              <span class="pairing-side pairing-side-white">⚪ ${escapeHtml_(t.whiteName)}</span>\n              <span class="vs">vs</span>\n              <span class="pairing-side pairing-side-black">${escapeHtml_(t.blackName)} ⚫</span>\n            </div>\n            ${w}\n            ${g ? `<div class="pairing-card-detail">${g}</div>` : ""}\n            <div class="pairing-card-actions">\n              ${T}\n              ${k}\n              <div class="pairing-result-btns">${I}</div>\n            </div>\n          `;
@@ -457,7 +1087,10 @@ function renderStandingsAndPlayers_(e, t, a) {
   const s = document.getElementById("tournament-referee-panel");
   s && (s.style.display = a ? "" : "none");
   const l = document.getElementById("tournament-referee-tools");
-  (l && (l.style.display = a ? "flex" : "none"), renderPlayersPanel(e, t));
+  l && (l.style.display = a ? "flex" : "none");
+  const i = document.getElementById("tournament-recalc-positions-btn");
+  (i && (i.style.display = "finished" === e.meta.status ? "none" : ""),
+    renderPlayersPanel(e, t));
 }
 function escapePublicScreenHtml_(e) {
   return escapeHtml_(e);
@@ -476,6 +1109,8 @@ function resultLabelForPairing_(e) {
       return "1 - 0 (WO)";
     case "wo-white":
       return "0 - 1 (WO)";
+    case "double-wo":
+      return "0 - 0 (Doble W.O.)";
     default:
       return e.result;
   }
@@ -805,7 +1440,10 @@ function setupPlayersListDelegation_(e) {
             )
           )
             try {
-              (await fbWithdrawPlayer(e), toast("🚪 Jugador retirado"));
+              const a =
+                promptTournamentDecisionReason_("Motivo del retiro");
+              if (null === a) return;
+              (await fbWithdrawPlayer(e, a), toast("🚪 Jugador retirado"));
             } catch (e) {
               showError(e);
             }
@@ -833,7 +1471,12 @@ function setupPlayersListDelegation_(e) {
             )
           )
             try {
-              (await fbDisqualifyPlayer(e), toast("⛔ Jugador descalificado"));
+              const a = promptTournamentDecisionReason_(
+                "Motivo de la descalificación",
+              );
+              if (null === a) return;
+              (await fbDisqualifyPlayer(e, a),
+                toast("⛔ Jugador descalificado"));
             } catch (e) {
               showError(e);
             }
@@ -846,12 +1489,17 @@ function renderPlayersPanel(e, t) {
   const n = isCurrentUserReferee();
   if (!n && !t) return void (a.style.display = "none");
   a.style.display = "";
+  const i = "finished" === e.meta.status,
+    c = document.getElementById("tournament-add-player-controls"),
+    d = document.getElementById("tournament-add-player-note");
+  (c && (c.style.display = t && !i ? "flex" : "none"),
+    d && (d.style.display = t || n ? "" : "none"));
   const o = document.getElementById("tournament-players-list");
   (setupPlayersListDelegation_(o),
     tournamentEditingPlayerId &&
       !e.players.some((e) => e.id === tournamentEditingPlayerId) &&
       (tournamentEditingPlayerId = null));
-  const r = JSON.stringify([e.players, tournamentEditingPlayerId]);
+  const r = JSON.stringify([e.players, tournamentEditingPlayerId, t, n, i]);
   if (o.dataset.sig === r) return;
   o.dataset.sig = r;
   const s = e.players
@@ -865,7 +1513,7 @@ function renderPlayersPanel(e, t) {
       (l.style.cssText =
         "display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;"),
       o.parentNode.insertBefore(l, o)),
-    t && s.length > 0)
+    t && !i && s.length > 0)
   ) {
     ((l.style.display = "flex"),
       (l.innerHTML = `\n            <button class="btn primary" id="tournament-approve-all-btn">✅ Autorizar todos (${s.length})</button>\n            <button class="btn danger" id="tournament-reject-all-btn">🚫 Rechazar todos (${s.length})</button>\n          `));
@@ -902,39 +1550,63 @@ function renderPlayersPanel(e, t) {
         return `\n                <div class="pairing-row" data-player-row="${e.id}">\n                  <input type="text" class="player-edit-name" value="${e.name.replace(/"/g, "&quot;")}" style="flex:1; min-width:120px; padding:6px 8px; border-radius:8px; border:1px solid var(--surface2); background:var(--surface); color:var(--text)" />\n                  <input type="email" class="player-edit-email" value="${(e.email || "").replace(/"/g, "&quot;")}" placeholder="Email" style="flex:1; min-width:160px; padding:6px 8px; border-radius:8px; border:1px solid var(--surface2); background:var(--surface); color:var(--text)" />\n                  <button class="btn primary" data-save-player="${e.id}">Guardar</button>\n                  <button class="btn" data-cancel-edit-player="1">Cancelar</button>\n                </div>`;
       const a = e.status || "active";
       if ("pending" === a) {
-        const a = t
+        const a = t && !i
           ? `\n                  <button class="btn primary" data-approve-registration="${e.id}">✅ Autorizar</button>\n                  <button class="btn danger" data-reject-registration="${e.id}">🚫 Rechazar</button>\n                `
           : '<span class="muted" style="font-size:12px">Esperando autorización del administrador</span>';
         return `\n                <div class="pairing-row" data-player-row="${e.id}">\n                  <div class="pairing-names">${escapeHtml_(e.name)}${e.email ? ` <span class="muted" style="font-size:12px">(${escapeHtml_(e.email)})</span>` : ""}\n                    <div class="mini-diagram-caption" style="margin:2px 0 0;text-align:left">${playerStatusLabel_(e.status)}</div>\n                  </div>\n                  ${a}\n                </div>`;
       }
-      const o = n
+      const o = n && !i
           ? `\n                ${"active" === a ? `<button class="btn" data-withdraw-player="${e.id}">🚪 Retirar</button>` : ""}\n                ${"withdrawn" === a ? `<button class="btn" data-reactivate-player="${e.id}">↩️ Reincorporar</button>` : ""}\n                ${"disqualified" !== a ? `<button class="btn danger" data-disqualify-player="${e.id}">⛔ Descalificar</button>` : ""}\n              `
           : "",
-        r = t
+        r = t && !i
           ? `\n                <button class="btn" data-edit-player="${e.id}">✏️ Editar</button>\n                <button class="btn danger" data-delete-player="${e.id}">🗑️ Eliminar</button>\n              `
           : "";
       return `\n              <div class="pairing-row" data-player-row="${e.id}">\n                <div class="pairing-names">${escapeHtml_(e.name)}${e.email ? ` <span class="muted" style="font-size:12px">(${escapeHtml_(e.email)})</span>` : ""}\n                  <div class="mini-diagram-caption" style="margin:2px 0 0;text-align:left">${playerStatusLabel_(e.status)} · ${e.points} pts</div>\n                </div>\n                ${o}\n                ${r}\n              </div>`;
     })
     .join("");
 }
-async function refreshTournament() {
-  if (fbRoomRef)
-    try {
-      const e = await getTournamentStateOnce();
-      ((lastTournamentState = e),
-        subscribeRoundGames(
-          "active" === e.meta.status || "finished" === e.meta.status
-            ? e.meta.round
-            : null,
-        ),
-        renderTournamentState(e));
-    } catch (e) {
-      ((document.getElementById("tournament-connect-status").textContent =
-        "❌ No se pudo conectar: " + e.message),
-        document
-          .getElementById("tournament-connect-status")
-          .classList.remove("correct"));
-    }
+async function refreshTournament(e) {
+  const t = Boolean(e && "click" === e.type),
+    a = document.getElementById("tournament-refresh-btn"),
+    n = document.getElementById("tournament-connect-status");
+  if (!fbRoomRef)
+    return void (t && toast("Primero conectate al servicio del torneo."));
+  t &&
+    a &&
+    ((a.disabled = !0),
+    (a.dataset.originalText = a.textContent),
+    (a.textContent = "Actualizando..."));
+  try {
+    const e = await getTournamentStateOnce(),
+      o =
+        "active" === e.meta.status || "finished" === e.meta.status
+          ? Number(e.meta.round)
+          : null;
+    ((lastTournamentState = e),
+      null == o ? (lastRoundGames = []) : await getRoundGamesOnce_(o),
+      subscribeRoundGames(o),
+      tournamentMatchActive || renderTournamentState(e),
+      "function" == typeof renderPublicScreen && renderPublicScreen(e),
+      refreshPublicScreenActiveMiniBoard_(),
+      renderPublicScreenZoomBoard_(),
+      handleLiveMatchUpdate(e),
+      await reconcileFinishedGamesForTournament_(),
+      n &&
+        ((n.textContent = "✓ Datos actualizados y sincronizados."),
+        n.classList.add("correct")),
+      t && toast("Torneo y partidas actualizados.", 3e3));
+  } catch (e) {
+    (n &&
+      ((n.textContent = "❌ No se pudo actualizar: " + e.message),
+      n.classList.remove("correct")),
+      t && showError(e));
+  } finally {
+    t &&
+      a &&
+      ((a.disabled = !1),
+      (a.textContent = a.dataset.originalText || "🔄 Actualizar"),
+      delete a.dataset.originalText);
+  }
 }
 function tournamentResultMessage(e, t) {
   const a = tournamentMatchCtx,
@@ -965,6 +1637,10 @@ function tournamentResultMessage(e, t) {
       (c = "w" === s ? "win" : "b" === s ? "loss" : null),
       "w" === s && (i += "\n¡Ganaste vos! 🎉"),
       "b" === s && (i += "\nPerdiste esta partida."));
+  else if ("double-wo" === e)
+    ((l = "🚫 Doble W.O."),
+      (i = `${n} y ${o} no se presentaron. La mesa fue cerrada sin puntos.`),
+      (c = null));
   else {
     if ("wo-white" !== e)
       return { text: "🏁 Partida de torneo terminada.", variant: null };
@@ -1021,13 +1697,44 @@ function saveTournamentGameForAnalysis_(e, t) {
     s
   );
 }
-function showTournamentResult(e, t) {
+function showTournamentRoundApprovalPopup_(e, t) {
+  const a = document.getElementById("alert-box");
+  if (!a) return;
+  const n = document.createElement("div");
+  n.id = "alert-tournament-round-actions";
+  n.className = "alert-tournament-round-actions";
+  const o = e && "active" === e.status && "pending_approval" === e.roundStatus,
+    r = isCurrentUserAdmin({ meta: e }) || isCurrentUserReferee({ meta: e });
+  if (t)
+    n.innerHTML =
+      "<strong>Resultado pendiente de validacion</strong><span>Un arbitro debe confirmar el resultado antes de revisar la aprobacion de la ronda.</span>";
+  else if (o) {
+    n.innerHTML = r
+      ? "<strong>Ronda lista para aprobar</strong><span>Todos los resultados fueron cargados. Usa el boton de aprobacion del panel del torneo para publicar la siguiente ronda.</span>"
+      : "<strong>Ronda pendiente de aprobacion</strong><span>Todos los resultados fueron cargados. Espera a que el administrador o arbitro apruebe la ronda.</span>";
+  } else if (e && "finished" === e.status)
+    n.innerHTML =
+      "<strong>Torneo finalizado</strong><span>La ultima ronda ya quedo cerrada. No hay una ronda nueva para aprobar.</span>";
+  else
+    n.innerHTML =
+      "<strong>Estado de la ronda</strong><span>El resultado fue registrado. La ronda seguira abierta hasta que finalicen las demas mesas.</span>";
+  a.appendChild(n);
+}
+function showTournamentResult(e, t, n, o) {
   const a = tournamentResultMessage(e, t);
-  showAlert(a.text, a.variant);
-  const n = saveTournamentGameForAnalysis_(e, t);
-  (n && offerAnalysis(n.id),
+  showAlert(a.text + "\n\nVas a volver al menú Torneo en unos segundos.", a.variant);
+  const s = saveTournamentGameForAnalysis_(e, t),
+    r = n || (lastTournamentState && lastTournamentState.meta);
+  (showTournamentRoundApprovalPopup_(r, o),
+    s && offerAnalysis(s.id),
     showAlertBackToTournamentButton_(),
-    (alertOnClose_ = () => exitTournamentMatch()));
+    clearTournamentResultReturnTimer_(),
+    (alertOnClose_ = () => {
+      (clearTournamentResultReturnTimer_(), exitTournamentMatch());
+    }),
+    (tournamentResultReturnTimer_ = setTimeout(() => {
+      closeAlert_();
+    }, 3500)));
 }
 function tournamentMyColor() {
   if (!tournamentMatchCtx || !currentUser || !currentUser.email) return "";
@@ -1046,18 +1753,40 @@ function tournamentClockWaitingForBothPlayers() {
   const t = e.joined || { w: !1, b: !1 };
   return !(t.w && t.b);
 }
+function tournamentActiveClockExpired_() {
+  const e = tournamentCurrentGameRow;
+  if (
+    !e ||
+    !e.clock ||
+    "ongoing" !== e.status ||
+    tournamentClockWaitingForBothPlayers() ||
+    !e.turnStartAt
+  )
+    return !1;
+  const t = game.turn(),
+    a = Math.max(
+      0,
+      Math.floor((syncedNow_() - getTimestampMs(e.turnStartAt)) / 1e3),
+    );
+  return Number(e.clock[t]) - a <= 0;
+}
 function updateTournamentMatchBar(e) {
   if (!tournamentMatchActive || !tournamentMatchCtx) return;
   const t = document.getElementById("tournament-match-status"),
-    a = tournamentMyColor();
+    a = tournamentMyColor(),
+    n = document.getElementById("tournament-match-controls"),
+    o = document.getElementById("tournament-match-spectator-note"),
+    r = document.getElementById("tournament-match-draw-btn"),
+    s = document.getElementById("tournament-match-resign-btn"),
+    l =
+      lastTournamentState &&
+      lastTournamentState.meta &&
+      "finished" === lastTournamentState.meta.status;
   if (e && "finished" === e.status) {
     if (
       ((t.textContent = "🏁 Partida terminada."),
-      (document.getElementById("tournament-match-controls").style.display =
-        "none"),
-      (document.getElementById(
-        "tournament-match-spectator-note",
-      ).style.display = "none"),
+      (n.style.display = "none"),
+      (o.style.display = "none"),
       clearInterval(tournamentClockTimer),
       !tournamentResultShown)
     ) {
@@ -1070,7 +1799,11 @@ function updateTournamentMatchBar(e) {
         ).find((t) => t.round === e.round && t.board === e.board);
         t = a ? a.result : "";
       }
-      showTournamentResult(t);
+      showTournamentResult(
+        t,
+        void 0,
+        lastTournamentState && lastTournamentState.meta,
+      );
     }
     return;
   }
@@ -1078,22 +1811,45 @@ function updateTournamentMatchBar(e) {
     return (
       (t.textContent =
         "⏸️ El árbitro suspendió esta partida. Esperá novedades antes de seguir jugando."),
-      void (document.getElementById("tournament-match-controls").style.display =
-        "none")
+      (n.style.display = "none"),
+      void (o.style.display = "none")
     );
-  const n = game.turn(),
-    o = "w" === n ? tournamentMatchCtx.whiteName : tournamentMatchCtx.blackName;
+  if (!a || l) {
+    (n.style.display = "none"), (o.style.display = "");
+    o.textContent = l
+      ? "Torneo finalizado: esta partida está disponible solo para consulta."
+      : "Estás viendo la partida como espectador.";
+  } else {
+    (n.style.display = "flex"), (o.style.display = "none");
+    const t = e && ("w" === e.drawOfferBy || "b" === e.drawOfferBy)
+      ? e.drawOfferBy
+      : "";
+    r.textContent = !t
+      ? "🤝 Ofrecer tablas"
+      : t === a
+        ? "✖ Cancelar oferta de tablas"
+        : "🤝 Aceptar tablas";
+    (r.disabled = tournamentMatchBusy || tournamentActiveClockExpired_(),
+      (s.disabled = tournamentMatchBusy || tournamentActiveClockExpired_()));
+  }
+  const i = game.turn(),
+    c = "w" === i ? tournamentMatchCtx.whiteName : tournamentMatchCtx.blackName,
+    d = e && ("w" === e.drawOfferBy || "b" === e.drawOfferBy) ? e.drawOfferBy : "";
   if (tournamentClockWaitingForBothPlayers()) {
     const a = ((e && e.joined) || { w: !1, b: !1 }).w
       ? tournamentMatchCtx.blackName
       : tournamentMatchCtx.whiteName;
     t.textContent = `Esperando a que entre ${a}. El reloj comenzará cuando estén ambos jugadores.`;
-  } else
+  } else if (a && d && d !== a)
+    t.textContent = "Tu rival ofreció tablas. Podés aceptar o continuar jugando.";
+  else if (a && d === a)
+    t.textContent = "Oferta de tablas enviada. Podés cancelarla mientras el rival decide.";
+  else
     t.textContent = a
-      ? a === n
+      ? a === i
         ? `¡Tu turno! Jugás con ${"w" === a ? "blancas" : "negras"}.`
-        : `Turno de ${o}. Esperando la jugada...`
-      : `Turno de ${o}.`;
+        : `Turno de ${c}. Esperando la jugada...`
+      : `Turno de ${c}.`;
 }
 function handleLiveMatchUpdate(e) {
   if (!tournamentMatchActive || !tournamentMatchCtx) return;
@@ -1102,19 +1858,37 @@ function handleLiveMatchUpdate(e) {
       e.round === tournamentMatchCtx.round &&
       e.board === tournamentMatchCtx.board,
   );
-  t &&
-    ((tournamentCurrentGameRow = t),
-    t.fen !== game.fen() &&
-      (game.load(t.fen),
+  if (!t) return;
+  const previous = tournamentCurrentGameRow;
+  "function" == typeof markTournamentConnectionAlive_ &&
+    markTournamentConnectionAlive_();
+  tournamentCurrentGameRow = t;
+  "function" == typeof renderTournamentOpponentPresence_ &&
+    renderTournamentOpponentPresence_(t);
+  const n = applyTournamentOpponentSelection_(t),
+    a =
+      t.fen !== game.fen() ||
+      (Array.isArray(t.moves) && t.moves.length !== game.history().length);
+  (a
+    ? (loadTournamentGame_(t),
       (selected = null),
       (validMoves = []),
+      (tournamentSelectionLastSent_ = null),
       t.lastFrom &&
         t.lastTo &&
         (clearTimeout(opponentMoveHighlightTimer),
         (opponentMoveHighlight = { from: t.lastFrom, to: t.lastTo })),
-      render()),
+      render())
+    : n && updateSelectionHighlights(),
     updateTournamentMatchBar(t),
-    updateTournamentClockDisplay());
+    renderMatchChat(),
+    renderCallUI(),
+    ("ongoing" !== t.status && "idle" !== callState) && teardownCallLocal_(),
+    updateTournamentClockDisplay(),
+    previous &&
+      !getTimestampMs(previous.turnStartAt) &&
+      "function" == typeof announceTournamentClockStart_ &&
+      announceTournamentClockStart_(t));
 }
 function updateTournamentClockDisplay() {
   const e = tournamentCurrentGameRow,
@@ -1161,8 +1935,7 @@ async function claimTournamentTimeout(e) {
     tournamentTimeoutClaimBusy = !0;
     try {
       const t = "w" === e ? "0-1" : "1-0",
-        a = (
-          await fbMakeMove(
+        n = await fbMakeMove(
             tournamentMatchCtx.round,
             tournamentMatchCtx.board,
             game.fen(),
@@ -1172,11 +1945,16 @@ async function claimTournamentTimeout(e) {
             void 0,
             void 0,
             !0,
-          )
-        ).gameRow;
+            "timeout",
+          ),
+        a = n.gameRow;
       (tournamentResultShown ||
         ((tournamentResultShown = !0),
-        showTournamentResult(t, "tiempo agotado")),
+        showTournamentResult(t, "tiempo agotado", n.meta, n.resultPendingReferee)),
+        n.resultPendingReferee &&
+          toast(
+            "Tiempo agotado registrado. Un árbitro debe confirmar el resultado.",
+          ),
         updateTournamentMatchBar(a));
     } catch (e) {
     } finally {
