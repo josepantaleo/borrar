@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Revision 20260809-4: preserves the institutional tournament administrator.
+// Revision 20260811-8: players may bootstrap a safe registration waiting room.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -24,13 +24,6 @@ service cloud.firestore {
       );
     }
 
-    function refereeEmails(data) {
-      return data.meta.get(
-        'refereeEmails',
-        ['josepantaleo@gmail.com']
-      );
-    }
-
     function isAdminFor(data) {
       return signedIn()
         && (
@@ -39,12 +32,8 @@ service cloud.firestore {
         );
     }
 
-    function isRefereeFor(data) {
-      return signedIn() && refereeEmails(data).hasAny([email()]);
-    }
-
     function isOfficialFor(data) {
-      return isAdminFor(data) || isRefereeFor(data);
+      return isAdminFor(data);
     }
 
     function isAdmin(roomId) {
@@ -63,9 +52,36 @@ service cloud.firestore {
         );
     }
 
+    function participantColor(game) {
+      return game.whiteEmail == email()
+        ? 'w'
+        : game.blackEmail == email()
+          ? 'b'
+          : '';
+    }
+
+    function isPlayersTurn(game) {
+      return (
+          participantColor(game) == 'w'
+          && game.fen is string
+          && game.fen.matches('^[^ ]+ w .*$')
+        )
+        || (
+          participantColor(game) == 'b'
+          && game.fen is string
+          && game.fen.matches('^[^ ]+ b .*$')
+        );
+    }
+
     function gameData(roomId, gameId) {
       return get(
         /databases/$(database)/documents/torneos/$(roomId)/games/$(gameId)
+      ).data;
+    }
+
+    function callData(roomId, gameId) {
+      return get(
+        /databases/$(database)/documents/torneos/$(roomId)/games/$(gameId)/call/session
       ).data;
     }
 
@@ -77,75 +93,100 @@ service cloud.firestore {
       return gameData(roomId, gameId).status == 'ongoing';
     }
 
-    function validBootstrapCreate() {
-      return signedIn()
-        && email() == 'ipem146centenario@gmail.com'
-        && request.resource.data.keys().hasOnly([
+    function validRoomShape(data) {
+      return data.keys().hasOnly([
           'meta',
           'players',
           'pairings',
           'registeredUids'
         ])
-        && request.resource.data.meta.adminEmails is list
-        && request.resource.data.meta.adminEmails.size() > 0
-        && request.resource.data.meta.adminEmails.hasAny([email()]);
-    }
-
-    function validAdminRoomUpdate() {
-      return request.resource.data.keys().hasOnly([
-          'meta',
-          'players',
-          'pairings',
-          'registeredUids'
+        && data.meta is map
+        && data.players is list
+        && data.pairings is list
+        && data.registeredUids is map
+        && data.meta.get('name', '') is string
+        && data.meta.get('round', 0) is int
+        && data.meta.get('round', 0) >= 0
+        && ['setup', 'active', 'finished'].hasAny([
+          data.meta.get('status', 'setup')
         ])
-        && request.resource.data.meta.get(
+        && data.meta.get(
           'adminEmails',
           ['ipem146centenario@gmail.com']
         ) is list
-        && request.resource.data.meta.get(
+        && data.meta.get(
           'adminEmails',
           ['ipem146centenario@gmail.com']
         ).size() > 0
-        && request.resource.data.meta.get(
+        && data.meta.get(
           'adminEmails',
           ['ipem146centenario@gmail.com']
-        ).size() <= 20
-        && request.resource.data.meta.get(
-          'refereeEmails',
-          ['josepantaleo@gmail.com']
-        ) is list
-        && request.resource.data.meta.get(
-          'refereeEmails',
-          ['josepantaleo@gmail.com']
-        ).size() <= 50;
+        ).size() <= 20;
     }
 
-    function validRefereeRoomUpdate() {
-      return request.resource.data
-          .diff(resource.data)
-          .affectedKeys()
-          .hasOnly(['players', 'pairings', 'meta'])
-        && request.resource.data.meta
-          .diff(resource.data.meta)
-          .affectedKeys()
-          .hasOnly([
-            'round',
-            'status',
-            'roundStatus',
-            'pendingApprovalAt',
-            'autoApprovalCancelled',
-            'statusBeforeFinish',
-            'finishedAt',
-            'finishedBy',
-            'roundCountdownSetAt',
-            'roundCountdownEndsAtMs',
-            'roundCountdownMs',
-            'roundCountdownDurationMs',
-            'roundCountdownRound',
-            'roundCountdownStartedBy',
-            'roundCountdownAdjustedBy',
-            'pairingWarnings'
-          ]);
+    function validBootstrapCreate() {
+      return signedIn()
+        && email() == 'ipem146centenario@gmail.com'
+        && validRoomShape(request.resource.data)
+        && request.resource.data.meta.adminEmails.hasAny([email()]);
+    }
+
+    function validPendingSelfPlayer(player) {
+      return player.keys().hasOnly([
+          'id',
+          'uid',
+          'name',
+          'email',
+          'registeredAt',
+          'points',
+          'played',
+          'byes',
+          'colorBalance',
+          'status'
+        ])
+        && player.id == 'u_' + request.auth.uid
+        && player.uid == request.auth.uid
+        && player.name is string
+        && player.name.size() > 0
+        && player.name.size() <= 80
+        && player.email == email()
+        && player.registeredAt == request.time
+        && player.points == 0
+        && player.played is list
+        && player.played.size() == 0
+        && player.byes == 0
+        && player.colorBalance == 0
+        && player.status == 'pending';
+    }
+
+    function validPlayerBootstrapRegistration() {
+      let data = request.resource.data;
+      let player = data.players[0];
+      return signedIn()
+        && validRoomShape(data)
+        && data.meta.keys().hasOnly([
+          'name',
+          'round',
+          'status',
+          'adminEmails',
+          'refereeEmails',
+          'totalRounds'
+        ])
+        && data.meta.name == ''
+        && data.meta.round == 0
+        && data.meta.status == 'setup'
+        && data.meta.adminEmails == ['ipem146centenario@gmail.com']
+        && data.meta.get('refereeEmails', []) == []
+        && data.meta.get('totalRounds', null) == null
+        && data.players.size() == 1
+        && validPendingSelfPlayer(player)
+        && data.pairings.size() == 0
+        && data.registeredUids.keys().hasOnly([request.auth.uid])
+        && data.registeredUids[request.auth.uid] == email();
+    }
+
+    function validAdminRoomUpdate() {
+      return validRoomShape(request.resource.data);
     }
 
     function validSelfRegistration() {
@@ -154,7 +195,13 @@ service cloud.firestore {
       let oldRegistrations = resource.data.get('registeredUids', {});
       let newRegistrations = request.resource.data.registeredUids;
       return signedIn()
-        && resource.data.meta.status == 'active'
+        && ['setup', 'active'].hasAny([resource.data.meta.status])
+        && resource.data.meta.get('round', 0) == 0
+        && resource.data.pairings.size() == 0
+        && request.resource.data.meta == resource.data.meta
+        && request.resource.data.pairings == resource.data.pairings
+        && oldRegistrations is map
+        && newRegistrations is map
         && request.resource.data
           .diff(resource.data)
           .affectedKeys()
@@ -167,33 +214,17 @@ service cloud.firestore {
           .affectedKeys()
           .hasOnly([request.auth.uid])
         && newRegistrations[request.auth.uid] == email()
-        && player.keys().hasOnly([
-          'id',
-          'name',
-          'email',
-          'points',
-          'played',
-          'byes',
-          'colorBalance',
-          'status'
-        ])
-        && player.id == 'u_' + request.auth.uid
-        && player.name is string
-        && player.name.size() > 0
-        && player.name.size() <= 80
-        && player.email == email()
-        && player.points == 0
-        && player.played is list
-        && player.played.size() == 0
-        && player.byes == 0
-        && player.colorBalance == 0
-        && player.status == 'pending';
+        && validPendingSelfPlayer(player);
     }
 
-    function validPlayerGameUpdate(roomId) {
+    function validPlayerMoveUpdate(roomId) {
+      let oldMoveCount = resource.data.get('moves', []).size();
+      let newMoves = request.resource.data.get('moves', []);
       return isParticipant(resource.data)
         && roomData(roomId).meta.status == 'active'
         && resource.data.status == 'ongoing'
+        && request.resource.data.status == 'ongoing'
+        && isPlayersTurn(resource.data)
         && request.resource.data
           .diff(resource.data)
           .affectedKeys()
@@ -208,18 +239,401 @@ service cloud.firestore {
             'selectedSquare',
             'selectedColor',
             'selectedAt',
-            'joined',
             'drawOfferBy',
             'drawOfferAt'
           ])
-        && request.resource.data.status == resource.data.status
+        && request.resource.data.fen is string
+        && request.resource.data.fen.size() >= 15
+        && request.resource.data.fen.size() <= 120
+        && request.resource.data.fen != resource.data.fen
+        && (
+          (
+            participantColor(resource.data) == 'w'
+            && request.resource.data.fen.matches('^[^ ]+ b .*$')
+          )
+          ||
+          (
+            participantColor(resource.data) == 'b'
+            && request.resource.data.fen.matches('^[^ ]+ w .*$')
+          )
+        )
+        && newMoves is list
+        && newMoves.size() == oldMoveCount + 1
+        && (
+          oldMoveCount == 0
+            ? true
+            : newMoves[0:oldMoveCount] == resource.data.get('moves', [])
+        )
+        && request.resource.data.lastMoveSan is string
+        && request.resource.data.lastMoveSan.size() > 0
+        && request.resource.data.lastMoveSan.size() <= 30
+        && request.resource.data.lastFrom is string
+        && request.resource.data.lastFrom.matches('^[a-h][1-8]$')
+        && request.resource.data.lastTo is string
+        && request.resource.data.lastTo.matches('^[a-h][1-8]$')
         && request.resource.data.get('result', '') == resource.data.get('result', '')
-        && ['', 'w', 'b'].hasAny([
-          request.resource.data.get('selectedColor', '')
+        && request.resource.data.get('selectedSquare', '') == ''
+        && request.resource.data.get('selectedColor', '') == ''
+        && request.resource.data.get('selectedAt', null) == null
+        && request.resource.data.get('drawOfferBy', '') == ''
+        && request.resource.data.get('drawOfferAt', null) == null
+        && (
+          resource.data.get('clock', null) == null
+          && request.resource.data.get('clock', null) == null
+          && request.resource.data.get('turnStartAt', null)
+            == resource.data.get('turnStartAt', null)
+          ||
+          (
+            resource.data.clock is map
+            && request.resource.data.clock is map
+            && request.resource.data.clock.keys().hasOnly(['w', 'b'])
+            && request.resource.data.clock.w is int
+            && request.resource.data.clock.b is int
+            && request.resource.data.clock.w >= 0
+            && request.resource.data.clock.b >= 0
+            && request.resource.data.turnStartAt == request.time
+            && resource.data.get(
+              'joined',
+              {'w': false, 'b': false}
+            ).w == true
+            && resource.data.get(
+              'joined',
+              {'w': false, 'b': false}
+            ).b == true
+            && (
+              (
+                participantColor(resource.data) == 'w'
+                && request.resource.data.clock.b == resource.data.clock.b
+                && request.resource.data.clock.w
+                  <= resource.data.clock.w
+                    + resource.data.get('increment', 0)
+              )
+              ||
+              (
+                participantColor(resource.data) == 'b'
+                && request.resource.data.clock.w == resource.data.clock.w
+                && request.resource.data.clock.b
+                  <= resource.data.clock.b
+                    + resource.data.get('increment', 0)
+              )
+            )
+          )
+        );
+    }
+
+    function validPlayerSelectionUpdate(roomId) {
+      let oldColor = resource.data.get('selectedColor', '');
+      let newSquare = request.resource.data.get('selectedSquare', '');
+      let newColor = request.resource.data.get('selectedColor', '');
+      let newAt = request.resource.data.get('selectedAt', null);
+      return isParticipant(resource.data)
+        && roomData(roomId).meta.status == 'active'
+        && resource.data.status == 'ongoing'
+        && request.resource.data.status == 'ongoing'
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'selectedSquare',
+            'selectedColor',
+            'selectedAt'
+          ])
+        && (
+          (
+            newSquare == ''
+            && newColor == ''
+            && newAt == null
+            && (
+              oldColor == ''
+              || oldColor == participantColor(resource.data)
+            )
+          )
+          ||
+          (
+            isPlayersTurn(resource.data)
+            && newSquare is string
+            && newSquare.matches('^[a-h][1-8]$')
+            && newColor == participantColor(resource.data)
+            && newAt == request.time
+          )
+        );
+    }
+
+    function validPlayerDrawOfferUpdate(roomId) {
+      let oldOffer = resource.data.get('drawOfferBy', '');
+      let newOffer = request.resource.data.get('drawOfferBy', '');
+      let newAt = request.resource.data.get('drawOfferAt', null);
+      let color = participantColor(resource.data);
+      return isParticipant(resource.data)
+        && roomData(roomId).meta.status == 'active'
+        && resource.data.status == 'ongoing'
+        && request.resource.data.status == 'ongoing'
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'drawOfferBy',
+            'drawOfferAt'
+          ])
+        && (
+          (
+            oldOffer == ''
+            && newOffer == color
+            && newAt == request.time
+          )
+          ||
+          (
+            oldOffer == color
+            && newOffer == ''
+            && newAt == null
+          )
+        );
+    }
+
+    function validPlayerJoinUpdate(roomId) {
+      let oldJoined = resource.data.get('joined', {'w': false, 'b': false});
+      let newJoined = request.resource.data.joined;
+      let color = participantColor(resource.data);
+      let opponent = color == 'w' ? 'b' : 'w';
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+      let validJoin = changed.hasOnly(['joined', 'turnStartAt'])
+        && newJoined is map
+        && newJoined.keys().hasOnly(['w', 'b'])
+        && newJoined.w is bool
+        && newJoined.b is bool
+        && oldJoined[opponent] == newJoined[opponent]
+        && newJoined[color] == true
+        && (
+          oldJoined[color] == false
+          || oldJoined[color] == true
+        );
+      let validClockStart = (
+          !changed.hasAny(['turnStartAt'])
+          && request.resource.data.get('turnStartAt', null)
+            == resource.data.get('turnStartAt', null)
+        )
+        || (
+          resource.data.get('clock', null) is map
+          && resource.data.get('turnStartAt', null) == null
+          && request.resource.data.turnStartAt == request.time
+          && newJoined.w == true
+          && newJoined.b == true
+        );
+      return isParticipant(resource.data)
+        && roomData(roomId).meta.status == 'active'
+        && resource.data.status == 'ongoing'
+        && request.resource.data.status == 'ongoing'
+        && validJoin
+        && validClockStart;
+    }
+
+    function validPlayerNaturalFinish(roomId) {
+      let oldMoveCount = resource.data.get('moves', []).size();
+      let newMoves = request.resource.data.get('moves', []);
+      let color = participantColor(resource.data);
+      let validResult = (
+          color == 'w'
+          && ['1-0', '1/2-1/2'].hasAny([
+            request.resource.data.result
+          ])
+        )
+        || (
+          color == 'b'
+          && ['0-1', '1/2-1/2'].hasAny([
+            request.resource.data.result
+          ])
+        );
+      return isParticipant(resource.data)
+        && roomData(roomId).meta.status == 'active'
+        && resource.data.status == 'ongoing'
+        && request.resource.data.status == 'finished'
+        && isPlayersTurn(resource.data)
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'fen',
+            'lastMoveSan',
+            'moves',
+            'lastFrom',
+            'lastTo',
+            'clock',
+            'turnStartAt',
+            'status',
+            'result',
+            'selectedSquare',
+            'selectedColor',
+            'selectedAt',
+            'drawOfferBy',
+            'drawOfferAt'
+          ])
+        && validResult
+        && request.resource.data.fen is string
+        && request.resource.data.fen.size() >= 15
+        && request.resource.data.fen.size() <= 120
+        && request.resource.data.fen != resource.data.fen
+        && (
+          (
+            color == 'w'
+            && request.resource.data.fen.matches('^[^ ]+ b .*$')
+          )
+          ||
+          (
+            color == 'b'
+            && request.resource.data.fen.matches('^[^ ]+ w .*$')
+          )
+        )
+        && newMoves is list
+        && newMoves.size() == oldMoveCount + 1
+        && (
+          oldMoveCount == 0
+            ? true
+            : newMoves[0:oldMoveCount] == resource.data.get('moves', [])
+        )
+        && request.resource.data.lastMoveSan is string
+        && request.resource.data.lastMoveSan.size() > 0
+        && request.resource.data.lastMoveSan.size() <= 30
+        && request.resource.data.lastFrom is string
+        && request.resource.data.lastFrom.matches('^[a-h][1-8]$')
+        && request.resource.data.lastTo is string
+        && request.resource.data.lastTo.matches('^[a-h][1-8]$')
+        && request.resource.data.get('selectedSquare', '') == ''
+        && request.resource.data.get('selectedColor', '') == ''
+        && request.resource.data.get('selectedAt', null) == null
+        && request.resource.data.get('drawOfferBy', '') == ''
+        && request.resource.data.get('drawOfferAt', null) == null
+        && (
+          resource.data.get('clock', null) == null
+          && request.resource.data.get('clock', null) == null
+          && request.resource.data.get('turnStartAt', null)
+            == resource.data.get('turnStartAt', null)
+          ||
+          (
+            resource.data.clock is map
+            && request.resource.data.clock is map
+            && request.resource.data.clock.keys().hasOnly(['w', 'b'])
+            && request.resource.data.clock.w is int
+            && request.resource.data.clock.b is int
+            && request.resource.data.clock.w >= 0
+            && request.resource.data.clock.b >= 0
+            && request.resource.data.turnStartAt == request.time
+            && resource.data.get(
+              'joined',
+              {'w': false, 'b': false}
+            ).w == true
+            && resource.data.get(
+              'joined',
+              {'w': false, 'b': false}
+            ).b == true
+            && (
+              (
+                color == 'w'
+                && request.resource.data.clock.b == resource.data.clock.b
+                && request.resource.data.clock.w <= resource.data.clock.w
+              )
+              ||
+              (
+                color == 'b'
+                && request.resource.data.clock.w == resource.data.clock.w
+                && request.resource.data.clock.b <= resource.data.clock.b
+              )
+            )
+          )
+        );
+    }
+
+    function validPlayerGameFinish(roomId) {
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+      let validResignation = (
+        resource.data.whiteEmail == email()
+        && request.resource.data.result == '0-1'
+      ) || (
+        resource.data.blackEmail == email()
+        && request.resource.data.result == '1-0'
+      );
+      let validAcceptedDraw = request.resource.data.result == '1/2-1/2'
+        && (
+          (
+            resource.data.whiteEmail == email()
+            && resource.data.get('drawOfferBy', '') == 'b'
+          )
+          ||
+          (
+            resource.data.blackEmail == email()
+            && resource.data.get('drawOfferBy', '') == 'w'
+          )
+        );
+      return isParticipant(resource.data)
+        && roomData(roomId).meta.status == 'active'
+        && resource.data.status == 'ongoing'
+        && request.resource.data.status == 'finished'
+        && changed.hasOnly([
+          'status',
+          'result',
+          'drawOfferBy',
+          'drawOfferAt',
+          'selectedSquare',
+          'selectedColor',
+          'selectedAt'
         ])
-        && ['', 'w', 'b'].hasAny([
-          request.resource.data.get('drawOfferBy', '')
-        ]);
+        && request.resource.data.fen == resource.data.fen
+        && request.resource.data.get('moves', []) == resource.data.get('moves', [])
+        && request.resource.data.get('lastMoveSan', '') == resource.data.get('lastMoveSan', '')
+        && request.resource.data.get('drawOfferBy', '') == ''
+        && request.resource.data.get('drawOfferAt', null) == null
+        && request.resource.data.get('selectedSquare', '') == ''
+        && request.resource.data.get('selectedColor', '') == ''
+        && request.resource.data.get('selectedAt', null) == null
+        && (validResignation || validAcceptedDraw);
+    }
+
+    function validPlayerTimeoutFinish(roomId) {
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+      let whiteToMove = resource.data.fen is string
+        && resource.data.fen.matches('^[^ ]+ w .*$');
+      let blackToMove = resource.data.fen is string
+        && resource.data.fen.matches('^[^ ]+ b .*$');
+      let expectedResult = whiteToMove ? '0-1' : '1-0';
+      let expectedClaimant = whiteToMove ? 'b' : 'w';
+      let activeClock = whiteToMove
+        ? resource.data.clock.w
+        : resource.data.clock.b;
+      return isParticipant(resource.data)
+        && roomData(roomId).meta.status == 'active'
+        && resource.data.status == 'ongoing'
+        && request.resource.data.status == 'finished'
+        && resource.data.clock is map
+        && resource.data.clock.w is int
+        && resource.data.clock.b is int
+        && resource.data.turnStartAt is timestamp
+        && (whiteToMove || blackToMove)
+        && participantColor(resource.data) == expectedClaimant
+        && request.time
+          >= resource.data.turnStartAt + duration.value(activeClock, 's')
+        && request.resource.data.result == expectedResult
+        && changed.hasOnly([
+          'status',
+          'result',
+          'drawOfferBy',
+          'drawOfferAt',
+          'selectedSquare',
+          'selectedColor',
+          'selectedAt'
+        ])
+        && request.resource.data.fen == resource.data.fen
+        && request.resource.data.get('moves', []) == resource.data.get('moves', [])
+        && request.resource.data.get('lastMoveSan', '') == resource.data.get('lastMoveSan', '')
+        && request.resource.data.get('drawOfferBy', '') == ''
+        && request.resource.data.get('drawOfferAt', null) == null
+        && request.resource.data.get('selectedSquare', '') == ''
+        && request.resource.data.get('selectedColor', '') == ''
+        && request.resource.data.get('selectedAt', null) == null;
     }
 
     function validPlayerPresenceUpdate(roomId) {
@@ -244,24 +658,142 @@ service cloud.firestore {
         );
     }
 
+    function validPlayerGameUpdate(roomId) {
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+      return changed.hasAny(['status', 'result'])
+        ? (
+          validPlayerNaturalFinish(roomId)
+          || validPlayerGameFinish(roomId)
+          || validPlayerTimeoutFinish(roomId)
+        )
+        : changed.hasAny([
+            'fen',
+            'lastMoveSan',
+            'moves',
+            'lastFrom',
+            'lastTo',
+            'clock'
+          ])
+          ? validPlayerMoveUpdate(roomId)
+          : changed.hasAny(['joined'])
+            ? validPlayerJoinUpdate(roomId)
+            : changed.hasAny(['drawOfferBy', 'drawOfferAt'])
+              ? validPlayerDrawOfferUpdate(roomId)
+              : changed.hasAny([
+                  'selectedSquare',
+                  'selectedColor',
+                  'selectedAt'
+                ])
+                ? validPlayerSelectionUpdate(roomId)
+                : changed.hasAny(['presenceWAt', 'presenceBAt'])
+                  ? validPlayerPresenceUpdate(roomId)
+                  : false;
+    }
+
+    function validGameCreate(roomId) {
+      let data = request.resource.data;
+      return isOfficial(roomId)
+        && roomData(roomId).meta.status == 'active'
+        && data.keys().hasOnly([
+          'round',
+          'board',
+          'whiteEmail',
+          'blackEmail',
+          'fen',
+          'lastMoveSan',
+          'status',
+          'clock',
+          'turnStartAt',
+          'increment',
+          'moves',
+          'joined',
+          'startedAt'
+        ])
+        && data.keys().hasAll([
+          'round',
+          'board',
+          'whiteEmail',
+          'blackEmail',
+          'fen',
+          'lastMoveSan',
+          'status',
+          'clock',
+          'turnStartAt',
+          'increment',
+          'moves',
+          'joined',
+          'startedAt'
+        ])
+        && data.round is int
+        && data.round > 0
+        && data.board is int
+        && data.board > 0
+        && data.whiteEmail is string
+        && data.blackEmail is string
+        && data.whiteEmail.size() > 0
+        && data.blackEmail.size() > 0
+        && data.whiteEmail != data.blackEmail
+        && data.fen is string
+        && data.fen.size() >= 15
+        && data.fen.size() <= 120
+        && data.lastMoveSan == ''
+        && data.status == 'ongoing'
+        && (
+          data.clock == null
+          ||
+          (
+            data.clock is map
+            && data.clock.keys().hasOnly(['w', 'b'])
+            && data.clock.w is int
+            && data.clock.b is int
+            && data.clock.w >= 0
+            && data.clock.b >= 0
+          )
+        )
+        && data.turnStartAt == null
+        && data.increment is int
+        && data.increment >= 0
+        && data.moves is list
+        && data.moves.size() == 0
+        && data.joined is map
+        && data.joined.keys().hasOnly(['w', 'b'])
+        && data.joined.w == false
+        && data.joined.b == false
+        && data.startedAt == request.time;
+    }
+
+    function validAuditDetails(data) {
+      let requiresReason = data.type == 'wo'
+        || data.type == 'sanction'
+        || data.type == 'match_suspended';
+      let reason = data.details.get('reason', '');
+      return data.details is map
+        && (
+          !requiresReason
+          ||
+          (
+            reason is string
+            && reason.size() > 0
+            && reason.size() <= 500
+          )
+        );
+    }
+
     match /torneos/{roomId} {
       allow read: if signedIn();
-      allow create: if validBootstrapCreate();
+      allow create: if validBootstrapCreate()
+        || validPlayerBootstrapRegistration();
       allow update: if (isAdminFor(resource.data) && validAdminRoomUpdate())
-        || (isRefereeFor(resource.data) && validRefereeRoomUpdate())
         || validSelfRegistration();
       allow delete: if false;
 
       match /games/{gameId} {
         allow read: if signedIn();
-        allow create: if isOfficial(roomId)
-          && request.resource.data.whiteEmail is string
-          && request.resource.data.blackEmail is string
-          && request.resource.data.whiteEmail.size() > 0
-          && request.resource.data.blackEmail.size() > 0;
+        allow create: if validGameCreate(roomId);
         allow update: if isOfficial(roomId)
-          || validPlayerGameUpdate(roomId)
-          || validPlayerPresenceUpdate(roomId);
+          || validPlayerGameUpdate(roomId);
         allow delete: if isAdmin(roomId);
 
         match /chat/{messageId} {
@@ -280,13 +812,17 @@ service cloud.firestore {
             && request.resource.data.text.size() <= 300
             && request.resource.data.senderEmail == email()
             && request.resource.data.senderName is string
+            && request.resource.data.senderName.size() > 0
             && request.resource.data.senderName.size() <= 100
-            && ['w', 'b'].hasAny([
-              request.resource.data.senderColor
-            ])
+            && request.resource.data.senderColor
+              == participantColor(gameData(roomId, gameId))
             && request.resource.data.at is int;
           allow update: if false;
-          allow delete: if isGameParticipant(roomId, gameId);
+          allow delete: if isAdmin(roomId)
+            || (
+              isGameParticipant(roomId, gameId)
+              && resource.data.senderEmail == email()
+            );
         }
 
         match /call/{callId} {
@@ -302,8 +838,18 @@ service cloud.firestore {
               'callerEmail',
               'at'
             ])
+            && request.resource.data.keys().hasAll([
+              'offer',
+              'answer',
+              'status',
+              'callerEmail',
+              'at'
+            ])
+            && request.resource.data.offer is map
+            && request.resource.data.answer == null
             && request.resource.data.callerEmail == email()
-            && request.resource.data.status == 'calling';
+            && request.resource.data.status == 'calling'
+            && request.resource.data.at is int;
           allow update: if callId == 'session'
             && isGameParticipant(roomId, gameId)
             && request.resource.data
@@ -316,15 +862,70 @@ service cloud.firestore {
                 'callerEmail',
                 'at'
               ])
-            && request.resource.data.get(
-              'callerEmail',
-              resource.data.get('callerEmail', '')
-            ) == resource.data.get('callerEmail', '')
             && (
-              gameIsOngoing(roomId, gameId)
-              || ['ended', 'idle', 'declined'].hasAny([
-                request.resource.data.status
-              ])
+              (
+                gameIsOngoing(roomId, gameId)
+                && ['idle', 'ended', 'declined'].hasAny([
+                  resource.data.status
+                ])
+                && request.resource.data.keys().hasAll([
+                  'offer',
+                  'answer',
+                  'status',
+                  'callerEmail',
+                  'at'
+                ])
+                && request.resource.data.offer is map
+                && request.resource.data.answer == null
+                && request.resource.data.status == 'calling'
+                && request.resource.data.callerEmail == email()
+                && request.resource.data.at is int
+              )
+              ||
+              (
+                gameIsOngoing(roomId, gameId)
+                && resource.data.status == 'calling'
+                && resource.data.callerEmail != email()
+                && request.resource.data.callerEmail
+                  == resource.data.callerEmail
+                && request.resource.data.offer == resource.data.offer
+                && request.resource.data.answer is map
+                && request.resource.data.status == 'active'
+                && request.resource.data.at == resource.data.at
+              )
+              ||
+              (
+                request.resource.data.status == 'ended'
+                && request.resource.data.callerEmail
+                  == resource.data.callerEmail
+                && request.resource.data.offer == resource.data.offer
+                && request.resource.data.get(
+                  'answer',
+                  resource.data.get('answer', null)
+                ) == resource.data.get('answer', null)
+                && request.resource.data.at is int
+              )
+              ||
+              (
+                request.resource.data.status == 'declined'
+                && request.resource.data.callerEmail
+                  == resource.data.callerEmail
+                && request.resource.data.offer == resource.data.offer
+                && request.resource.data.get(
+                  'answer',
+                  resource.data.get('answer', null)
+                ) == resource.data.get('answer', null)
+                && request.resource.data.at == resource.data.at
+              )
+              ||
+              (
+                request.resource.data.status == 'idle'
+                && request.resource.data.callerEmail
+                  == resource.data.callerEmail
+                && request.resource.data.offer == null
+                && request.resource.data.answer == null
+                && request.resource.data.at == resource.data.at
+              )
             );
           allow delete: if isAdmin(roomId);
 
@@ -335,12 +936,45 @@ service cloud.firestore {
               && ['offerCandidates', 'answerCandidates'].hasAny([
                 candidateGroup
               ])
+              && (
+                (
+                  candidateGroup == 'offerCandidates'
+                  && callData(roomId, gameId).callerEmail == email()
+                )
+                ||
+                (
+                  candidateGroup == 'answerCandidates'
+                  && callData(roomId, gameId).callerEmail != email()
+                )
+              )
               && request.resource.data.keys().hasOnly([
                 'candidate',
                 'sdpMid',
                 'sdpMLineIndex',
                 'usernameFragment'
-              ]);
+              ])
+              && request.resource.data.candidate is string
+              && request.resource.data.candidate.size() <= 4000
+              && (
+                request.resource.data.sdpMid == null
+                ||
+                (
+                  request.resource.data.sdpMid is string
+                  && request.resource.data.sdpMid.size() <= 100
+                )
+              )
+              && (
+                request.resource.data.sdpMLineIndex == null
+                || request.resource.data.sdpMLineIndex is int
+              )
+              && (
+                request.resource.data.usernameFragment == null
+                ||
+                (
+                  request.resource.data.usernameFragment is string
+                  && request.resource.data.usernameFragment.size() <= 500
+                )
+              );
             allow update: if false;
             allow delete: if isGameParticipant(roomId, gameId);
           }
@@ -394,10 +1028,9 @@ service cloud.firestore {
           && request.resource.data.actorEmail == email()
           && request.resource.data.actorName is string
           && request.resource.data.actorName.size() <= 100
-          && request.resource.data.actorRole is string
-          && request.resource.data.actorRole.size() <= 50
+          && request.resource.data.actorRole == 'Administrador'
           && request.resource.data.at == request.time
-          && request.resource.data.details is map;
+          && validAuditDetails(request.resource.data);
         allow update, delete: if false;
       }
     }

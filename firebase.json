@@ -2,9 +2,49 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "hosting": {
+    "site": "torneo-ajedrez-escuelaipem146",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "01-*.js",
+      "02-*.js",
+      "03-*.js",
+      "04-*.js",
+      "05-*.js",
+      "06-*.js",
+      "07-*.js",
+      "08-*.js",
+      "build-app.js",
+      "package.json",
+      "package-lock.json",
+      "firestore.rules",
+      ".firebaserc",
+      "lan-server.js",
+      "lan-shim.js",
+      "iniciar-servidor.bat",
+      "*.pdf"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ]
+  },
   "emulators": {
     "firestore": {
       "port": 8080
+    },
+    "auth": {
+      "port": 9099
     },
     "ui": {
       "enabled": true

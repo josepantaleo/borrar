@@ -1,4 +1,4 @@
-/* Core UI, state, alerts, avatars, and sound. Generated from the verified legacy bundle. */
+﻿/* Core UI, state, alerts, avatars, and sound. Generated from the verified legacy bundle. */
 "use strict";
 let state,
   matchChatPanelOpen,
@@ -1039,7 +1039,7 @@ function attachPieceDrag(e, t) {
       tournamentCurrentGameRow &&
       "suspended" === tournamentCurrentGameRow.status
     )
-      return void toast("⏸️ El árbitro suspendió esta partida.");
+      return void toast("⏸️ El administrador suspendió esta partida.");
     const n = game.get(t);
     if (!n || n.color !== game.turn()) return;
     const o = e.getBoundingClientRect();
@@ -1398,7 +1398,7 @@ async function clickSquare(e) {
     tournamentCurrentGameRow &&
     "suspended" === tournamentCurrentGameRow.status
   )
-    return void toast("⏸️ El árbitro suspendió esta partida.");
+    return void toast("⏸️ El administrador suspendió esta partida.");
   if (selected === e)
     return (
       (selected = null),
@@ -4706,6 +4706,26 @@ const FB_CONFIG_KEY = "chessSchoolFirebaseConfig",
 let fbDb = null,
   fbRoomRef = null,
   gamesCollectionRef = null;
+let firebaseEmulatorsConnected_ = false;
+function shouldUseFirebaseEmulators_() {
+  const e = new URLSearchParams(location.search).get("firebaseEmulator");
+  return (
+    "1" === e &&
+    ("localhost" === location.hostname || "127.0.0.1" === location.hostname)
+  );
+}
+function connectFirebaseEmulators_() {
+  if (firebaseEmulatorsConnected_ || !shouldUseFirebaseEmulators_()) return;
+  (fbDb.useEmulator("127.0.0.1", 8080),
+    firebase
+      .auth()
+      .useEmulator("http://127.0.0.1:9099", { disableWarnings: !0 }),
+    (firebaseEmulatorsConnected_ = !0),
+    document.documentElement.setAttribute("data-firebase-emulator", "true"),
+    document.title.startsWith("[EMULADOR]") ||
+      (document.title = "[EMULADOR] " + document.title),
+    console.info("Firebase conectado a los emuladores locales de prueba"));
+}
 function gameDocId_(e, t) {
   return e + "_" + t;
 }
@@ -4727,10 +4747,8 @@ let announcementsCollectionRef = null,
   publicScreenZoomKey_ = null,
   roundCountdownTimer_ = null;
 function assertAdminOrReferee() {
-  if (!isCurrentUserAdmin(lastTournamentState) && !isCurrentUserReferee())
-    throw new Error(
-      "Esta acción es exclusiva del administrador o del árbitro del torneo",
-    );
+  if (!isCurrentUserAdmin(lastTournamentState))
+    throw new Error("Esta acción es exclusiva del administrador del torneo");
 }
 function subscribeAnnouncements() {
   (announcementsUnsub && (announcementsUnsub(), (announcementsUnsub = null)),
@@ -4767,11 +4785,7 @@ function tournamentAuditEventId_() {
   return `audit_${Date.now().toString(36)}_${e[0].toString(36)}${e[1].toString(36)}`;
 }
 function tournamentAuditActorRole_(e) {
-  return isCurrentUserAdmin(e)
-    ? isCurrentUserReferee(e)
-      ? "Administrador y arbitro"
-      : "Administrador"
-    : "Arbitro";
+  return "Administrador";
 }
 function tournamentAuditRecord_(e, t, a) {
   return {
@@ -5352,9 +5366,7 @@ async function clearMatchChat() {
   if (!tournamentMatchCtx || !tournamentMyColor()) return;
   if (!matchChatMessages.length) return;
   if (
-    !confirm(
-      "¿Vaciar el chat de esta mesa? Se borran los mensajes para los dos jugadores y no se puede deshacer.",
-    )
+    !confirm("¿Eliminar tus mensajes de esta mesa? No se puede deshacer.")
   )
     return;
   const e = tournamentMatchCtx.round,
@@ -5363,12 +5375,17 @@ async function clearMatchChat() {
     const o = await getTournamentStateOnce();
     (assertTournamentNotFinished_(o),
       assertGameParticipantForState_(o, e, t));
-    const a = await matchChatCollectionRef_(e, t).get();
-    if (a.empty) return;
+    const a = await matchChatCollectionRef_(e, t).get(),
+      r = a.docs.filter(
+        (e) =>
+          normalizeRoleEmail_(e.data().senderEmail) ===
+          normalizeRoleEmail_(currentUser && currentUser.email),
+      );
+    if (!r.length) return void toast("No tenés mensajes propios para eliminar");
     const n = fbDb.batch();
-    (a.docs.forEach((e) => n.delete(e.ref)),
+    (r.forEach((e) => n.delete(e.ref)),
       await n.commit(),
-      toast("🗑️ Chat vaciado"));
+      toast("🗑️ Tus mensajes fueron eliminados"));
   } catch (e) {
     toast("❌ No se pudo vaciar el chat: " + e.message);
   }
@@ -5739,7 +5756,6 @@ function syncedNow_() {
 (syncInternetClock_(), setInterval(syncInternetClock_, 3e5));
 let authListenerAttached = !1,
   authRedirectChecked_ = !1;
-const TOURNAMENT_REFEREE_EMAIL = "josepantaleo@gmail.com";
 function normalizeRoleEmail_(e) {
   return (e || "").trim().toLowerCase();
 }
@@ -5753,20 +5769,13 @@ function tournamentRoleEmails_(e, t, a) {
   return Array.from(new Set(r ? o.concat(r) : o));
 }
 function isCurrentUserReferee(e) {
-  if (!currentUser || !currentUser.email) return !1;
-  const t = normalizeRoleEmail_(currentUser.email);
-  return tournamentRoleEmails_(
-    e || lastTournamentState,
-    "refereeEmails",
-    TOURNAMENT_REFEREE_EMAIL,
-  ).includes(t);
+  return isCurrentUserAdmin(e);
 }
 function isCurrentUserOfficial(e) {
-  return isCurrentUserAdmin(e) || isCurrentUserReferee(e);
+  return isCurrentUserAdmin(e);
 }
 function assertReferee() {
-  if (!isCurrentUserReferee())
-    throw new Error("Esta acción es exclusiva del árbitro del torneo");
+  assertAdmin();
 }
 function assertAdminForState_(e) {
   if (!isCurrentUserAdmin(normalizeTournamentState(e)))
@@ -5775,15 +5784,12 @@ function assertAdminForState_(e) {
     );
 }
 function assertRefereeForState_(e) {
-  if (!isCurrentUserReferee(normalizeTournamentState(e)))
-    throw new Error("Tu cuenta ya no tiene permisos de árbitro en este torneo");
+  assertAdminForState_(e);
 }
 function assertAdminOrRefereeForState_(e) {
   const t = normalizeTournamentState(e);
-  if (!isCurrentUserAdmin(t) && !isCurrentUserReferee(t))
-    throw new Error(
-      "Tu cuenta ya no tiene permisos de administrador ni de árbitro",
-    );
+  if (!isCurrentUserAdmin(t))
+    throw new Error("Tu cuenta ya no tiene permisos de administrador");
 }
 function assertTournamentNotFinished_(e, t) {
   if (e && e.meta && "finished" === e.meta.status)
@@ -5806,6 +5812,7 @@ function parseRoleEmails_(e) {
   return t;
 }
 function getFirebaseConfig() {
+  if (isOfficialTournamentHost_()) return DEFAULT_FIREBASE_CONFIG;
   const e = localStorage.getItem(FB_CONFIG_KEY) || "";
   if (!e) return DEFAULT_FIREBASE_CONFIG;
   try {
@@ -5815,12 +5822,28 @@ function getFirebaseConfig() {
   }
 }
 function setFirebaseConfig(e) {
+  if (isOfficialTournamentHost_()) {
+    localStorage.removeItem(FB_CONFIG_KEY);
+    return;
+  }
   localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(e));
 }
+function isOfficialTournamentHost_() {
+  const e = (location.hostname || "").toLowerCase();
+  return (
+    "torneo-ajedrez-escuelaipem146.web.app" === e ||
+    "torneo-ajedrez-escuelaipem146.firebaseapp.com" === e
+  );
+}
 function getTournamentRoom() {
+  if (isOfficialTournamentHost_()) return "main";
   return localStorage.getItem(FB_ROOM_KEY) || "main";
 }
 function setTournamentRoom(e) {
+  if (isOfficialTournamentHost_()) {
+    localStorage.removeItem(FB_ROOM_KEY);
+    return;
+  }
   localStorage.setItem(FB_ROOM_KEY, e || "main");
 }
 function parseFirebaseConfigInput(e) {
@@ -5892,6 +5915,7 @@ function connectFirebase(e, t) {
   try {
     (firebase.apps.length || firebase.initializeApp(e),
       (fbDb = firebase.firestore()),
+      connectFirebaseEmulators_(),
       authRedirectChecked_ ||
         ((authRedirectChecked_ = !0),
         firebase
@@ -6006,14 +6030,7 @@ function updateModeBadge() {
   if (!currentUser)
     return void e.forEach((e) => e && (e.style.display = "none"));
   const t = isCurrentUserAdmin(lastTournamentState),
-    n = isCurrentUserReferee(),
-    a = t && n
-      ? "🔐 Modo Administrador y Árbitro"
-      : n
-        ? "🧑‍⚖️ Modo Árbitro"
-      : t
-        ? "🛠️ Modo Administrador"
-        : "👤 Modo Jugador";
+    a = t ? "🛠️ Modo Administrador" : "👤 Modo Jugador";
   e.forEach((e) => {
     e && ((e.textContent = a), (e.style.display = ""));
   });
@@ -6154,8 +6171,7 @@ function subscribeRoundGames(e) {
                   }
                   return n;
                 })),
-                  tournamentMatchActive ||
-                    renderTournamentState(lastTournamentState),
+                  scheduleTournamentLiveRender_(lastTournamentState),
                   refreshPublicScreenActiveMiniBoard_(),
                   renderPublicScreenZoomBoard_(),
                   handleLiveMatchUpdate(lastTournamentState),
@@ -6191,6 +6207,7 @@ function subscribeTournament() {
         n = lastKnownTournamentStatus_;
       ((lastKnownTournamentStatus_ = a.meta.status),
         (lastTournamentState = a),
+        "function" == typeof updateAuthUI && updateAuthUI(),
         currentUser &&
           isCurrentUserAdmin(a) &&
           fbBackfillGameAccessFields_(a).catch((e) =>
@@ -6279,15 +6296,10 @@ function applyResultToPlayers_(e, t, a, n) {
 async function fbCreateTournament(e, t, a, n, o, r, s) {
   assertAdmin();
   const adminEmails = tournamentRoleEmails_(
-      lastTournamentState,
-      "adminEmails",
-      TOURNAMENT_ADMIN_EMAIL,
-    ),
-    refereeEmails = tournamentRoleEmails_(
-      lastTournamentState,
-      "refereeEmails",
-      TOURNAMENT_REFEREE_EMAIL,
-    );
+    lastTournamentState,
+    "adminEmails",
+    TOURNAMENT_ADMIN_EMAIL,
+  );
   const l = new Set();
   for (const e of t) {
     if (!e.name) continue;
@@ -6314,6 +6326,20 @@ async function fbCreateTournament(e, t, a, n, o, r, s) {
       })),
     c = Number(a),
     d = o || { minutes: 0, increment: 0 };
+  const existingPendingPlayers = (
+      (lastTournamentState && lastTournamentState.players) ||
+      []
+    ).filter((e) => "pending" === e.status),
+    providedEmails = new Set(
+      i.map((e) => (e.email || "").toLowerCase()).filter(Boolean),
+    ),
+    preservedPendingPlayers = existingPendingPlayers.filter(
+      (e) => !providedEmails.has((e.email || "").toLowerCase()),
+    ),
+    playersForTournament = i.concat(preservedPendingPlayers),
+    preservedRegistrations = {
+      ...((lastTournamentState && lastTournamentState.registeredUids) || {}),
+    };
   return (
     await fbRoomRef.set({
       meta: {
@@ -6326,14 +6352,14 @@ async function fbCreateTournament(e, t, a, n, o, r, s) {
         autoApprovalCancelled: !1,
         totalRounds: c > 0 ? c : null,
         adminEmails,
-        refereeEmails,
+        refereeEmails: [],
         timeControlMinutes: d.minutes > 0 ? d.minutes : 0,
         timeControlIncrement: d.increment > 0 ? d.increment : 0,
         woGraceMinutes: Number(s) > 0 ? Number(s) : 0,
       },
-      players: i,
+      players: playersForTournament,
       pairings: [],
-      registeredUids: {},
+      registeredUids: preservedRegistrations,
     }),
     getTournamentStateOnce()
   );
@@ -6441,19 +6467,17 @@ async function fbBackfillGameAccessFields_(e) {
     throw e;
   }
 }
-async function fbUpdateTournamentRoles(e, t) {
+async function fbUpdateTournamentRoles(e) {
   const a = Array.from(
       new Set(
         [TOURNAMENT_ADMIN_EMAIL].concat(parseRoleEmails_(e)).map(
           normalizeRoleEmail_,
         ),
       ),
-    ).filter(Boolean),
-    n = parseRoleEmails_(t);
+    ).filter(Boolean);
   if (!a.length) throw new Error("El torneo necesita al menos un administrador");
   if (a.length > 20)
     throw new Error("Se permiten como máximo 20 administradores");
-  if (n.length > 50) throw new Error("Se permiten como máximo 50 árbitros");
   return (
     assertAdmin(),
     await fbDb.runTransaction(async (e) => {
@@ -6465,7 +6489,7 @@ async function fbUpdateTournamentRoles(e, t) {
           meta: {
             ...o.meta,
             adminEmails: a,
-            refereeEmails: n,
+            refereeEmails: [],
             rolesUpdatedAt: syncedNow_(),
             rolesUpdatedBy: currentUser ? currentUser.email : null,
           },
@@ -6512,15 +6536,6 @@ async function fbSelfRegister(e) {
   return (
     await fbDb.runTransaction(async (e) => {
       const n = await e.get(fbRoomRef);
-      if (!n.exists) throw new Error("Todavía no se creó el torneo");
-      const o = n.data();
-      if (!o.meta || "active" !== o.meta.status)
-        throw new Error(
-          "Las inscripciones solo están habilitadas mientras el torneo está activo",
-        );
-      const r = o.players || [];
-      if (r.some((e) => (e.email || "").toLowerCase() === a))
-        throw new Error("Ya estás inscripto en este torneo");
       if (!currentUser.uid)
         throw new Error("La sesión no tiene un identificador de usuario válido");
       const i = {
@@ -6533,6 +6548,35 @@ async function fbSelfRegister(e) {
         colorBalance: 0,
         status: "pending",
       };
+      if (!n.exists) {
+        e.set(fbRoomRef, {
+          meta: {
+            name: "",
+            round: 0,
+            status: "setup",
+            adminEmails: [TOURNAMENT_ADMIN_EMAIL],
+            refereeEmails: [],
+            totalRounds: null,
+          },
+          players: [i],
+          pairings: [],
+          registeredUids: { [currentUser.uid]: a },
+        });
+        return;
+      }
+      const o = n.data();
+      if (
+        !o.meta ||
+        !["setup", "active"].includes(o.meta.status) ||
+        Number(o.meta.round || 0) !== 0 ||
+        (o.pairings || []).length !== 0
+      )
+        throw new Error(
+          "Las inscripciones solo están habilitadas antes de publicar la primera ronda",
+        );
+      const r = o.players || [];
+      if (r.some((e) => (e.email || "").toLowerCase() === a))
+        throw new Error("Ya estás inscripto en este torneo");
       e.update(fbRoomRef, {
         players: r.concat([i]),
         registeredUids: {
@@ -6577,7 +6621,21 @@ async function fbRejectRegistration(e) {
       if (-1 === o) throw new Error("No se encontró esa inscripción");
       if ("pending" !== n[o].status)
         throw new Error("Esta inscripción ya fue procesada");
-      t.update(fbRoomRef, { players: n.filter((t) => t.id !== e) });
+      const rejectedPlayer = n[o],
+        rejectedUid = String(rejectedPlayer.id || "").startsWith("u_")
+          ? String(rejectedPlayer.id).slice(2)
+          : "",
+        rejectedEmail = normalizeRoleEmail_(rejectedPlayer.email),
+        registeredUids = Object.fromEntries(
+          Object.entries(i.registeredUids || {}).filter(
+            ([e, t]) =>
+              e !== rejectedUid && normalizeRoleEmail_(t) !== rejectedEmail,
+          ),
+        );
+      t.update(fbRoomRef, {
+        players: n.filter((t) => t.id !== e),
+        registeredUids,
+      });
     }),
     getTournamentStateOnce()
   );
@@ -6612,7 +6670,30 @@ async function fbRejectAllRegistrations() {
       const a = r.players || [];
       if (0 === a.filter((e) => "pending" === e.status).length)
         throw new Error("No hay inscripciones pendientes");
-      e.update(fbRoomRef, { players: a.filter((e) => "pending" !== e.status) });
+      const pendingPlayers = a.filter((e) => "pending" === e.status),
+        pendingUids = new Set(
+          pendingPlayers
+            .map((e) =>
+              String(e.id || "").startsWith("u_")
+                ? String(e.id).slice(2)
+                : "",
+            )
+            .filter(Boolean),
+        ),
+        pendingEmails = new Set(
+          pendingPlayers.map((e) => normalizeRoleEmail_(e.email)).filter(Boolean),
+        ),
+        registeredUids = Object.fromEntries(
+          Object.entries(r.registeredUids || {}).filter(
+            ([e, t]) =>
+              !pendingUids.has(e) &&
+              !pendingEmails.has(normalizeRoleEmail_(t)),
+          ),
+        );
+      e.update(fbRoomRef, {
+        players: a.filter((e) => "pending" !== e.status),
+        registeredUids,
+      });
     }),
     getTournamentStateOnce()
   );
@@ -6661,7 +6742,25 @@ async function fbDeletePlayer(e) {
         throw new Error(
           "Este jugador ya tiene partidas emparejadas: para sacarlo sin perder el historial usá 'Retirar jugador' en vez de eliminarlo.",
         );
-      t.update(fbRoomRef, { players: o.filter((t) => t.id !== e) });
+      const deletedPlayer = o.find((t) => t.id === e),
+        deletedUid = String((deletedPlayer && deletedPlayer.id) || "").startsWith(
+          "u_",
+        )
+          ? String(deletedPlayer.id).slice(2)
+          : "",
+        deletedEmail = normalizeRoleEmail_(
+          deletedPlayer && deletedPlayer.email,
+        ),
+        registeredUids = Object.fromEntries(
+          Object.entries(n.registeredUids || {}).filter(
+            ([e, t]) =>
+              e !== deletedUid && normalizeRoleEmail_(t) !== deletedEmail,
+          ),
+        );
+      t.update(fbRoomRef, {
+        players: o.filter((t) => t.id !== e),
+        registeredUids,
+      });
     }),
     getTournamentStateOnce()
   );
@@ -6907,7 +7006,7 @@ function buildNextRoundPairings_(e, t, a, n, o) {
         increment: f,
         moves: [],
         joined: { w: !1, b: !1 },
-        startedAt: syncedNow_(),
+        startedAt: srvTimestamp(),
       }));
   return {
     nextRound: r,
@@ -7233,7 +7332,7 @@ async function fbSetGameSuspended(e, t, a, reason) {
           (s.turnStartAt = null));
       } else if (!a && s.clock) {
         const e = s.joined || { w: !1, b: !1 };
-        s.turnStartAt = e.w && e.b ? syncedNow_() : null;
+        s.turnStartAt = e.w && e.b ? srvTimestamp() : null;
       }
       (a &&
         ((s.selectedSquare = ""),
@@ -7268,114 +7367,141 @@ async function fbSetGameSuspended(e, t, a, reason) {
 }
 async function fbAutoDeclareForfeits() {
   assertReferee();
-  const e = lastTournamentState && lastTournamentState.meta;
-  if (!e) return [];
-  const t = Number(e.woGraceMinutes) || 0;
-  if (!t || "active" !== e.status || "playing" !== e.roundStatus) return [];
-  const a = 6e4 * t,
-    n = syncedNow_(),
-    o = (await gamesCollectionRef.where("round", "==", e.round).get()).docs
-      .map((e) => ({ ref: e.ref, data: e.data() }))
-      .filter(({ data: e }) => {
-        if ("ongoing" !== e.status || !e.startedAt) return !1;
-        if (n - e.startedAt < a) return !1;
-        const t = e.joined || { w: !1, b: !1 };
-        return t.w !== t.b;
+  const meta = lastTournamentState && lastTournamentState.meta;
+  if (!meta) return [];
+  const graceMinutes = Number(meta.woGraceMinutes) || 0;
+  if (
+    !graceMinutes ||
+    "active" !== meta.status ||
+    "playing" !== meta.roundStatus
+  )
+    return [];
+  const graceMs = 6e4 * graceMinutes,
+    now = syncedNow_(),
+    candidates = (
+      await gamesCollectionRef.where("round", "==", meta.round).get()
+    ).docs
+      .map((snapshot) => ({ ref: snapshot.ref, data: snapshot.data() }))
+      .filter(({ data: gameRow }) => {
+        if (
+          "finished" === gameRow.status &&
+          ["wo-black", "wo-white"].includes(gameRow.result)
+        )
+          return !0;
+        if (
+          "ongoing" !== gameRow.status ||
+          !gameRow.startedAt ||
+          now - getTimestampMs(gameRow.startedAt) < graceMs
+        )
+          return !1;
+        const joined = gameRow.joined || { w: !1, b: !1 };
+        return joined.w !== joined.b;
       });
-  if (0 === o.length) return [];
-  const r = [];
-  for (const { ref: e } of o)
+  if (!candidates.length) return [];
+  const declared = [];
+  for (const { ref: gameRef } of candidates)
     try {
-      await fbDb.runTransaction(async (t) => {
-        const a = await t.get(fbRoomRef);
-        if (!a.exists) return;
-        const n = a.data();
-        (assertRefereeForState_(n), assertTournamentNotFinished_(n));
-        const o = await t.get(e);
-        if (!o.exists) return;
-        const s = { ...o.data() };
-        if ("ongoing" !== s.status || !s.startedAt || n - s.startedAt < a)
-          return;
-        const l = s.joined || { w: !1, b: !1 };
-        l.w !== l.b &&
-          ((s.status = "finished"),
-          (s.resultReason = "wo-auto"),
-          (s.result = l.w ? "wo-black" : "wo-white"),
-          (s._woWinnerIsWhite = l.w),
-          t.update(e, {
-            status: s.status,
-            result: s.result,
-            resultReason: s.resultReason,
-          }),
-          r.push({ round: s.round, board: s.board, whiteJoined: l.w }));
+      const result = await fbDb.runTransaction(async (tx) => {
+        const roomSnapshot = await tx.get(fbRoomRef);
+        if (!roomSnapshot.exists) return null;
+        const room = roomSnapshot.data();
+        (assertRefereeForState_(room), assertTournamentNotFinished_(room));
+        if (
+          "active" !== room.meta.status ||
+          "playing" !== room.meta.roundStatus
+        )
+          return null;
+        const currentGraceMinutes = Number(room.meta.woGraceMinutes) || 0;
+        if (!currentGraceMinutes) return null;
+        const gameSnapshot = await tx.get(gameRef);
+        if (!gameSnapshot.exists) return null;
+        const gameRow = { ...gameSnapshot.data() },
+          pairings = (room.pairings || []).map((pairing) => ({ ...pairing })),
+          pairing = pairings.find(
+            (item) =>
+              Number(item.round) === Number(gameRow.round) &&
+              Number(item.board) === Number(gameRow.board),
+          );
+        if (!pairing || pairing.result) return null;
+        let resultCode = "";
+        if (
+          "finished" === gameRow.status &&
+          ["wo-black", "wo-white"].includes(gameRow.result)
+        )
+          resultCode = gameRow.result;
+        else {
+          if ("ongoing" !== gameRow.status || !gameRow.startedAt) return null;
+          if (
+            syncedNow_() - getTimestampMs(gameRow.startedAt) <
+            6e4 * currentGraceMinutes
+          )
+            return null;
+          const joined = gameRow.joined || { w: !1, b: !1 };
+          if (joined.w === joined.b) return null;
+          resultCode = joined.w ? "wo-black" : "wo-white";
+          tx.update(gameRef, {
+            status: "finished",
+            result: resultCode,
+            resultReason: "wo-auto",
+            drawOfferBy: "",
+            drawOfferAt: null,
+            selectedSquare: "",
+            selectedColor: "",
+            selectedAt: null,
+          });
+        }
+        const players = (room.players || []).map((player) => ({
+            ...player,
+            played: (player.played || []).slice(),
+          })),
+          playersById = {};
+        players.forEach((player) => (playersById[player.id] = player));
+        const white = playersById[pairing.whiteId],
+          black = playersById[pairing.blackId];
+        if (!white || !black) return null;
+        (applyResultToPlayers_(white, black, resultCode, 1),
+          (pairing.result = resultCode),
+          -1 === white.played.indexOf(black.id) && white.played.push(black.id),
+          -1 === black.played.indexOf(white.id) && black.played.push(white.id));
+        const updatedMeta = { ...room.meta };
+        pairings
+          .filter((item) => item.round === updatedMeta.round)
+          .every((item) => item.result) &&
+          ((updatedMeta.roundStatus = "pending_approval"),
+          (updatedMeta.pendingApprovalAt = syncedNow_()),
+          (updatedMeta.autoApprovalCancelled = !1));
+        tx.update(fbRoomRef, {
+          players,
+          pairings,
+          meta: updatedMeta,
+        });
+        const whiteWon = "wo-black" === resultCode,
+          winner = whiteWon ? white.name : black.name,
+          absent = whiteWon ? black.name : white.name,
+          reason = `Vencio el tiempo reglamentario de espera de ${currentGraceMinutes} minutos y solo se presento ${winner}.`;
+        writeTournamentAudit_(
+          tx,
+          "wo",
+          `W.O. automatico en ronda ${gameRow.round}, mesa ${gameRow.board}: gana ${winner}; ausente ${absent}. Motivo: ${reason}`,
+          {
+            action: "wo-auto",
+            round: gameRow.round,
+            board: gameRow.board,
+            winner,
+            absent,
+            reason,
+          },
+        );
+        return { board: gameRow.board, winner, absent };
       });
-    } catch (e) {
+      result && declared.push(result);
+    } catch (error) {
       console.error(
         "[fbAutoDeclareForfeits] No se pudo declarar W.O. automático:",
-        e,
+        error,
       );
     }
-  if (0 === r.length) return [];
-  const s = [];
-  return (
-    await fbDb.runTransaction(async (e) => {
-      const t = await e.get(fbRoomRef);
-      if (!t.exists) return;
-      const a = t.data(),
-        n = { ...a.meta },
-        o = (a.players || []).map((e) => ({
-          ...e,
-          played: (e.played || []).slice(),
-        })),
-        l = {};
-      (assertRefereeForState_(a), assertTournamentNotFinished_(a));
-      o.forEach((e) => (l[e.id] = e));
-      const i = (a.pairings || []).map((e) => ({ ...e }));
-      if (
-        (r.forEach((e) => {
-          const t = i.find((t) => t.round === e.round && t.board === e.board);
-          if (!t || t.result) return;
-          const a = l[t.whiteId],
-            n = l[t.blackId];
-          if (!a || !n) return;
-          const o = e.whiteJoined ? "wo-black" : "wo-white";
-          (applyResultToPlayers_(a, n, o, 1),
-            (t.result = o),
-            -1 === a.played.indexOf(n.id) && a.played.push(n.id),
-            -1 === n.played.indexOf(a.id) && n.played.push(a.id),
-            s.push({
-              board: t.board,
-              winner: e.whiteJoined ? a.name : n.name,
-              absent: e.whiteJoined ? n.name : a.name,
-            }));
-        }),
-        0 !== s.length)
-      ) {
-        i.filter((e) => e.round === n.round).every((e) => e.result) &&
-          ((n.roundStatus = "pending_approval"),
-          (n.pendingApprovalAt = syncedNow_()),
-          (n.autoApprovalCancelled = !1));
-        (e.update(fbRoomRef, { players: o, pairings: i, meta: n }),
-          s.forEach((t) => {
-            const a = `Vencio el tiempo reglamentario de espera de ${Number(n.woGraceMinutes) || 0} minutos y solo se presento ${t.winner}.`;
-            writeTournamentAudit_(
-              e,
-              "wo",
-              `W.O. automatico en ronda ${n.round}, mesa ${t.board}: gana ${t.winner}; ausente ${t.absent}. Motivo: ${a}`,
-              {
-                action: "wo-auto",
-                round: n.round,
-                board: t.board,
-                winner: t.winner,
-                absent: t.absent,
-                reason: a,
-              },
-            );
-          }));
-      }
-    }),
-    s
-  );
+  return declared;
 }
 async function fbSubmitResult(e, t, a, reason) {
   return (
@@ -7407,22 +7533,20 @@ async function fbSubmitResult(e, t, a, reason) {
         (reason = requireTournamentDecisionReason_(reason, "W.O."));
       if (!v.includes(a) && !E.includes(a))
         throw new Error("El resultado indicado no es válido");
-      if (E.includes(a) && !isCurrentUserReferee(m))
-        throw new Error("Solo el árbitro puede declarar un resultado por W.O.");
-      if (!isCurrentUserAdmin(m) && !isCurrentUserReferee(m))
-        throw new Error(
-          "Solo el administrador o el árbitro pueden cargar resultados oficiales",
-        );
+      if (E.includes(a) && !isCurrentUserAdmin(m))
+        throw new Error("Solo el administrador puede declarar un resultado por W.O.");
+      if (!isCurrentUserAdmin(m))
+        throw new Error("Solo el administrador puede cargar resultados oficiales");
       if (
         ["wo-black", "wo-white", "double-wo"].includes(c.result) &&
-        !isCurrentUserReferee(m)
+        !isCurrentUserAdmin(m)
       )
         throw new Error(
-          "Un resultado por W.O. solo puede ser corregido por el árbitro",
+          "Un resultado por W.O. solo puede ser corregido por el administrador",
         );
-      if (c.locked && !isCurrentUserReferee(m))
+      if (c.locked && !isCurrentUserAdmin(m))
         throw new Error(
-          "Esta ronda ya fue cerrada por el árbitro; solo el árbitro puede corregir resultados de una ronda cerrada",
+          "Esta ronda ya fue cerrada; solo el administrador puede corregir resultados de una ronda cerrada",
         );
       const P = gamesCollectionRef.doc(gameDocId_(e, t)),
         gameSnap = await n.get(P),
@@ -7626,7 +7750,7 @@ async function fbToggleDrawOffer(e, t) {
     const i = { ...l.data() };
     if ("finished" === i.status) throw new Error("Esa partida ya terminó");
     if ("suspended" === i.status)
-      throw new Error("Esta partida está suspendida por el árbitro");
+      throw new Error("Esta partida está suspendida por el administrador");
     if (i.clock && i.turnStartAt) {
       const activeColor = new Chess(i.fen).turn(),
         elapsed = Math.max(
@@ -7642,7 +7766,7 @@ async function fbToggleDrawOffer(e, t) {
     const d = c === n ? "" : n,
       u = {
         drawOfferBy: d,
-        drawOfferAt: d ? syncedNow_() : null,
+        drawOfferAt: d ? srvTimestamp() : null,
       };
     (o.update(a, u),
       (n = {
@@ -7678,7 +7802,7 @@ function expectedResultForPosition_(e, t) {
 }
 async function fbRegisterGameResult_(e, t, a, n) {
   const o = await getTournamentStateOnce();
-  if (isCurrentUserAdmin(o) || isCurrentUserReferee(o)) {
+  if (isCurrentUserAdmin(o)) {
     const r = await fbSubmitResult(e, t, a);
     return ((r.gameRow = n), r);
   }
@@ -7708,7 +7832,7 @@ async function fbMakeMove(e, t, a, n, o, r, s, l, isTimeout, action) {
   if (m && !isTimeout) {
     if ("finished" === m.status) throw new Error("Esa partida ya terminó");
     if ("suspended" === m.status)
-      throw new Error("Esta partida está suspendida por el árbitro");
+      throw new Error("Esta partida está suspendida por el administrador");
     const l = a !== m.fen,
       h = Boolean(m.clock && l);
     if (h) {
@@ -7736,7 +7860,7 @@ async function fbMakeMove(e, t, a, n, o, r, s, l, isTimeout, action) {
         a = { ...m.clock, [e]: Math.max(0, m.clock[e] - t) };
       (!o && m.increment && (a[e] += m.increment),
         (i.clock = a),
-        (i.turnStartAt = d));
+        (i.turnStartAt = srvTimestamp()));
     }
     (o && ((i.status = "finished"), (i.result = o)),
       await fbDb.runTransaction(async (e) => {
@@ -7758,7 +7882,7 @@ async function fbMakeMove(e, t, a, n, o, r, s, l, isTimeout, action) {
         if ("finished" === currentGame.status)
           throw new Error("Esa partida ya terminó");
         if ("suspended" === currentGame.status)
-          throw new Error("Esta partida está suspendida por el árbitro");
+          throw new Error("Esta partida está suspendida por el administrador");
         if (currentGame.fen !== m.fen)
           throw new Error(
             "La partida cambió en otro dispositivo. Actualizá antes de mover",
@@ -7816,7 +7940,7 @@ async function fbMakeMove(e, t, a, n, o, r, s, l, isTimeout, action) {
                   ? currentGame.increment
                   : 0),
             };
-            i.turnStartAt = d;
+            i.turnStartAt = srvTimestamp();
           }
         }
         if (i.status === "finished") {
@@ -7869,7 +7993,7 @@ async function fbMakeMove(e, t, a, n, o, r, s, l, isTimeout, action) {
         h = Boolean(i.clock && l);
       if ("finished" === i.status) throw new Error("Esa partida ya terminó");
       if ("suspended" === i.status)
-        throw new Error("Esta partida está suspendida por el árbitro");
+        throw new Error("Esta partida está suspendida por el administrador");
       if (isTimeout) {
         if (!i.clock || !i.turnStartAt)
           throw new Error("No hay un reloj activo para reclamar tiempo");
@@ -7947,10 +8071,9 @@ async function fbMakeMove(e, t, a, n, o, r, s, l, isTimeout, action) {
           !o &&
             i.increment &&
             (i.clock = { ...i.clock, [e]: i.clock[e] + i.increment }),
-          (i.turnStartAt = d));
+          (i.turnStartAt = srvTimestamp()));
       }
-      ((i.fen = a),
-        (i.lastMoveSan = n || ""),
+      ((!isTimeout && ((i.fen = a), (i.lastMoveSan = n || ""))),
         (i.selectedSquare = ""),
         (i.selectedColor = ""),
         (i.selectedAt = null),
@@ -7999,7 +8122,7 @@ async function fbSetSelectedSquare(e, t, a, n) {
   await s.update({
     selectedSquare: o,
     selectedColor: o ? r : "",
-    selectedAt: o ? syncedNow_() : null,
+    selectedAt: o ? srvTimestamp() : null,
   });
 }
 async function fbMarkJoined(e, t, a) {
@@ -8028,7 +8151,7 @@ async function fbMarkJoined(e, t, a) {
         "ongoing" === o.status &&
         m &&
         !o.turnStartAt &&
-        (e.turnStartAt = syncedNow_()),
+        (e.turnStartAt = srvTimestamp()),
         Object.keys(e).length && i.update(n, e));
       return { ...o, ...e };
     }
@@ -8037,7 +8160,7 @@ async function fbMarkJoined(e, t, a) {
       "ongoing" === o.status &&
       m &&
       (!l || !o.turnStartAt) &&
-      (p.turnStartAt = syncedNow_()),
+      (p.turnStartAt = srvTimestamp()),
       i.update(n, p));
     return { ...o, ...p };
   });
@@ -8059,15 +8182,10 @@ async function fbResetAll() {
   const t = await getTournamentStateOnce();
   assertAdminForState_(t);
   const a = tournamentRoleEmails_(
-      t,
-      "adminEmails",
-      TOURNAMENT_ADMIN_EMAIL,
-    ),
-    n = tournamentRoleEmails_(
-      t,
-      "refereeEmails",
-      TOURNAMENT_REFEREE_EMAIL,
-    );
+    t,
+    "adminEmails",
+    TOURNAMENT_ADMIN_EMAIL,
+  );
   const e = (await gamesCollectionRef.get()).docs;
   for (let t = 0; t < e.length; t += 400) {
     const a = fbDb.batch();
@@ -8087,7 +8205,7 @@ async function fbResetAll() {
         round: 0,
         status: "setup",
         adminEmails: a,
-        refereeEmails: n,
+        refereeEmails: [],
         totalRounds: null,
       },
       players: [],
@@ -8690,7 +8808,7 @@ function checkDoubleNoShowBoards_(e) {
         t.startedAt &&
         !s.w &&
         !s.b &&
-        n - t.startedAt >= a
+        n - getTimestampMs(t.startedAt) >= a
           ? alertedDoubleNoShowBoards_.has(l) ||
             (alertedDoubleNoShowBoards_.add(l),
             toast(
@@ -8706,7 +8824,7 @@ function startWOGraceTimerIfNeeded(e) {
   const t = Number(e.meta.woGraceMinutes) || 0;
   if (
     !(
-      isCurrentUserReferee(e) &&
+      isCurrentUserAdmin(e) &&
       t > 0 &&
       "active" === e.meta.status &&
       "playing" === e.meta.roundStatus
@@ -8758,8 +8876,8 @@ function renderApprovalPanel(e, t, a) {
     (o.textContent = i
       ? "La ronda está cerrada y los resultados quedaron bloqueados. La publicación de la siguiente ronda sigue disponible para administración o arbitraje."
       : t
-        ? "Ya están cargados todos los resultados de esta ronda. Revisá la tabla de posiciones y los resultados abajo; el administrador o el árbitro pueden aprobarla."
-        : "Ya terminaron todas las partidas de esta ronda. Falta que el administrador o el árbitro la revisen y aprueben para generar la ronda siguiente."));
+            ? "Ya están cargados todos los resultados de esta ronda. Revisá la tabla de posiciones y los resultados abajo; el administrador puede aprobarla."
+            : "Ya terminaron todas las partidas de esta ronda. Falta que el administrador la revise y apruebe para generar la ronda siguiente."));
   const c = document.getElementById("tournament-referee-round-controls");
   if (c) {
     c.style.display = l ? "" : "none";
@@ -8826,17 +8944,34 @@ function renderApprovalPanel(e, t, a) {
 function renderSelfRegisterCard(e, t) {
   const a = document.getElementById("tournament-self-register-card");
   if (!a) return;
+  const waitingSlot = document.getElementById(
+      "tournament-self-register-waiting-slot",
+    ),
+    activeSlot = document.getElementById("tournament-self-register-active-slot"),
+    useWaitingSlot = !e || !e.meta || "setup" === e.meta.status,
+    targetSlot = useWaitingSlot ? waitingSlot : activeSlot;
+  targetSlot && a.parentElement !== targetSlot && targetSlot.appendChild(a);
   if (!currentUser || t) return void (a.style.display = "none");
   a.style.display = "";
   const n = document.getElementById("tournament-self-register-form"),
     o = document.getElementById("tournament-self-register-status"),
     r = e.players.find(
       (e) => (e.email || "").toLowerCase() === currentUser.email,
-    );
+    ),
+    s =
+      e.meta &&
+      ["setup", "active"].includes(e.meta.status) &&
+      0 === Number(e.meta.round || 0) &&
+      0 === (e.pairings || []).length;
   if (r)
     ((n.style.display = "none"),
       (o.style.display = ""),
       (o.textContent = `✓ Ya estás inscripto como "${r.name}" (${playerStatusLabel_(r.status)}).`));
+  else if (!s)
+    ((n.style.display = "none"),
+      (o.style.display = ""),
+      (o.textContent =
+        "Las inscripciones están cerradas porque la primera ronda ya fue publicada."));
   else {
     ((n.style.display = "flex"), (o.style.display = "none"));
     const e = document.getElementById("tournament-self-register-name");
@@ -8875,7 +9010,7 @@ function setupPairingsListDelegation_(e) {
           if (!tournamentBusy) {
             tournamentBusy = !0;
             try {
-              if ("1" !== e.dataset.isAdmin && !isCurrentUserReferee())
+              if ("1" !== e.dataset.isAdmin)
                 throw new Error("No tenés permiso para cargar resultados");
               const t = n.dataset.result;
               let r = "";
@@ -8946,16 +9081,11 @@ function renderTournamentRoleSummary_(e) {
   const t = document.getElementById("tournament-roles-summary");
   if (!t) return;
   const a = tournamentRoleEmails_(
-      e,
-      "adminEmails",
-      TOURNAMENT_ADMIN_EMAIL,
-    ),
-    n = tournamentRoleEmails_(
-      e,
-      "refereeEmails",
-      TOURNAMENT_REFEREE_EMAIL,
-    );
-  t.textContent = `${a.length} administrador${1 === a.length ? "" : "es"} · ${n.length} árbitro${1 === n.length ? "" : "s"}`;
+    e,
+    "adminEmails",
+    TOURNAMENT_ADMIN_EMAIL,
+  );
+  t.textContent = `${a.length} administrador${1 === a.length ? "" : "es"} con acceso completo`;
 }
 function formatTournamentDiagnosticTime_(e) {
   if (!e) return "Aun sin datos";
@@ -8979,8 +9109,7 @@ function renderTournamentDiagnostics_(e) {
   const t = document.getElementById("tournament-diagnostics-panel");
   if (!t) return;
   const a = isCurrentUserAdmin(e),
-    n = isCurrentUserReferee(e),
-    o = !!currentUser && (a || n);
+    o = !!currentUser && a;
   if (!o) return void (t.style.display = "none");
   t.style.display = "";
   const r = document.getElementById("tournament-diagnostics-round"),
@@ -9006,9 +9135,7 @@ function renderTournamentDiagnostics_(e) {
           ? `${e.meta.status === "finished" ? "Torneo finalizado · " : ""}${tournamentRoundStatusLabel_(e.meta.roundStatus)}`
           : "Sin torneo activo"),
     l && (l.textContent = currentUser.email || "Cuenta sin email"),
-    i &&
-      (i.textContent =
-        a && n ? "Administrador y arbitro" : a ? "Administrador" : "Arbitro"),
+    i && (i.textContent = a ? "Administrador" : "Sin permisos"),
     c &&
       (c.textContent = formatTournamentDiagnosticTime_(
         tournamentLastRoomSnapshotAt_,
@@ -9048,16 +9175,11 @@ function renderTournamentOfficialRoles_(e) {
   const t = document.getElementById("tournament-official-roles-panel"),
     a = document.getElementById("tournament-official-roles-summary");
   if (!t || !a) return;
-  const n = isCurrentUserAdmin(e),
-    o = isCurrentUserReferee(e);
-  if (!n && !o) return void (t.style.display = "none");
+  const n = isCurrentUserAdmin(e);
+  if (!n) return void (t.style.display = "none");
   ((t.style.display = ""),
     (a.textContent =
-      n && o
-        ? "Tu cuenta tiene ambos roles. Conserva las responsabilidades separadas: configuracion como administrador y decisiones operativas como arbitro."
-        : n
-          ? "Tu cuenta administra el torneo y tambien puede usar el control compartido de ronda. Las sanciones y correcciones operativas siguen reservadas al arbitro."
-        : "Tu cuenta arbitra la competencia y puede usar el control compartido de ronda. La configuracion institucional y los roles siguen reservados a administracion."));
+      "Tu cuenta administra el torneo y puede ejecutar todas las decisiones oficiales: resultados, W.O., suspensiones, sanciones, rondas y configuración."));
 }
 function renderTournamentRoundCompleteNotice_(e) {
   const t = document.getElementById("tournament-round-complete-notice"),
@@ -9089,68 +9211,9 @@ function renderTournamentRoundCompleteNotice_(e) {
 let tournamentOfficialTabsReady_ = !1,
   tournamentOfficialActiveTab_ = "admin",
   tournamentOfficialLastStatus_ = "",
-  tournamentAdminActiveSubtab_ = "actions",
-  tournamentRefereeActiveSubtab_ = "round";
-function buildTournamentOfficialSubtabs_(container, idPrefix, groups, getActive, setActive) {
-  if (!container) return;
-  const tablist = document.createElement("div");
-  (tablist.className = "tournament-official-subtablist",
-    tablist.setAttribute("role", "tablist"),
-    tablist.setAttribute("aria-label", "Opciones"));
-  const contentWrap = document.createElement("div");
-  contentWrap.className = "tournament-official-subtabs-content";
-  const panels = [];
-  groups.forEach((g) => {
-    const btn = document.createElement("button");
-    (btn.type = "button",
-      (btn.className = "tournament-official-subtab"),
-      btn.setAttribute("role", "tab"),
-      (btn.dataset.subtab = g.key),
-      (btn.id = `${idPrefix}-subtab-${g.key}`),
-      (btn.textContent = g.label));
-    tablist.appendChild(btn);
-    const panel = document.createElement("div");
-    (panel.className = "tournament-official-subtab-panel",
-      (panel.dataset.subtabPanel = g.key),
-      panel.setAttribute("role", "tabpanel"),
-      panel.setAttribute("aria-labelledby", btn.id));
-    g.ids.forEach((elId) => {
-      const el = document.getElementById(elId);
-      el && panel.appendChild(el);
-    });
-    (contentWrap.appendChild(panel), panels.push({ btn, panel, key: g.key }));
-  });
-  function activate(key, focus) {
-    const match = panels.find((p) => p.key === key) || panels[0];
-    if (!match) return;
-    setActive(match.key);
-    panels.forEach((p) => {
-      const active = p === match;
-      (p.btn.setAttribute("aria-selected", active ? "true" : "false"),
-        (p.btn.tabIndex = active ? 0 : -1),
-        p.btn.classList.toggle("is-active", active),
-        (p.panel.hidden = !active));
-    });
-    focus && match.btn.focus();
-  }
-  panels.forEach((p, idx) => {
-    (p.btn.addEventListener("click", () => activate(p.key, !1)),
-      p.btn.addEventListener("keydown", (e) => {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
-        e.preventDefault();
-        let n = idx;
-        ("Home" === e.key
-          ? (n = 0)
-          : "End" === e.key
-            ? (n = panels.length - 1)
-            : (n = (idx + ("ArrowRight" === e.key ? 1 : -1) + panels.length) % panels.length));
-        activate(panels[n].key, !0);
-      }));
-  });
-  (container.insertBefore(tablist, container.firstChild),
-    container.appendChild(contentWrap),
-    activate(getActive(), !1));
-}
+  tournamentAdminQuickNavReady_ = !1,
+  tournamentLiveRenderFrame_ = null,
+  tournamentAdminLiveSyncTimer_ = null;
 function activateTournamentOfficialTab_(e, t) {
   if (!tournamentOfficialTabsReady_) setupTournamentOfficialTabs_();
   const a = document.getElementById("tournament-official-tabs");
@@ -9186,7 +9249,7 @@ function setupTournamentOfficialTabs_() {
       <div class="tournament-official-tabs-heading">
         <div>
           <h3>Gestión oficial</h3>
-          <p class="muted">Las herramientas están agrupadas por responsabilidad.</p>
+          <p class="muted">Administración integral y registro de decisiones del torneo.</p>
         </div>
         <div class="tournament-official-tablist" role="tablist" aria-label="Opciones de gestión oficial">
           <button
@@ -9197,14 +9260,6 @@ function setupTournamentOfficialTabs_() {
             aria-controls="tournament-official-admin-content"
             data-tournament-official-tab="admin"
           >Administrador</button>
-          <button
-            class="tournament-official-tab"
-            id="tournament-official-referee-tab"
-            type="button"
-            role="tab"
-            aria-controls="tournament-official-referee-content"
-            data-tournament-official-tab="referee"
-          >Árbitro / control</button>
           <button
             class="tournament-official-tab"
             id="tournament-official-audit-tab"
@@ -9224,14 +9279,6 @@ function setupTournamentOfficialTabs_() {
       ></div>
       <div
         class="tournament-official-tab-content"
-        id="tournament-official-referee-content"
-        role="tabpanel"
-        aria-labelledby="tournament-official-referee-tab"
-        data-tournament-official-panel="referee"
-        hidden
-      ></div>
-      <div
-        class="tournament-official-tab-content"
         id="tournament-official-audit-content"
         role="tabpanel"
         aria-labelledby="tournament-official-audit-tab"
@@ -9241,64 +9288,22 @@ function setupTournamentOfficialTabs_() {
     `),
     t.insertBefore(a, e));
   const n = a.querySelector('[data-tournament-official-panel="admin"]'),
-    o = a.querySelector('[data-tournament-official-panel="referee"]'),
     s = a.querySelector('[data-tournament-official-panel="audit"]');
   [
     "tournament-admin-panel",
+    "tournament-round-command-center",
+    "tournament-referee-panel",
+    "tournament-approval-panel",
+    "tournament-players-card",
+    "tournament-announcement-composer",
+    "tournament-round-countdown-composer",
     "tournament-settings-panel",
     "tournament-roles-panel",
+    "tournament-diagnostics-panel",
   ].forEach((e) => {
     const t = document.getElementById(e);
     t && n.appendChild(t);
   });
-  [
-    "tournament-round-command-center",
-    "tournament-announcement-composer",
-    "tournament-round-countdown-composer",
-    "tournament-approval-panel",
-    "tournament-referee-panel",
-    "tournament-players-card",
-    "tournament-diagnostics-panel",
-  ].forEach((e) => {
-    const t = document.getElementById(e);
-    t && o.appendChild(t);
-  });
-  buildTournamentOfficialSubtabs_(
-    n,
-    "tournament-admin",
-    [
-      { key: "actions", label: "Acciones", ids: ["tournament-admin-panel"] },
-      { key: "settings", label: "Configuración", ids: ["tournament-settings-panel"] },
-      { key: "roles", label: "Roles", ids: ["tournament-roles-panel"] },
-    ],
-    () => tournamentAdminActiveSubtab_,
-    (k) => {
-      tournamentAdminActiveSubtab_ = k;
-    },
-  );
-  buildTournamentOfficialSubtabs_(
-    o,
-    "tournament-referee",
-    [
-      {
-        key: "round",
-        label: "Ronda",
-        ids: ["tournament-round-command-center", "tournament-approval-panel"],
-      },
-      {
-        key: "announce",
-        label: "Anuncios",
-        ids: ["tournament-announcement-composer", "tournament-round-countdown-composer"],
-      },
-      { key: "tools", label: "Herramientas", ids: ["tournament-referee-panel"] },
-      { key: "players", label: "Jugadores", ids: ["tournament-players-card"] },
-      { key: "diagnostics", label: "Diagnóstico", ids: ["tournament-diagnostics-panel"] },
-    ],
-    () => tournamentRefereeActiveSubtab_,
-    (k) => {
-      tournamentRefereeActiveSubtab_ = k;
-    },
-  );
   const l = document.getElementById("tournament-audit-panel");
   l && s.appendChild(l);
   const r = Array.from(
@@ -9338,26 +9343,224 @@ function renderTournamentOfficialTabs_(e) {
   setupTournamentOfficialTabs_();
   const t = document.getElementById("tournament-official-tabs"),
     a = document.getElementById("tournament-official-admin-tab"),
-    n = document.getElementById("tournament-official-referee-tab"),
     l = document.getElementById("tournament-official-audit-tab"),
     o = isCurrentUserAdmin(e),
-    r = isCurrentUserReferee(e),
-    s = Boolean(currentUser && (o || r)),
+    s = Boolean(currentUser && o),
     i = e && e.meta ? e.meta.status || "" : "",
     c = "finished" === i && "finished" !== tournamentOfficialLastStatus_;
-  if (!t || !a || !n || !l) return;
+  if (!t || !a || !l) return;
   ((t.style.display = s ? "" : "none"),
     (a.hidden = !o),
-    (n.hidden = !s),
     (l.hidden = !s),
     (tournamentOfficialLastStatus_ = i));
   if (!s) return;
   const d = c
     ? "audit"
-    : "admin" === tournamentOfficialActiveTab_ && !o
-      ? "referee"
-      : tournamentOfficialActiveTab_;
+    : "audit" === tournamentOfficialActiveTab_
+      ? "audit"
+      : "admin";
   activateTournamentOfficialTab_(d, !1);
+}
+function setupTournamentAdminQuickNav_() {
+  if (tournamentAdminQuickNavReady_) return;
+  const e = document.getElementById("tournament-admin-panel");
+  if (!e) return;
+  (e.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-admin-jump]");
+    if (!t || t.disabled) return;
+    const a = t.dataset.adminJump;
+    if ("audit" === a)
+      return void activateTournamentOfficialTab_("audit", !1);
+    const n = {
+        control: "tournament-referee-panel",
+        players: "tournament-players-card",
+        round: "tournament-round-command-center",
+      }[a],
+      o = n ? document.getElementById(n) : null;
+    o && o.scrollIntoView({ behavior: "smooth", block: "start" });
+  }),
+    (tournamentAdminQuickNavReady_ = !0));
+}
+function markTournamentAdminLiveSync_() {
+  const e = document.getElementById("tournament-admin-live-sync");
+  if (!e) return;
+  const t = new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date());
+  ((e.textContent = `En vivo · actualizado ${t}`),
+    (e.dataset.state = "live"),
+    clearTimeout(tournamentAdminLiveSyncTimer_),
+    (tournamentAdminLiveSyncTimer_ = setTimeout(() => {
+      ((e.textContent = "En vivo · esperando cambios"),
+        (e.dataset.state = "waiting"));
+    }, 5e3)));
+}
+function scheduleTournamentLiveRender_(e) {
+  if (!e || tournamentMatchActive || tournamentLiveRenderFrame_) return;
+  tournamentLiveRenderFrame_ = requestAnimationFrame(() => {
+    ((tournamentLiveRenderFrame_ = null),
+      lastTournamentState &&
+        !tournamentMatchActive &&
+        (renderTournamentState(lastTournamentState),
+        markTournamentAdminLiveSync_()));
+  });
+}
+function renderTournamentAdminSummary_(e) {
+  const t = document.getElementById("tournament-admin-status-title"),
+    a = document.getElementById("tournament-admin-status-detail"),
+    n = document.getElementById("tournament-admin-mode-pill"),
+    d = document.getElementById("tournament-admin-active-games"),
+    u = document.getElementById("tournament-admin-finished-games"),
+    m = document.getElementById("tournament-admin-pending-players"),
+    g = document.getElementById("tournament-admin-round-progress"),
+    f = document.getElementById("tournament-admin-round-progress-track"),
+    h = document.getElementById("tournament-admin-round-progress-bar"),
+    y = document.getElementById("tournament-admin-round-progress-detail"),
+    w = document.getElementById("tournament-admin-attention-pill"),
+    C = document.getElementById("tournament-admin-control-count"),
+    S = document.getElementById("tournament-admin-players-count"),
+    T = document.getElementById("tournament-admin-round-alert-count");
+  if (!t || !a || !n || !e || !e.meta) return;
+  setupTournamentAdminQuickNav_();
+  const o = Number(e.meta.round || 0),
+    r = e.players.filter((e) => "active" === (e.status || "active")).length,
+    s = e.players.filter((e) => "pending" === e.status).length,
+    l = (e.pairings || []).filter(
+      (t) => t.round === o && "" !== t.blackId,
+    ),
+    i = l.filter((e) => e.result).length,
+    P = lastRoundGames.filter((e) => Number(e.round) === o),
+    x = new Map(P.map((e) => [Number(e.board), e])),
+    p = P.filter(
+      (e) => Number(e.round) === o && "ongoing" === e.status,
+    ).length,
+    I = P.filter((e) => "suspended" === e.status).length,
+    R = l.filter((e) => {
+      const t = x.get(Number(e.board));
+      return !e.result && t && "finished" === t.status && t.result;
+    }).length,
+    E = Number(e.meta.totalRounds) || 0,
+    b = E > 0 ? Math.min(100, Math.round((100 * o) / E)) : 0,
+    v = l.length - i,
+    k = "auto" === e.meta.roundApprovalMode,
+    A =
+      "pending_approval" === e.meta.roundStatus ||
+      "closed" === e.meta.roundStatus
+        ? 1
+        : 0,
+    L = s + I + R + A,
+    O = I + R,
+    M = O > 0 ? "control" : s > 0 ? "players" : A > 0 ? "round" : "",
+    c =
+      "finished" === e.meta.status
+        ? "Torneo finalizado"
+        : 0 === o
+          ? "Ronda inicial pendiente"
+          : "pending_approval" === e.meta.roundStatus
+            ? `Ronda ${o} lista para validar`
+            : "closed" === e.meta.roundStatus
+              ? `Ronda ${o} cerrada`
+              : `Ronda ${o} en juego`;
+  ((t.textContent = c),
+    (a.textContent = `${r} jugador${1 === r ? "" : "es"} activo${1 === r ? "" : "s"} · ${s} pendiente${1 === s ? "" : "s"} · ${v} mesa${1 === v ? "" : "s"} sin resultado`),
+    (n.textContent = k ? "Avance automático" : "Avance manual"),
+    (n.dataset.mode = k ? "auto" : "manual"),
+    d && (d.textContent = p),
+    u && (u.textContent = i),
+    m && (m.textContent = s),
+    g && (g.textContent = E > 0 ? `${o} / ${E}` : `${o} / ∞`),
+    f &&
+      ((f.style.display = E > 0 ? "" : "none"),
+      f.setAttribute("aria-valuenow", String(b))),
+    h && (h.style.width = `${b}%`),
+    C && (C.textContent = O),
+    S && (S.textContent = s),
+    T && (T.textContent = A),
+    w &&
+      ((w.textContent =
+        L > 0
+          ? `${L} pendiente${1 === L ? "" : "s"}`
+          : "Sin pendientes"),
+      (w.dataset.state = L > 0 ? "attention" : "clear"),
+      (w.dataset.adminJump = M),
+      (w.disabled = !M),
+      (w.title =
+        O > 0
+          ? "Ir al control de partidas"
+          : s > 0
+            ? "Ir a jugadores pendientes"
+            : A > 0
+              ? "Ir al estado de la ronda"
+              : "No hay decisiones pendientes")),
+    y &&
+      (y.textContent =
+        E > 0
+          ? `${b}% del calendario programado`
+          : "Sin límite de rondas configurado"));
+}
+function renderTournamentRefereeSummary_(e) {
+  const t = document.getElementById("tournament-referee-status-title"),
+    a = document.getElementById("tournament-referee-status-detail"),
+    n = document.getElementById("tournament-referee-round-pill"),
+    o = document.getElementById("tournament-referee-active-games"),
+    r = document.getElementById("tournament-referee-pending-results"),
+    s = document.getElementById("tournament-referee-suspended-games"),
+    l = document.getElementById("tournament-referee-round-progress"),
+    i = document.getElementById("tournament-referee-round-progress-track"),
+    c = document.getElementById("tournament-referee-round-progress-bar"),
+    d = document.getElementById("tournament-referee-round-progress-detail");
+  if (!t || !a || !n || !e || !e.meta) return;
+  const u = Number(e.meta.round || 0),
+    m = (e.pairings || []).filter(
+      (e) => Number(e.round) === u && "" !== e.blackId,
+    ),
+    g = lastRoundGames.filter((e) => Number(e.round) === u),
+    f = new Map(g.map((e) => [Number(e.board), e])),
+    h = g.filter((e) => "ongoing" === e.status).length,
+    y = g.filter((e) => "suspended" === e.status).length,
+    p = m.filter((e) => {
+      const t = f.get(Number(e.board));
+      return !e.result && t && "finished" === t.status && t.result;
+    }).length,
+    E = m.filter((e) => e.result).length,
+    b = m.length,
+    v = b > 0 ? Math.min(100, Math.round((100 * E) / b)) : 0,
+    k =
+      "finished" === e.meta.status
+        ? "Torneo finalizado"
+        : p > 0
+          ? `${p} resultado${1 === p ? "" : "s"} por validar`
+          : y > 0
+            ? `${y} partida${1 === y ? "" : "s"} suspendida${1 === y ? "" : "s"}`
+            : h > 0
+              ? `Ronda ${u} en juego`
+              : b > 0 && E === b
+                ? `Ronda ${u} completa`
+                : 0 === u
+                  ? "Esperando la primera ronda"
+                  : `Ronda ${u} sin partidas activas`,
+    w =
+      p > 0
+        ? "Hay resultados declarados que requieren confirmación administrativa."
+        : y > 0
+          ? "Revisá las partidas suspendidas antes de continuar la ronda."
+          : b > 0
+            ? `${E} de ${b} mesa${1 === b ? "" : "s"} tienen resultado oficial.`
+            : "Todavía no hay partidas programadas en esta ronda.";
+  ((t.textContent = k),
+    (a.textContent = w),
+    (n.textContent = `Ronda ${u}`),
+    o && (o.textContent = h),
+    r && (r.textContent = p),
+    s && (s.textContent = y),
+    l && (l.textContent = `${E} / ${b}`),
+    i && i.setAttribute("aria-valuenow", String(v)),
+    c && (c.style.width = `${v}%`),
+    d &&
+      (d.textContent =
+        b > 0 ? `${v}% de resultados oficiales` : "Sin partidas programadas"));
 }
 function renderTournamentState(e) {
   const t = document.getElementById("tournament-setup-box"),
@@ -9365,24 +9568,36 @@ function renderTournamentState(e) {
   if ((updateModeBadge(), !currentUser))
     return (
       renderTournamentOfficialTabs_(null),
+      renderSelfRegisterCard(e, !1),
       (t.style.display = "none"),
       (a.style.display = "none"),
       stopWOGraceTimer(),
       void stopTournamentJoinReminder_()
     );
-  if (!e || ("active" !== e.meta.status && "finished" !== e.meta.status))
+  if (!e || ("active" !== e.meta.status && "finished" !== e.meta.status)) {
+    const n = isCurrentUserAdmin(e),
+      o =
+        e ||
+        {
+          meta: { name: "", round: 0, status: "setup" },
+          players: [],
+          pairings: [],
+          registeredUids: {},
+        };
     return (
-      (t.style.display = isCurrentUserAdmin(e) ? "" : "none"),
+      (t.style.display = n ? "" : "none"),
       (a.style.display = "none"),
+      renderSelfRegisterCard(o, n),
       stopWOGraceTimer(),
       void stopTournamentJoinReminder_()
     );
+  }
   ((t.style.display = "none"),
     (a.style.display = ""),
     startWOGraceTimerIfNeeded(e),
     startTournamentJoinReminder_(e));
   const n = isCurrentUserAdmin(e),
-    p = isCurrentUserReferee(e),
+    p = n,
     o = "finished" === e.meta.status,
     r =
       !o &&
@@ -9390,6 +9605,8 @@ function renderTournamentState(e) {
         "closed" === e.meta.roundStatus),
     s = e.meta.totalRounds ? ` de ${e.meta.totalRounds}` : "";
   renderTournamentOfficialTabs_(e);
+  renderTournamentAdminSummary_(e);
+  renderTournamentRefereeSummary_(e);
   renderTournamentDiagnostics_(e);
   renderTournamentOfficialRoles_(e);
   renderTournamentRoundCompleteNotice_(e);
@@ -9404,17 +9621,17 @@ function renderTournamentState(e) {
   const l = document.getElementById("tournament-pending-badge"),
     i = e.players.filter((e) => "pending" === (e.status || "active")).length;
   l &&
-    ((n || isCurrentUserReferee()) && i > 0
+    (n && i > 0
       ? ((l.textContent = `🔔 ${i} inscripción${1 === i ? "" : "es"} pendiente${1 === i ? "" : "s"}`),
         (l.style.display = ""),
         (l.style.cursor = "pointer"),
         (l.title = "Ir a las inscripciones pendientes"))
       : (l.style.display = "none"));
   const c = document.getElementById("tournament-announcement-composer");
-  c && (c.style.display = !o && (n || isCurrentUserReferee(e)) ? "" : "none");
+  c && (c.style.display = !o && n ? "" : "none");
   const d = document.getElementById("tournament-round-countdown-composer");
   (d &&
-      (d.style.display = !o && (n || isCurrentUserReferee(e)) ? "" : "none"),
+      (d.style.display = !o && n ? "" : "none"),
     renderRoundCountdown_(e),
     (document.getElementById("tournament-admin-panel").style.display = n
       ? ""
@@ -9466,7 +9683,7 @@ function renderTournamentState(e) {
       (B.textContent =
         "auto" === e.meta.roundApprovalMode
           ? "Activo: cuando finalicen todas las partidas, la siguiente ronda se publicara automaticamente despues de 30 segundos."
-          : "Manual: al finalizar una ronda, el administrador o arbitro debe aprobarla."));
+          : "Manual: al finalizar una ronda, el administrador debe aprobarla."));
   const C = document.getElementById("tournament-round-command-center"),
     D = document.getElementById("tournament-round-command-title"),
     F = document.getElementById("tournament-round-command-status"),
@@ -9491,8 +9708,8 @@ function renderTournamentState(e) {
         ((D.textContent = `Ronda ${e.meta.round} lista para avanzar`),
           (F.textContent =
             e.meta.totalRounds && e.meta.round >= e.meta.totalRounds
-              ? "Todos los resultados estan cargados. El administrador o arbitro deben validar la ronda final para cerrar el torneo."
-              : "Todos los resultados estan cargados. El administrador o arbitro pueden aprobar la ronda actual y publicar la siguiente."),
+              ? "Todos los resultados estan cargados. El administrador debe validar la ronda final para cerrar el torneo."
+              : "Todos los resultados estan cargados. El administrador puede aprobar la ronda actual y publicar la siguiente."),
           H &&
             ((G.style.display = ""),
             (G.textContent =
@@ -9585,7 +9802,7 @@ function renderTournamentState(e) {
             : "",
         g =
           !t.result && o && "finished" === o.status && o.result
-            ? `Resultado declarado desde el tablero: ${resultLabel(o.result)}. Requiere confirmación del árbitro.`
+            ? `Resultado declarado desde el tablero: ${resultLabel(o.result)}. Requiere confirmación del administrador.`
             : o && "finished" !== o.status && "suspended" !== o.status && u
             ? u
             : o &&
@@ -9607,7 +9824,7 @@ function renderTournamentState(e) {
             : ((h = "pending"), (y = "🟣 Resultado pendiente de confirmar")),
           t.locked && (y += " 🔒"))
         : o && "finished" === o.status && o.result
-            ? ((h = "pending"), (y = "🟣 Resultado pendiente del árbitro"))
+            ? ((h = "pending"), (y = "🟣 Resultado pendiente del administrador"))
         : o && "suspended" === o.status
           ? ((h = "suspended"), (y = "⏸️ Suspendida"))
           : q
@@ -10082,7 +10299,7 @@ function setupPlayersListDelegation_(e) {
 function renderPlayersPanel(e, t) {
   const a = document.getElementById("tournament-players-card");
   if (!a) return;
-  const n = isCurrentUserReferee();
+  const n = isCurrentUserAdmin(e);
   if (!n && !t) return void (a.style.display = "none");
   a.style.display = "";
   const i = "finished" === e.meta.status,
@@ -10300,14 +10517,14 @@ function showTournamentRoundApprovalPopup_(e, t) {
   n.id = "alert-tournament-round-actions";
   n.className = "alert-tournament-round-actions";
   const o = e && "active" === e.status && "pending_approval" === e.roundStatus,
-    r = isCurrentUserAdmin({ meta: e }) || isCurrentUserReferee({ meta: e });
+    r = isCurrentUserAdmin({ meta: e });
   if (t)
     n.innerHTML =
-      "<strong>Resultado pendiente de validacion</strong><span>Un arbitro debe confirmar el resultado antes de revisar la aprobacion de la ronda.</span>";
+      "<strong>Resultado pendiente de validacion</strong><span>Un administrador debe confirmar el resultado antes de revisar la aprobacion de la ronda.</span>";
   else if (o) {
     n.innerHTML = r
       ? "<strong>Ronda lista para aprobar</strong><span>Todos los resultados fueron cargados. Usa el boton de aprobacion del panel del torneo para publicar la siguiente ronda.</span>"
-      : "<strong>Ronda pendiente de aprobacion</strong><span>Todos los resultados fueron cargados. Espera a que el administrador o arbitro apruebe la ronda.</span>";
+      : "<strong>Ronda pendiente de aprobacion</strong><span>Todos los resultados fueron cargados. Espera a que el administrador apruebe la ronda.</span>";
   } else if (e && "finished" === e.status)
     n.innerHTML =
       "<strong>Torneo finalizado</strong><span>La ultima ronda ya quedo cerrada. No hay una ronda nueva para aprobar.</span>";
@@ -10406,7 +10623,7 @@ function updateTournamentMatchBar(e) {
   if (e && "suspended" === e.status)
     return (
       (t.textContent =
-        "⏸️ El árbitro suspendió esta partida. Esperá novedades antes de seguir jugando."),
+        "⏸️ El administrador suspendió esta partida. Esperá novedades antes de seguir jugando."),
       (n.style.display = "none"),
       void (o.style.display = "none")
     );
@@ -10549,7 +10766,7 @@ async function claimTournamentTimeout(e) {
         showTournamentResult(t, "tiempo agotado", n.meta, n.resultPendingReferee)),
         n.resultPendingReferee &&
           toast(
-            "Tiempo agotado registrado. Un árbitro debe confirmar el resultado.",
+            "Tiempo agotado registrado. Un administrador debe confirmar el resultado.",
           ),
         updateTournamentMatchBar(a));
     } catch (e) {
@@ -11217,13 +11434,13 @@ async function syncTournamentMove() {
       t &&
         n.resultPendingReferee &&
         toast(
-          "Resultado registrado en la partida. Un árbitro debe confirmarlo en la tabla del torneo.",
+          "Resultado registrado en la partida. Un administrador debe confirmarlo en la tabla del torneo.",
         ),
       t &&
         !n.resultPendingReferee &&
         "pending_approval" === n.meta.roundStatus &&
         toast(
-          "✅ Ya están todos los resultados de esta ronda; falta que el administrador o el árbitro la aprueben.",
+          "✅ Ya están todos los resultados de esta ronda; falta que el administrador la apruebe.",
         ),
       updateTournamentMatchBar(o));
   } catch (e) {
@@ -11283,9 +11500,9 @@ async function syncTournamentMove() {
             updateTournamentMatchBar(a),
             toast(
               t.resultPendingReferee
-                ? "Te rendiste. Un árbitro debe confirmar el resultado en la tabla."
+          ? "Te rendiste. Un administrador debe confirmar el resultado en la tabla."
                 : "pending_approval" === t.meta.roundStatus
-                ? "🏳️ Te rendiste. Resultado cargado. Falta que el administrador o el árbitro aprueben la ronda."
+          ? "🏳️ Te rendiste. Resultado cargado. Falta que el administrador apruebe la ronda."
                 : "🏳️ Te rendiste. Resultado cargado.",
             ));
         } catch (e) {
@@ -11354,9 +11571,9 @@ async function syncTournamentMove() {
             updateTournamentMatchBar(a),
             toast(
               t.resultPendingReferee
-                ? "Tablas acordadas. Un árbitro debe confirmar el resultado en la tabla."
+          ? "Tablas acordadas. Un administrador debe confirmar el resultado en la tabla."
                 : "pending_approval" === t.meta.roundStatus
-                ? "🤝 Tablas acordadas. Falta que el administrador o el árbitro aprueben la ronda."
+          ? "🤝 Tablas acordadas. Falta que el administrador apruebe la ronda."
                 : "🤝 Tablas acordadas.",
             ));
         }
@@ -11673,7 +11890,7 @@ configSignoutBtn &&
     .getElementById("tournament-roles-btn")
     .addEventListener("click", () => {
       try {
-        (assertAdminOrReferee(),
+        (assertAdmin(),
           (document.getElementById("tournament-settings-panel").style.display =
             "none"));
         const e = lastTournamentState,
@@ -11681,16 +11898,9 @@ configSignoutBtn &&
             e,
             "adminEmails",
             TOURNAMENT_ADMIN_EMAIL,
-          ),
-          a = tournamentRoleEmails_(
-            e,
-            "refereeEmails",
-            TOURNAMENT_REFEREE_EMAIL,
           );
         ((document.getElementById("tournament-admin-emails-input").value =
           t.join("\n")),
-          (document.getElementById("tournament-referee-emails-input").value =
-            a.join("\n")),
           (document.getElementById("tournament-roles-panel").style.display =
             ""),
           renderTournamentRoleSummary_(e));
@@ -11706,8 +11916,7 @@ configSignoutBtn &&
   document
     .getElementById("tournament-roles-save-btn")
     .addEventListener("click", async () => {
-      const e = document.getElementById("tournament-admin-emails-input").value,
-        t = document.getElementById("tournament-referee-emails-input").value;
+      const e = document.getElementById("tournament-admin-emails-input").value;
       try {
         const a = parseRoleEmails_(e),
           n = normalizeRoleEmail_(currentUser && currentUser.email);
@@ -11720,10 +11929,10 @@ configSignoutBtn &&
           )
         )
           return;
-        (await fbUpdateTournamentRoles(e, t),
+        (await fbUpdateTournamentRoles(e),
           (document.getElementById("tournament-roles-panel").style.display =
             "none"),
-          toast("🔐 Roles del torneo actualizados."));
+          toast("🔐 Administradores del torneo actualizados."));
       } catch (e) {
         showError(e);
       }
@@ -11936,17 +12145,29 @@ function openTournamentAdministration_() {
     return void toast(
       "Iniciá sesión con la cuenta administradora para gestionar el torneo.",
     );
-  "function" == typeof activateTournamentOfficialTab_ &&
-    activateTournamentOfficialTab_("admin", !1);
+  const activeTournament =
+    lastTournamentState &&
+    ("active" === lastTournamentState.meta.status ||
+      "finished" === lastTournamentState.meta.status);
+  if (
+    activeTournament &&
+    "function" == typeof renderTournamentOfficialTabs_
+  ) {
+    renderTournamentOfficialTabs_(lastTournamentState);
+    const workspace = document.getElementById("tournament-official-tabs"),
+      adminTab = document.getElementById("tournament-official-admin-tab"),
+      adminContent = document.getElementById(
+        "tournament-official-admin-content",
+      );
+    (workspace && (workspace.style.display = ""),
+      adminTab && (adminTab.hidden = !1),
+      "function" == typeof activateTournamentOfficialTab_ &&
+        activateTournamentOfficialTab_("admin", !1),
+      adminContent && (adminContent.hidden = !1));
+  }
   const e = document.getElementById("tournament-admin-panel"),
     t = document.getElementById("tournament-setup-box"),
-    a =
-      e &&
-      lastTournamentState &&
-      ("active" === lastTournamentState.meta.status ||
-        "finished" === lastTournamentState.meta.status)
-        ? e
-        : t;
+    a = e && activeTournament ? e : t;
   if (!a) return;
   ((a.style.display = ""),
     (a.tabIndex = -1),
@@ -11981,7 +12202,7 @@ const pendingBadgeBtn = document.getElementById("tournament-pending-badge");
 (pendingBadgeBtn &&
   pendingBadgeBtn.addEventListener("click", () => {
     "function" == typeof activateTournamentOfficialTab_ &&
-      activateTournamentOfficialTab_("referee", !1);
+      activateTournamentOfficialTab_("admin", !1);
     const e = document.getElementById("tournament-players-card");
     e && e.scrollIntoView({ behavior: "smooth", block: "start" });
   }),
@@ -12018,3 +12239,4 @@ const pendingBadgeBtn = document.getElementById("tournament-pending-badge");
         renderRoundCountdown_(lastTournamentState));
   }));
 document.documentElement.dataset.appReady = "1";
+

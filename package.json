@@ -1,4 +1,10 @@
 {
+  "private": true,
+  "scripts": {
+    "build": "node build-app.js",
+    "predeploy": "npm run build",
+    "deploy": "firebase deploy --only hosting,firestore"
+  },
   "dependencies": {
     "ws": "^8.21.2"
   }

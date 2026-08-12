@@ -15,6 +15,26 @@ const FB_CONFIG_KEY = "chessSchoolFirebaseConfig",
 let fbDb = null,
   fbRoomRef = null,
   gamesCollectionRef = null;
+let firebaseEmulatorsConnected_ = false;
+function shouldUseFirebaseEmulators_() {
+  const e = new URLSearchParams(location.search).get("firebaseEmulator");
+  return (
+    "1" === e &&
+    ("localhost" === location.hostname || "127.0.0.1" === location.hostname)
+  );
+}
+function connectFirebaseEmulators_() {
+  if (firebaseEmulatorsConnected_ || !shouldUseFirebaseEmulators_()) return;
+  (fbDb.useEmulator("127.0.0.1", 8080),
+    firebase
+      .auth()
+      .useEmulator("http://127.0.0.1:9099", { disableWarnings: !0 }),
+    (firebaseEmulatorsConnected_ = !0),
+    document.documentElement.setAttribute("data-firebase-emulator", "true"),
+    document.title.startsWith("[EMULADOR]") ||
+      (document.title = "[EMULADOR] " + document.title),
+    console.info("Firebase conectado a los emuladores locales de prueba"));
+}
 function gameDocId_(e, t) {
   return e + "_" + t;
 }
@@ -36,10 +56,8 @@ let announcementsCollectionRef = null,
   publicScreenZoomKey_ = null,
   roundCountdownTimer_ = null;
 function assertAdminOrReferee() {
-  if (!isCurrentUserAdmin(lastTournamentState) && !isCurrentUserReferee())
-    throw new Error(
-      "Esta acción es exclusiva del administrador o del árbitro del torneo",
-    );
+  if (!isCurrentUserAdmin(lastTournamentState))
+    throw new Error("Esta acción es exclusiva del administrador del torneo");
 }
 function subscribeAnnouncements() {
   (announcementsUnsub && (announcementsUnsub(), (announcementsUnsub = null)),
@@ -76,11 +94,7 @@ function tournamentAuditEventId_() {
   return `audit_${Date.now().toString(36)}_${e[0].toString(36)}${e[1].toString(36)}`;
 }
 function tournamentAuditActorRole_(e) {
-  return isCurrentUserAdmin(e)
-    ? isCurrentUserReferee(e)
-      ? "Administrador y arbitro"
-      : "Administrador"
-    : "Arbitro";
+  return "Administrador";
 }
 function tournamentAuditRecord_(e, t, a) {
   return {
@@ -661,9 +675,7 @@ async function clearMatchChat() {
   if (!tournamentMatchCtx || !tournamentMyColor()) return;
   if (!matchChatMessages.length) return;
   if (
-    !confirm(
-      "¿Vaciar el chat de esta mesa? Se borran los mensajes para los dos jugadores y no se puede deshacer.",
-    )
+    !confirm("¿Eliminar tus mensajes de esta mesa? No se puede deshacer.")
   )
     return;
   const e = tournamentMatchCtx.round,
@@ -672,12 +684,17 @@ async function clearMatchChat() {
     const o = await getTournamentStateOnce();
     (assertTournamentNotFinished_(o),
       assertGameParticipantForState_(o, e, t));
-    const a = await matchChatCollectionRef_(e, t).get();
-    if (a.empty) return;
+    const a = await matchChatCollectionRef_(e, t).get(),
+      r = a.docs.filter(
+        (e) =>
+          normalizeRoleEmail_(e.data().senderEmail) ===
+          normalizeRoleEmail_(currentUser && currentUser.email),
+      );
+    if (!r.length) return void toast("No tenés mensajes propios para eliminar");
     const n = fbDb.batch();
-    (a.docs.forEach((e) => n.delete(e.ref)),
+    (r.forEach((e) => n.delete(e.ref)),
       await n.commit(),
-      toast("🗑️ Chat vaciado"));
+      toast("🗑️ Tus mensajes fueron eliminados"));
   } catch (e) {
     toast("❌ No se pudo vaciar el chat: " + e.message);
   }
@@ -1048,7 +1065,6 @@ function syncedNow_() {
 (syncInternetClock_(), setInterval(syncInternetClock_, 3e5));
 let authListenerAttached = !1,
   authRedirectChecked_ = !1;
-const TOURNAMENT_REFEREE_EMAIL = "josepantaleo@gmail.com";
 function normalizeRoleEmail_(e) {
   return (e || "").trim().toLowerCase();
 }
@@ -1062,20 +1078,13 @@ function tournamentRoleEmails_(e, t, a) {
   return Array.from(new Set(r ? o.concat(r) : o));
 }
 function isCurrentUserReferee(e) {
-  if (!currentUser || !currentUser.email) return !1;
-  const t = normalizeRoleEmail_(currentUser.email);
-  return tournamentRoleEmails_(
-    e || lastTournamentState,
-    "refereeEmails",
-    TOURNAMENT_REFEREE_EMAIL,
-  ).includes(t);
+  return isCurrentUserAdmin(e);
 }
 function isCurrentUserOfficial(e) {
-  return isCurrentUserAdmin(e) || isCurrentUserReferee(e);
+  return isCurrentUserAdmin(e);
 }
 function assertReferee() {
-  if (!isCurrentUserReferee())
-    throw new Error("Esta acción es exclusiva del árbitro del torneo");
+  assertAdmin();
 }
 function assertAdminForState_(e) {
   if (!isCurrentUserAdmin(normalizeTournamentState(e)))
@@ -1084,15 +1093,12 @@ function assertAdminForState_(e) {
     );
 }
 function assertRefereeForState_(e) {
-  if (!isCurrentUserReferee(normalizeTournamentState(e)))
-    throw new Error("Tu cuenta ya no tiene permisos de árbitro en este torneo");
+  assertAdminForState_(e);
 }
 function assertAdminOrRefereeForState_(e) {
   const t = normalizeTournamentState(e);
-  if (!isCurrentUserAdmin(t) && !isCurrentUserReferee(t))
-    throw new Error(
-      "Tu cuenta ya no tiene permisos de administrador ni de árbitro",
-    );
+  if (!isCurrentUserAdmin(t))
+    throw new Error("Tu cuenta ya no tiene permisos de administrador");
 }
 function assertTournamentNotFinished_(e, t) {
   if (e && e.meta && "finished" === e.meta.status)
@@ -1115,6 +1121,7 @@ function parseRoleEmails_(e) {
   return t;
 }
 function getFirebaseConfig() {
+  if (isOfficialTournamentHost_()) return DEFAULT_FIREBASE_CONFIG;
   const e = localStorage.getItem(FB_CONFIG_KEY) || "";
   if (!e) return DEFAULT_FIREBASE_CONFIG;
   try {
@@ -1124,12 +1131,28 @@ function getFirebaseConfig() {
   }
 }
 function setFirebaseConfig(e) {
+  if (isOfficialTournamentHost_()) {
+    localStorage.removeItem(FB_CONFIG_KEY);
+    return;
+  }
   localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(e));
 }
+function isOfficialTournamentHost_() {
+  const e = (location.hostname || "").toLowerCase();
+  return (
+    "torneo-ajedrez-escuelaipem146.web.app" === e ||
+    "torneo-ajedrez-escuelaipem146.firebaseapp.com" === e
+  );
+}
 function getTournamentRoom() {
+  if (isOfficialTournamentHost_()) return "main";
   return localStorage.getItem(FB_ROOM_KEY) || "main";
 }
 function setTournamentRoom(e) {
+  if (isOfficialTournamentHost_()) {
+    localStorage.removeItem(FB_ROOM_KEY);
+    return;
+  }
   localStorage.setItem(FB_ROOM_KEY, e || "main");
 }
 function parseFirebaseConfigInput(e) {
@@ -1201,6 +1224,7 @@ function connectFirebase(e, t) {
   try {
     (firebase.apps.length || firebase.initializeApp(e),
       (fbDb = firebase.firestore()),
+      connectFirebaseEmulators_(),
       authRedirectChecked_ ||
         ((authRedirectChecked_ = !0),
         firebase
@@ -1315,14 +1339,7 @@ function updateModeBadge() {
   if (!currentUser)
     return void e.forEach((e) => e && (e.style.display = "none"));
   const t = isCurrentUserAdmin(lastTournamentState),
-    n = isCurrentUserReferee(),
-    a = t && n
-      ? "🔐 Modo Administrador y Árbitro"
-      : n
-        ? "🧑‍⚖️ Modo Árbitro"
-      : t
-        ? "🛠️ Modo Administrador"
-        : "👤 Modo Jugador";
+    a = t ? "🛠️ Modo Administrador" : "👤 Modo Jugador";
   e.forEach((e) => {
     e && ((e.textContent = a), (e.style.display = ""));
   });
