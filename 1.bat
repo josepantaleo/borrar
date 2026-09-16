@@ -1,380 +1,138 @@
-```bat
 @echo off
-setlocal EnableExtensions
-title WINDOWS 0 KM - TODOS LOS USUARIOS
-color 0A
+:: ==============================================================================
+:: SCRIPT DE LIMPIEZA PROFUNDA Y OPTIMIZACION DE PERFILES WINDOWS
+:: ==============================================================================
+setlocal enabledelayedexpansion
 
-:: ============================================================
-:: WINDOWS 0 KM - TODOS LOS USUARIOS
-:: ============================================================
-:: ADVERTENCIA:
-:: BORRA DATOS PERSONALES DE LOS PERFILES DE C:\Users
-:: NO BORRA WINDOWS
-:: NO DESINSTALA PROGRAMAS
-:: NO EJECUTA SFC NI DISM
-:: ============================================================
-
-:: ------------------------------------------------------------
-:: ADMINISTRADOR
-:: ------------------------------------------------------------
+:: 1. Comprobacion de Privilegios de Administrador
 net session >nul 2>&1
-
 if %errorlevel% neq 0 (
-    echo.
-    echo Solicitando permisos de Administrador...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "Start-Process -FilePath '%~f0' -Verb RunAs"
+    echo [!] ERROR: Debe ejecutar este script como Administrador.
+    echo     Haga clic derecho en el archivo .bat y seleccione "Ejecutar como administrador".
+    pause
     exit /b
 )
 
-:: ------------------------------------------------------------
-:: CONFIRMACION
-:: ------------------------------------------------------------
-cls
-
-echo.
-echo ============================================================
-echo                    WINDOWS 0 KM
-echo                 TODOS LOS USUARIOS
-echo ============================================================
-echo.
-echo !!! ADVERTENCIA !!!
-echo.
-echo SE BORRARAN LOS ARCHIVOS PERSONALES DE TODOS LOS
-echo PERFILES NORMALES DE C:\Users
-echo.
-echo SE BORRARA EL CONTENIDO DE:
-echo.
-echo   - ESCRITORIO
-echo   - DOCUMENTOS
-echo   - DESCARGAS
-echo   - IMAGENES
-echo   - VIDEOS
-echo   - MUSICA
-echo.
-echo TAMBIEN:
-echo   - TEMPORALES
-echo   - CACHE
-echo   - ARCHIVOS RECIENTES
-echo   - MINIATURAS
-echo   - CACHE DE NAVEGADORES
-echo   - PAPELERA
-echo.
-echo NO SE BORRARAN:
-echo   - WINDOWS
-echo   - PROGRAMAS INSTALADOS
-echo   - SYSTEM32
-echo   - WinSxS
-echo   - C:\Users\Default
-echo   - C:\Users\Public
-echo.
-echo ============================================================
-echo.
-choice /c SN /n /m "Escriba S para continuar o N para cancelar: "
-
-if errorlevel 2 goto CANCELAR
-
-
-:: ============================================================
-:: CERRAR EXPLORADOR Y NAVEGADORES
-:: ============================================================
-cls
-echo.
-echo [1/10] Cerrando aplicaciones...
-
-taskkill /f /im explorer.exe >nul 2>&1
-taskkill /f /im chrome.exe >nul 2>&1
-taskkill /f /im msedge.exe >nul 2>&1
-taskkill /f /im firefox.exe >nul 2>&1
-
-timeout /t 3 >nul
-
-
-:: ============================================================
-:: BORRAR DATOS PERSONALES
-:: ============================================================
-cls
-echo.
-echo ============================================================
-echo [2/10] BORRANDO DATOS PERSONALES
-echo ============================================================
-echo.
-
-for /d %%U in ("C:\Users\*") do (
-
-    if /I not "%%~nxU"=="Default" if /I not "%%~nxU"=="Default User" if /I not "%%~nxU"=="Public" if /I not "%%~nxU"=="All Users" (
-
-        echo --------------------------------------------
-        echo Usuario: %%~nxU
-        echo --------------------------------------------
-
-        echo Escritorio...
-        del /f /s /q "%%U\Desktop\*" >nul 2>&1
-        for /d %%D in ("%%U\Desktop\*") do rd /s /q "%%D" >nul 2>&1
-
-        echo Documentos...
-        del /f /s /q "%%U\Documents\*" >nul 2>&1
-        for /d %%D in ("%%U\Documents\*") do rd /s /q "%%D" >nul 2>&1
-
-        echo Descargas...
-        del /f /s /q "%%U\Downloads\*" >nul 2>&1
-        for /d %%D in ("%%U\Downloads\*") do rd /s /q "%%D" >nul 2>&1
-
-        echo Imagenes...
-        del /f /s /q "%%U\Pictures\*" >nul 2>&1
-        for /d %%D in ("%%U\Pictures\*") do rd /s /q "%%D" >nul 2>&1
-
-        echo Videos...
-        del /f /s /q "%%U\Videos\*" >nul 2>&1
-        for /d %%D in ("%%U\Videos\*") do rd /s /q "%%D" >nul 2>&1
-
-        echo Musica...
-        del /f /s /q "%%U\Music\*" >nul 2>&1
-        for /d %%D in ("%%U\Music\*") do rd /s /q "%%D" >nul 2>&1
-
-    )
-)
-
-
-:: ============================================================
-:: TEMPORARIOS
-:: ============================================================
-cls
-echo.
-echo [3/10] Limpiando temporales de todos los usuarios...
-
-for /d %%U in ("C:\Users\*") do (
-
-    if /I not "%%~nxU"=="Default" if /I not "%%~nxU"=="Default User" if /I not "%%~nxU"=="Public" if /I not "%%~nxU"=="All Users" (
-
-        del /f /s /q "%%U\AppData\Local\Temp\*" >nul 2>&1
-
-        for /d %%D in ("%%U\AppData\Local\Temp\*") do (
-            rd /s /q "%%D" >nul 2>&1
-        )
-
-    )
-)
-
-del /f /s /q "%SystemRoot%\Temp\*" >nul 2>&1
-
-for /d %%D in ("%SystemRoot%\Temp\*") do (
-    rd /s /q "%%D" >nul 2>&1
-)
-
-
-:: ============================================================
-:: CACHE EXPLORER
-:: ============================================================
-cls
-echo.
-echo [4/10] Limpiando cache de Explorer...
-
-for /d %%U in ("C:\Users\*") do (
-
-    if /I not "%%~nxU"=="Default" if /I not "%%~nxU"=="Default User" if /I not "%%~nxU"=="Public" if /I not "%%~nxU"=="All Users" (
-
-        del /f /q "%%U\AppData\Local\IconCache.db" >nul 2>&1
-
-        del /f /q "%%U\AppData\Local\Microsoft\Windows\Explorer\iconcache*" >nul 2>&1
-
-        del /f /q "%%U\AppData\Local\Microsoft\Windows\Explorer\thumbcache*" >nul 2>&1
-
-    )
-)
-
-
-:: ============================================================
-:: ARCHIVOS RECIENTES
-:: ============================================================
-cls
-echo.
-echo [5/10] Limpiando historial de archivos recientes...
-
-for /d %%U in ("C:\Users\*") do (
-
-    if /I not "%%~nxU"=="Default" if /I not "%%~nxU"=="Default User" if /I not "%%~nxU"=="Public" if /I not "%%~nxU"=="All Users" (
-
-        del /f /q "%%U\AppData\Roaming\Microsoft\Windows\Recent\*" >nul 2>&1
-
-        del /f /q "%%U\AppData\Roaming\Microsoft\Windows\Recent\AutomaticDestinations\*" >nul 2>&1
-
-        del /f /q "%%U\AppData\Roaming\Microsoft\Windows\Recent\CustomDestinations\*" >nul 2>&1
-
-    )
-)
-
-
-:: ============================================================
-:: CHROME
-:: ============================================================
-cls
-echo.
-echo [6/10] Limpiando Chrome de todos los usuarios...
-
-for /d %%U in ("C:\Users\*") do (
-
-    if /I not "%%~nxU"=="Default" if /I not "%%~nxU"=="Default User" if /I not "%%~nxU"=="Public" if /I not "%%~nxU"=="All Users" (
-
-        for /d %%P in ("%%U\AppData\Local\Google\Chrome\User Data\*") do (
-
-            del /f /s /q "%%P\Cache\*" >nul 2>&1
-            del /f /s /q "%%P\Code Cache\*" >nul 2>&1
-            del /f /s /q "%%P\GPUCache\*" >nul 2>&1
-
-        )
-
-    )
-)
-
-
-:: ============================================================
-:: EDGE
-:: ============================================================
-cls
-echo.
-echo [7/10] Limpiando Edge de todos los usuarios...
-
-for /d %%U in ("C:\Users\*") do (
-
-    if /I not "%%~nxU"=="Default" if /I not "%%~nxU"=="Default User" if /I not "%%~nxU"=="Public" if /I not "%%~nxU"=="All Users" (
-
-        for /d %%P in ("%%U\AppData\Local\Microsoft\Edge\User Data\*") do (
-
-            del /f /s /q "%%P\Cache\*" >nul 2>&1
-            del /f /s /q "%%P\Code Cache\*" >nul 2>&1
-            del /f /s /q "%%P\GPUCache\*" >nul 2>&1
-
-        )
-
-    )
-)
-
-
-:: ============================================================
-:: WINDOWS UPDATE
-:: ============================================================
-cls
-echo.
-echo [8/10] Limpiando cache de Windows Update...
-
-net stop wuauserv >nul 2>&1
-net stop bits >nul 2>&1
-
-del /f /s /q "%SystemRoot%\SoftwareDistribution\Download\*" >nul 2>&1
-
-for /d %%D in ("%SystemRoot%\SoftwareDistribution\Download\*") do (
-    rd /s /q "%%D" >nul 2>&1
-)
-
-net start bits >nul 2>&1
-net start wuauserv >nul 2>&1
-
-
-:: ============================================================
-:: DNS + PAPELERA
-:: ============================================================
-cls
-echo.
-echo [9/10] Limpiando DNS y Papelera...
-
+echo ==============================================================================
+echo [1/8] Verificando Seguridad (Defender y Firewall)...
+echo ==============================================================================
+netsh advfirewall set allprofiles state on >nul 2>&1
+sc config WinDefend start= auto >nul 2>&1
+net start WinDefend >nul 2>&1
+sc config MpsSvc start= auto >nul 2>&1
+net start MpsSvc >nul 2>&1
+
+echo ==============================================================================
+echo [2/8] Configurando Red y Plan de Energia...
+echo ==============================================================================
+:: Plan de energia: Alto rendimiento
+powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c >nul 2>&1
+:: Limpieza de caché DNS
 ipconfig /flushdns >nul 2>&1
 
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
-"Clear-RecycleBin -Force -ErrorAction SilentlyContinue" >nul 2>&1
+echo ==============================================================================
+echo [3/8] Limpiando Archivos Temporales del Sistema y Windows Update...
+echo ==============================================================================
+del /f /q /s "%WINDIR%\Temp\*" >nul 2>&1
+for /d %%p in ("%WINDIR%\Temp\*") do rmdir /s /q "%%p" >nul 2>&1
 
+del /f /q /s "%WINDIR%\Prefetch\*" >nul 2>&1
+del /f /q /s "%PROGRAMDATA%\Microsoft\Windows\WER\*" >nul 2>&1
 
-:: ============================================================
-:: LIMPIEZA DISCO
-:: ============================================================
-cls
-echo.
-echo [10/10] Ejecutando limpieza de disco de Windows...
+:: Limpieza de Windows Update Download
+net stop wuauserv >nul 2>&1
+net stop bits >nul 2>&1
+del /f /q /s "%WINDIR%\SoftwareDistribution\Download\*" >nul 2>&1
+net start wuauserv >nul 2>&1
+net start bits >nul 2>&1
 
-if exist "%SystemRoot%\System32\cleanmgr.exe" (
-    cleanmgr.exe /verylowdisk
-)
+:: Vaciar Papelera de Reciclaje
+rd /s /q C:\$Recycle.Bin >nul 2>&1
 
-
-:: ============================================================
-:: FONDO NEGRO Y EXPLORADOR
-:: ============================================================
-cls
-echo.
-echo Configurando Explorer...
-
+echo ==============================================================================
+echo [4/8] Procesando Perfiles de Usuario (Excluyendo Public y Default)...
+echo ==============================================================================
 for /d %%U in ("C:\Users\*") do (
+    set "USER_NAME=%%~nxU"
+    if /i not "!USER_NAME!"=="Public" (
+        if /i not "!USER_NAME!"=="Default" (
+            if /i not "!USER_NAME!"=="Default User" (
+                if /i not "!USER_NAME!"=="All Users" (
+                    echo [*] Limpiando perfil: !USER_NAME!
 
-    if /I not "%%~nxU"=="Default" if /I not "%%~nxU"=="Default User" if /I not "%%~nxU"=="Public" if /I not "%%~nxU"=="All Users" (
+                    :: Borrado de carpetas personales
+                    del /f /q /s "%%U\Documents\*" >nul 2>&1
+                    for /d %%d in ("%%U\Documents\*") do rmdir /s /q "%%d" >nul 2>&1
 
-        reg load "HKU\TEMP_%%~nxU" "%%U\NTUSER.DAT" >nul 2>&1
+                    del /f /q /s "%%U\Downloads\*" >nul 2>&1
+                    for /d %%d in ("%%U\Downloads\*") do rmdir /s /q "%%d" >nul 2>&1
 
-        if not errorlevel 1 (
+                    del /f /q /s "%%U\Pictures\*" >nul 2>&1
+                    for /d %%d in ("%%U\Pictures\*") do rmdir /s /q "%%d" >nul 2>&1
 
-            reg add "HKU\TEMP_%%~nxU\Control Panel\Colors" ^
-            /v Background /t REG_SZ /d "0 0 0" /f >nul 2>&1
+                    del /f /q /s "%%U\Videos\*" >nul 2>&1
+                    for /d %%d in ("%%U\Videos\*") do rmdir /s /q "%%d" >nul 2>&1
 
-            reg add "HKU\TEMP_%%~nxU\Control Panel\Desktop" ^
-            /v Wallpaper /t REG_SZ /d "" /f >nul 2>&1
+                    del /f /q /s "%%U\Music\*" >nul 2>&1
+                    for /d %%d in ("%%U\Music\*") do rmdir /s /q "%%d" >nul 2>&1
 
-            reg add "HKU\TEMP_%%~nxU\Control Panel\Desktop" ^
-            /v WallpaperStyle /t REG_SZ /d "0" /f >nul 2>&1
+                    del /f /q /s "%%U\Desktop\*" >nul 2>&1
+                    for /d %%d in ("%%U\Desktop\*") do rmdir /s /q "%%d" >nul 2>&1
 
-            reg unload "HKU\TEMP_%%~nxU" >nul 2>&1
+                    :: Temporales y cachés de usuario
+                    del /f /q /s "%%U\AppData\Local\Temp\*" >nul 2>&1
+                    for /d %%d in ("%%U\AppData\Local\Temp\*") do rmdir /s /q "%%d" >nul 2>&1
+
+                    del /f /q /s "%%U\AppData\Roaming\Microsoft\Windows\Recent\*" >nul 2>&1
+                    del /f /q /s "%%U\AppData\Local\CrashDumps\*" >nul 2>&1
+
+                    :: Cachés de Navegadores (Chrome, Edge, Brave, Firefox)
+                    del /f /q /s "%%U\AppData\Local\Google\Chrome\User Data\Default\Cache\*" >nul 2>&1
+                    del /f /q /s "%%U\AppData\Local\Google\Chrome\User Data\Default\Code Cache\*" >nul 2>&1
+                    del /f /q /s "%%U\AppData\Local\Microsoft\Edge\User Data\Default\Cache\*" >nul 2>&1
+                    del /f /q /s "%%U\AppData\Local\Microsoft\Edge\User Data\Default\Code Cache\*" >nul 2>&1
+                    del /f /q /s "%%U\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default\Cache\*" >nul 2>&1
+
+                    :: Caché de Miniaturas e Iconos
+                    del /f /q /a /s "%%U\AppData\Local\Microsoft\Windows\Explorer\thumbcache_*.db" >nul 2>&1
+                    del /f /q /a /s "%%U\AppData\Local\Microsoft\Windows\Explorer\iconcache_*.db" >nul 2>&1
+                    del /f /q /a "%%U\AppData\Local\IconCache.db" >nul 2>&1
+
+                    :: Limpieza de accesos directos de Inicio en el perfil
+                    del /f /q "%%U\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\*" >nul 2>&1
+                )
+            )
         )
     )
 )
 
-start explorer.exe
+echo ==============================================================================
+echo [5/8] Ajustando Apariencia y Rendimiento del Sistema...
+echo ==============================================================================
+:: Fondo de pantalla negro
+reg add "HKCU\Control Panel\Desktop" /v Wallpaper /t REG_SZ /d "" /f >nul 2>&1
+reg add "HKCU\Control Panel\Colors" /v Background /t REG_SZ /d "0 0 0" /f >nul 2>&1
 
-cls
-echo.
-echo ============================================================
-echo                  WINDOWS 0 KM FINALIZADO
-echo ============================================================
-echo.
-echo TODOS LOS USUARIOS HAN SIDO LIMPIADOS.
-echo.
-echo Datos personales eliminados:
-echo   [OK] Escritorio
-echo   [OK] Documentos
-echo   [OK] Descargas
-echo   [OK] Imagenes
-echo   [OK] Videos
-echo   [OK] Musica
-echo.
-echo Limpieza:
-echo   [OK] Temporales
-echo   [OK] Cache Explorer
-echo   [OK] Miniaturas
-echo   [OK] Archivos recientes
-echo   [OK] Cache Chrome
-echo   [OK] Cache Edge
-echo   [OK] Windows Update
-echo   [OK] DNS
-echo   [OK] Papelera
-echo   [OK] Limpieza de disco
-echo.
-echo Sistema:
-echo   [OK] Windows conservado
-echo   [OK] Programas conservados
-echo   [OK] Explorer reiniciado
-echo.
-echo ============================================================
-echo.
+:: Reducir efectos visuales (Ajustar para obtener el mejor rendimiento)
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" /v VisualFXSetting /t REG_DWORD /d 2 /f >nul 2>&1
+
+:: Orden y alineación de iconos a la cuadrícula
+reg add "HKCU\Software\Microsoft\Windows\Shell\Bags\1\Desktop" /v AutoArrange /t REG_DWORD /d 1 /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\Shell\Bags\1\Desktop" /v SnapToGrid /t REG_DWORD /d 1 /f >nul 2>&1
+
+echo ==============================================================================
+echo [6/8] Ejecutando Herramienta Liberador de Espacio en Disco...
+echo ==============================================================================
+cleanmgr /autoclean >nul 2>&1
+
+echo ==============================================================================
+echo [7/8] Reiniciando Explorador de Windows...
+echo ==============================================================================
+taskkill /f /im explorer.exe >nul 2>&1
+timeout /t 2 /nobreak >nul
+start explorer.exe >nul 2>&1
+
+echo ==============================================================================
+echo [8/8] PROCESO FINALIZADO CON EXITO
+echo ==============================================================================
 pause
-exit /b
-
-
-:CANCELAR
-cls
-echo.
-echo ============================================================
-echo OPERACION CANCELADA
-echo ============================================================
-echo.
-echo No se elimino ningun archivo.
-echo.
-pause
-exit /b
-```
