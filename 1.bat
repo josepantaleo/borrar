@@ -7,6 +7,14 @@ chcp 65001 >nul
 :: ==============================================================================
 setlocal enabledelayedexpansion
 
+:: ------------------------------------------------------------------------------
+:: BLOQUE DE CONFIGURACION - ajustar aqui sin tocar el resto del script
+:: ------------------------------------------------------------------------------
+set "RC_FLAGS=/MIR /MT:16 /R:1 /W:1 /XJ /NFL /NDL /NJH /NJS"
+set "UMBRAL_ALERTA_GB=5"
+set "INICIO_TS=%time%"
+:: ------------------------------------------------------------------------------
+
 :: 1. Comprobacion de Privilegios de Administrador
 net session >nul 2>&1
 if %errorlevel% neq 0 (
@@ -112,17 +120,17 @@ echo.
 echo +------------------------------------------------------------------------------+
 echo ^| [6/13] ARCHIVOS TEMPORALES: Limpiando temporales globales                    ^|
 echo +------------------------------------------------------------------------------+
-robocopy "%EMPTYDIR%" "%WINDIR%\Temp" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-robocopy "%EMPTYDIR%" "%WINDIR%\System32\config\systemprofile\AppData\Local\Temp" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-robocopy "%EMPTYDIR%" "%WINDIR%\Prefetch" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-robocopy "%EMPTYDIR%" "%WINDIR%\Logs" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-robocopy "%EMPTYDIR%" "%PROGRAMDATA%\Microsoft\Windows\WER" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
+robocopy "%EMPTYDIR%" "%WINDIR%\Temp" %RC_FLAGS% >nul 2>&1
+robocopy "%EMPTYDIR%" "%WINDIR%\System32\config\systemprofile\AppData\Local\Temp" %RC_FLAGS% >nul 2>&1
+robocopy "%EMPTYDIR%" "%WINDIR%\Prefetch" %RC_FLAGS% >nul 2>&1
+robocopy "%EMPTYDIR%" "%WINDIR%\Logs" %RC_FLAGS% >nul 2>&1
+robocopy "%EMPTYDIR%" "%PROGRAMDATA%\Microsoft\Windows\WER" %RC_FLAGS% >nul 2>&1
 del /f /q /s "%WINDIR%\MEMORY.DMP" >nul 2>&1
-robocopy "%EMPTYDIR%" "%WINDIR%\Minidump" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
+robocopy "%EMPTYDIR%" "%WINDIR%\Minidump" %RC_FLAGS% >nul 2>&1
 
 net stop wuauserv >nul 2>&1
 net stop bits >nul 2>&1
-robocopy "%EMPTYDIR%" "%WINDIR%\SoftwareDistribution\Download" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
+robocopy "%EMPTYDIR%" "%WINDIR%\SoftwareDistribution\Download" %RC_FLAGS% >nul 2>&1
 net start wuauserv >nul 2>&1
 net start bits >nul 2>&1
 
@@ -133,7 +141,7 @@ powershell -command "Clear-RecycleBin -DriveLetter C -Force -ErrorAction Silentl
 if exist "C:\Windows.old" (
     takeown /f "C:\Windows.old" /r /d y >nul 2>&1
     icacls "C:\Windows.old" /grant administrators:F /t >nul 2>&1
-    robocopy "%EMPTYDIR%" "C:\Windows.old" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
+    robocopy "%EMPTYDIR%" "C:\Windows.old" %RC_FLAGS% >nul 2>&1
     rd /s /q "C:\Windows.old" >nul 2>&1
 )
 
@@ -142,6 +150,14 @@ Dism.exe /online /Cleanup-Image /StartComponentCleanup /Quiet >nul 2>&1
 
 echo  [OK] Temporales, descargas obsoletas, papelera y Windows.old eliminados.
 echo Temporales del sistema limpiados >> "%LOGFILE%"
+echo.
+
+echo +------------------------------------------------------------------------------+
+echo ^| [6b/13] INVENTARIO: Registrando programas instalados antes del reseteo      ^|
+echo +------------------------------------------------------------------------------+
+echo --- Programas instalados (%date%) --- >> "%LOGFILE%"
+powershell -command "Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*,HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object DisplayName | Select-Object -ExpandProperty DisplayName | Sort-Object -Unique" >> "%LOGFILE%" 2>&1
+echo  [OK] Inventario guardado en el log.
 echo.
 
 echo +------------------------------------------------------------------------------+
@@ -156,13 +172,13 @@ for /d %%U in ("C:\Users\*") do (
                     echo    [*] Procesando carpetas de: !USER_NAME!
                     echo Procesando usuario: !USER_NAME! >> "%LOGFILE%"
 
-                    robocopy "%EMPTYDIR%" "%%U\Documents" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-                    robocopy "%EMPTYDIR%" "%%U\Downloads" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-                    robocopy "%EMPTYDIR%" "%%U\Pictures" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-                    robocopy "%EMPTYDIR%" "%%U\Videos" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-                    robocopy "%EMPTYDIR%" "%%U\Music" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-                    robocopy "%EMPTYDIR%" "%%U\Desktop" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-                    robocopy "%EMPTYDIR%" "%%U\AppData\Local\Temp" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\Documents" %RC_FLAGS% >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\Downloads" %RC_FLAGS% >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\Pictures" %RC_FLAGS% >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\Videos" %RC_FLAGS% >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\Music" %RC_FLAGS% >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\Desktop" %RC_FLAGS% >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\AppData\Local\Temp" %RC_FLAGS% >nul 2>&1
 
                     del /f /q /s "%%U\AppData\Roaming\Microsoft\Windows\Recent\*" >nul 2>&1
                     del /f /q /s "%%U\AppData\Local\CrashDumps\*" >nul 2>&1
@@ -177,8 +193,8 @@ for /d %%U in ("C:\Users\*") do (
                     del /f /q /s "%%U\AppData\Local\AMD\DxCache\*" >nul 2>&1
 
                     :: Caches de herramientas de practicas (VS Code, Java)
-                    robocopy "%EMPTYDIR%" "%%U\AppData\Roaming\Code\Cache" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
-                    robocopy "%EMPTYDIR%" "%%U\AppData\Roaming\Code\CachedData" /MIR /NFL /NDL /NJH /NJS >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\AppData\Roaming\Code\Cache" %RC_FLAGS% >nul 2>&1
+                    robocopy "%EMPTYDIR%" "%%U\AppData\Roaming\Code\CachedData" %RC_FLAGS% >nul 2>&1
                     del /f /q /s "%%U\AppData\LocalLow\Sun\Java\Deployment\cache\*" >nul 2>&1
 
                     del /f /q /a /s "%%U\AppData\Local\Microsoft\Windows\Explorer\thumbcache_*.db" >nul 2>&1
@@ -186,6 +202,11 @@ for /d %%U in ("C:\Users\*") do (
                     del /f /q /a "%%U\AppData\Local\IconCache.db" >nul 2>&1
 
                     del /f /q "%%U\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\*" >nul 2>&1
+
+                    :: Robocopy devuelve codigos 0-7 como exito; 8+ indica que algo no se pudo borrar
+                    if !errorlevel! geq 8 (
+                        echo    [!] Advertencia: algunos archivos de !USER_NAME! no se pudieron borrar >> "%LOGFILE%"
+                    )
                 )
             )
         )
@@ -263,7 +284,8 @@ echo ^| [9/13] TELEMETRIA: Desactivando servicios de rastreo                    
 echo +------------------------------------------------------------------------------+
 sc config DiagTrack start= disabled >nul 2>&1
 net stop DiagTrack >nul 2>&1
-echo  [OK] Servicio DiagTrack desactivado.
+start /wait wsreset.exe -i >nul 2>&1
+echo  [OK] Servicio DiagTrack desactivado y cache de Microsoft Store reseteada.
 echo.
 
 echo +------------------------------------------------------------------------------+
@@ -304,6 +326,12 @@ echo +--------------------------------------------------------------------------
 for /f %%B in ('powershell -command "(Get-Volume C).SizeRemaining"') do set "BYTES_FINAL=%%B"
 
 powershell -command "$d = (%BYTES_FINAL% - %BYTES_INICIO%) / 1GB; $m = (%BYTES_FINAL% - %BYTES_INICIO%) / 1MB; if ($d -ge 1) { Write-Host '  Espacio recuperado:' ([math]::Round($d, 2)) 'GB' -ForegroundColor Green } else { Write-Host '  Espacio recuperado:' ([math]::Round($m, 2)) 'MB' -ForegroundColor Green }"
+
+:: Tiempo total transcurrido
+powershell -command "$ini = [datetime]::Parse('%INICIO_TS%'); $fin = Get-Date; $diff = $fin - $ini; if ($diff.TotalSeconds -lt 0) { $diff = $diff.Add([timespan]::FromDays(1)) }; Write-Host ('  Tiempo total: {0:mm} min {0:ss} seg' -f $diff)"
+
+:: Alerta de espacio libre bajo tras el reseteo
+powershell -command "$gbLibre = (Get-Volume C).SizeRemaining / 1GB; if ($gbLibre -lt %UMBRAL_ALERTA_GB%) { Write-Host ('  [!] ALERTA: solo quedan {0:N1} GB libres en C:' -f $gbLibre) -ForegroundColor Red }"
 
 echo Fin de mantenimiento: %date% %time% >> "%LOGFILE%"
 echo Log guardado en: %LOGFILE%
