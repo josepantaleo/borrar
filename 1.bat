@@ -27,7 +27,7 @@ echo.
 for /f %%A in ('powershell -command "(Get-Volume C).SizeRemaining"') do set "BYTES_INICIO=%%A"
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [1/11] SEGURIDAD: Verificando Defender y Firewall                          ¦
+echo ¦ [1/11] SEGURIDAD: Verificando Defender y Firewall                            ¦
 echo +------------------------------------------------------------------------------+
 netsh advfirewall set allprofiles state on >nul 2>&1
 sc config WinDefend start= auto >nul 2>&1
@@ -38,14 +38,34 @@ echo  [?] Estado de seguridad garantizado.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [2/11] PROCESOS: Cerrando aplicaciones para liberar bloqueos               ¦
+echo ¦ [2/11] PROCESOS: Cerrando aplicaciones para liberar bloqueos                ¦
 echo +------------------------------------------------------------------------------+
 taskkill /f /im chrome.exe /im msedge.exe /im firefox.exe /im brave.exe /im opera.exe /im vivaldi.exe /im discord.exe /im spotify.exe /im ms-teams.exe /im teams.exe /im telegram.exe >nul 2>&1
 echo  [?] Procesos de usuario finalizados.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [3/11] SISTEMA: Liberacion masiva (Hibernacion, Logs, Spooler)              ¦
+echo ¦ [3/11] NAVEGADOR: Verificacion e instalacion de Google Chrome                ¦
+echo +------------------------------------------------------------------------------+
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
+    echo  [?] Google Chrome ya esta instalado.
+) else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
+    echo  [?] Google Chrome ya esta instalado.
+) else if exist "%LocalAppData%\Google\Chrome\Application\chrome.exe" (
+    echo  [?] Google Chrome ya esta instalado.
+) else (
+    echo  [*] Google Chrome no fue encontrado. Instalando mediante winget...
+    winget install --id Google.Chrome -e --accept-source-agreements --accept-package-agreements >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo  [?] Google Chrome se instalo correctamente.
+    ) else (
+        echo  [!] Hubo un error al intentar instalar Google Chrome.
+    )
+)
+echo.
+
+echo +------------------------------------------------------------------------------+
+echo ¦ [4/11] SISTEMA: Liberacion masiva (Hibernacion, Logs, Spooler)               ¦
 echo +------------------------------------------------------------------------------+
 powercfg -h off >nul 2>&1
 bitsadmin /reset /allusers >nul 2>&1
@@ -62,7 +82,7 @@ echo  [?] Basura del sistema y registros purgados.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [4/11] RENDIMIENTO: Optimizacion de Red, Energia y Trim SSD                 ¦
+echo ¦ [5/11] RENDIMIENTO: Optimizacion de Red, Energia y Trim SSD                  ¦
 echo +------------------------------------------------------------------------------+
 powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c >nul 2>&1
 ipconfig /flushdns >nul 2>&1
@@ -72,7 +92,7 @@ echo  [?] Plan de energia activo y unidad C: optimizada.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [5/11] ARCHIVOS TEMPORALES: Limpiando temporales globales                    ¦
+echo ¦ [6/11] ARCHIVOS TEMPORALES: Limpiando temporales globales                    ¦
 echo +------------------------------------------------------------------------------+
 del /f /q /s "%WINDIR%\Temp\*" >nul 2>&1
 for /d %%p in ("%WINDIR%\Temp\*") do rmdir /s /q "%%p" >nul 2>&1
@@ -95,7 +115,7 @@ echo  [?] Temporales y descargas obsoletas eliminadas.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [6/11] PERFILES: Limpiando datos personales y cachés de usuarios             ¦
+echo ¦ [7/11] PERFILES: Limpiando datos personales y cachés de usuarios             ¦
 echo +------------------------------------------------------------------------------+
 for /d %%U in ("C:\Users\*") do (
     set "USER_NAME=%%~nxU"
@@ -103,7 +123,7 @@ for /d %%U in ("C:\Users\*") do (
         if /i not "!USER_NAME!"=="Default" (
             if /i not "!USER_NAME!"=="Default User" (
                 if /i not "!USER_NAME!"=="All Users" (
-                    echo   [*] Procesando carpetas de: !USER_NAME!
+                    echo    [*] Procesando carpetas de: !USER_NAME!
 
                     del /f /q /s "%%U\Documents\*" >nul 2>&1
                     for /d %%d in ("%%U\Documents\*") do rmdir /s /q "%%d" >nul 2>&1
@@ -152,7 +172,7 @@ echo  [?] Carpetas personales y cachés purgadas.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [7/11] PERSONALIZACION: Fondo negro e Iconos fundamentales de Escritorio     ¦
+echo ¦ [8/11] PERSONALIZACION: Fondo negro e Iconos fundamentales de Escritorio     ¦
 echo +------------------------------------------------------------------------------+
 reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /v DisableSearchBoxSuggestions /t REG_DWORD /d 1 /f >nul 2>&1
 
@@ -162,7 +182,7 @@ for /d %%U in ("C:\Users\*") do (
         if /i not "!USER_NAME!"=="Default User" (
             if /i not "!USER_NAME!"=="All Users" (
                 if exist "%%U\NTUSER.DAT" (
-                    echo   [*] Aplicando entorno gráfico a: !USER_NAME!
+                    echo    [*] Aplicando entorno gráfico a: !USER_NAME!
                     reg load "HKU\TempUserHive" "%%U\NTUSER.DAT" >nul 2>&1
                     if !errorlevel! equ 0 (
                         :: Fondo Negro Solido estricto
@@ -214,7 +234,7 @@ echo  [?] Fondo negro e íconos de sistema aplicados a todos los perfiles.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [8/11] TELEMETRIA: Desactivando servicios de rastreo                        ¦
+echo ¦ [9/11] TELEMETRIA: Desactivando servicios de rastreo                         ¦
 echo +------------------------------------------------------------------------------+
 sc config DiagTrack start= disabled >nul 2>&1
 net stop DiagTrack >nul 2>&1
@@ -222,14 +242,14 @@ echo  [?] Servicio DiagTrack desactivado.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [9/11] LIBERADOR DE DISCO: Ejecutando autoclean de Windows                   ¦
+echo ¦ [10/11] LIBERADOR DE DISCO: Ejecutando autoclean de Windows                  ¦
 echo +------------------------------------------------------------------------------+
 cleanmgr /autoclean >nul 2>&1
 echo  [?] Liberador de espacio completado.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [10/11] ENTORNO: Reiniciando el Explorador de Windows                        ¦
+echo ¦ [11/11] ENTORNO: Reiniciando el Explorador de Windows                        ¦
 echo +------------------------------------------------------------------------------+
 taskkill /f /im explorer.exe >nul 2>&1
 timeout /t 2 /nobreak >nul
