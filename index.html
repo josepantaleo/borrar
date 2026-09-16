@@ -1,168 +1,195 @@
-<!doctype html>
+```html
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mateo Arena | Torneo de ajedrez</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Descargar archivo 1.bat</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            padding: 20px;
+        }
+
+        .contenedor {
+            width: 100%;
+            max-width: 550px;
+
+            background: white;
+            padding: 45px 35px;
+
+            text-align: center;
+
+            border-radius: 20px;
+
+            box-shadow:
+                0 15px 40px rgba(0, 0, 0, 0.25);
+        }
+
+        .icono {
+            font-size: 70px;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            font-size: 30px;
+        }
+
+        p {
+            color: #555;
+            font-size: 17px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .archivo {
+            background: #f1f5f9;
+            border: 1px solid #d9e2ec;
+
+            padding: 15px;
+            margin-bottom: 25px;
+
+            border-radius: 10px;
+
+            font-family: Consolas, monospace;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .btn-descargar {
+            display: inline-block;
+
+            background: #1976d2;
+            color: white;
+
+            padding: 15px 30px;
+
+            border-radius: 10px;
+
+            text-decoration: none;
+
+            font-size: 17px;
+            font-weight: bold;
+
+            cursor: pointer;
+
+            transition: all 0.25s ease;
+
+            box-shadow: 0 5px 15px rgba(25, 118, 210, 0.3);
+        }
+
+        .btn-descargar:hover {
+            background: #125aa0;
+            transform: translateY(-3px);
+
+            box-shadow:
+                0 8px 20px rgba(25, 118, 210, 0.4);
+        }
+
+        .btn-descargar:active {
+            transform: translateY(0);
+        }
+
+        .info {
+            margin-top: 25px;
+
+            font-size: 13px;
+            color: #777;
+        }
+
+        footer {
+            margin-top: 30px;
+
+            font-size: 12px;
+            color: #999;
+        }
+
+        @media (max-width: 600px) {
+
+            .contenedor {
+                padding: 35px 20px;
+            }
+
+            h1 {
+                font-size: 25px;
+            }
+
+            .icono {
+                font-size: 55px;
+            }
+
+            .btn-descargar {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
+
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">M</div>
-        <div>
-          <strong>Mateo Arena</strong>
-          <span>torneos en vivo</span>
-        </div>
-      </div>
 
-      <div class="mode-switcher">
-        <button class="mode-btn active" data-mode="player">Jugador</button>
-        <button class="mode-btn" data-mode="admin">Administrador</button>
-      </div>
+    <main class="contenedor">
 
-      <nav class="nav-list">
-        <button class="nav-item active" data-view="overview"><span>▦</span> Resumen</button>
-        <button class="nav-item" data-view="matches"><span>♟</span> Mis partidas</button>
-        <button class="nav-item" data-view="standings"><span>↗</span> Clasificación</button>
-        <button class="nav-item" data-view="history"><span>◷</span> Historial</button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-chip">
-          <div class="avatar">LV</div>
-          <div>
-            <strong>Lucía Velasco</strong>
-            <span>lucia@ejemplo.com</span>
-          </div>
-          <button class="icon-btn" title="Cerrar sesión">⋯</button>
-        </div>
-        <div class="connection"><span class="pulse"></span> Firestore conectado</div>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <header class="topbar">
-        <div>
-          <div class="eyebrow">TORNEO ACTIVO · 12 AGO 2026</div>
-          <h1 id="page-title">Copa Primavera 2026</h1>
-        </div>
-        <div class="topbar-actions">
-          <button class="icon-btn" title="Notificaciones">♧<span class="notification-dot"></span></button>
-          <button class="outline-btn" id="reset-demo">Restablecer demo</button>
-          <button class="primary-btn" id="primary-action">Inscribirme al torneo <span>→</span></button>
-        </div>
-      </header>
-
-      <section id="view-overview" class="view active">
-        <div class="hero-grid">
-          <div class="hero-panel">
-            <div class="hero-copy">
-              <span class="status-badge live">● EN VIVO</span>
-              <h2>La ronda 3<br><em>ya está en juego.</em></h2>
-              <p>Todos los resultados pasan por revisión administrativa antes de actualizar la clasificación oficial.</p>
-              <button class="dark-btn" data-view-target="matches">Ver mis partidas <span>→</span></button>
-            </div>
-            <div class="hero-board" aria-label="Tablero decorativo">
-              <div class="board-grid" id="hero-board"></div>
-              <div class="board-caption"><span>Ronda 3 de 5</span><span>16 jugadores</span></div>
-            </div>
-          </div>
-
-          <div class="registration-card">
-            <div class="card-topline"><span class="status-badge pending">● INSCRIPCIÓN ABIERTA</span><span class="small-muted">cierra 20 AGO</span></div>
-            <h3>Reserva tu lugar</h3>
-            <p>Inscríbete con tu cuenta de Google. El administrador revisará tu solicitud antes de asignarte una mesa.</p>
-            <div class="registration-state" id="registration-state">
-              <div class="check-circle">✓</div>
-              <div><strong>Ya estás inscripta</strong><span>Solicitud pendiente de aprobación</span></div>
-            </div>
-            <button class="outline-btn full" id="registration-btn">Ver estado de inscripción</button>
-          </div>
+        <div class="icono">
+            📦
         </div>
 
-        <div class="section-head"><div><span class="eyebrow">PANEL PERSONAL</span><h2>Tu torneo, de un vistazo</h2></div><span class="last-sync">Actualizado hace 8 s</span></div>
-        <div class="stats-grid">
-          <div class="stat-card"><span class="stat-label">Puntos</span><strong>4.5</strong><span class="stat-trend positive">↑ +1.5 esta ronda</span></div>
-          <div class="stat-card"><span class="stat-label">Posición</span><strong>#3</strong><span class="stat-trend">de 16 jugadores</span></div>
-          <div class="stat-card"><span class="stat-label">Balance</span><strong>+2</strong><span class="stat-trend">3 partidas jugadas</span></div>
-          <div class="stat-card accent"><span class="stat-label">Próxima partida</span><strong>12:48</strong><span class="stat-trend">tu reloj · negras</span></div>
+        <h1>Descargar archivo</h1>
+
+        <p>
+            Hacé clic en el botón para descargar
+            el archivo BAT.
+        </p>
+
+        <div class="archivo">
+            📄 1.bat
         </div>
 
-        <div class="content-grid">
-          <div class="panel">
-            <div class="panel-head"><div><span class="eyebrow">RONDA ACTUAL</span><h3>Tu mesa · Mesa 04</h3></div><span class="status-badge live">● EN VIVO</span></div>
-            <div class="match-row">
-              <div class="player-block"><div class="avatar ivory">LV</div><div><strong>Lucía Velasco</strong><span>Negras · 1462 ELO</span></div></div>
-              <div class="match-clock"><strong>12:48</strong><span>tu reloj</span></div>
-              <div class="vs">VS</div>
-              <div class="player-block opponent"><div class="avatar dark">MR</div><div><strong>Mateo Ríos</strong><span>Blancas · 1518 ELO</span></div></div>
-            </div>
-            <div class="match-meta"><span>♟ 18 movimientos</span><span>◉ Turno de blancas</span><span>⌁ Ambos conectados</span></div>
-            <button class="dark-btn full" data-view-target="matches">Entrar a la mesa <span>→</span></button>
-          </div>
+        <a
+            href="1.bat"
+            download="1.bat"
+            class="btn-descargar"
+            id="btnDescargar"
+        >
+            ⬇ Descargar 1.bat
+        </a>
 
-          <div class="panel">
-            <div class="panel-head"><div><span class="eyebrow">CLASIFICACIÓN</span><h3>Top 5</h3></div><button class="text-btn" data-view-target="standings">Ver todo →</button></div>
-            <div class="standings-mini">
-              <div class="stand-row header"><span>#</span><span>Jugador</span><span>Pts</span></div>
-              <div class="stand-row"><span>1</span><strong>Tomás Aguirre</strong><b>5.5</b></div>
-              <div class="stand-row current"><span>3</span><strong>Lucía Velasco</strong><b>4.5</b></div>
-              <div class="stand-row"><span>2</span><strong>Mateo Ríos</strong><b>5.0</b></div>
-              <div class="stand-row"><span>4</span><strong>Carla Méndez</strong><b>4.0</b></div>
-              <div class="stand-row"><span>5</span><strong>Bruno Silva</strong><b>3.5</b></div>
-            </div>
-          </div>
+        <div class="info">
+            El archivo se descargará directamente a tu computadora.
         </div>
-      </section>
 
-      <section id="view-matches" class="view">
-        <div class="section-head"><div><span class="eyebrow">SALA DE JUEGO</span><h2>Mis partidas</h2></div><span class="status-badge live">● Sincronizado</span></div>
-        <div class="match-layout">
-          <div class="chess-panel panel">
-            <div class="panel-head"><div><span class="eyebrow">RONDA 3 · MESA 04</span><h3>Lucía Velasco <span class="muted">vs</span> Mateo Ríos</h3></div><span class="status-badge live">● EN VIVO</span></div>
-            <div class="clock-strip"><div><span>NEGRAS</span><strong>12:48</strong></div><div class="turn-indicator">Turno de blancas</div><div><span>BLANCAS</span><strong class="clock-dark">08:31</strong></div></div>
-            <div class="large-board" id="large-board"></div>
-            <div class="board-actions"><button class="outline-btn">Ofrecer tablas</button><button class="danger-btn">Abandonar partida</button></div>
-          </div>
-          <div class="side-stack">
-            <div class="panel"><div class="panel-head"><h3>Chat privado</h3><span class="small-muted">solo participantes</span></div><div class="chat-messages"><div class="message opponent-msg">¡Buena partida!<span>12:34</span></div><div class="message own-msg">Igualmente, seguimos 👊<span>12:35</span></div></div><div class="chat-input"><input placeholder="Escribe un mensaje…" /><button class="icon-btn">↑</button></div></div>
-            <div class="panel"><div class="panel-head"><h3>Estado de la mesa</h3></div><div class="state-list"><div><span class="state-dot green"></span> Ambos jugadores conectados</div><div><span class="state-dot green"></span> Reloj sincronizado</div><div><span class="state-dot yellow"></span> Resultado pendiente</div></div></div>
-          </div>
-        </div>
-      </section>
+        <footer>
+            Página de descarga
+        </footer>
 
-      <section id="view-standings" class="view">
-        <div class="section-head"><div><span class="eyebrow">TORNEO · RONDA 3</span><h2>Clasificación oficial</h2></div><button class="outline-btn">Exportar CSV ↓</button></div>
-        <div class="panel table-panel"><div class="table-note">Los resultados pendientes no modifican esta tabla. Última actualización: hace 8 s.</div><table><thead><tr><th>#</th><th>Jugador</th><th>Pts</th><th>PG</th><th>Tablas</th><th>PP</th><th>Blancas</th><th>Negras</th><th>Balance</th></tr></thead><tbody id="standings-body"></tbody></table></div>
-      </section>
-
-      <section id="view-history" class="view">
-        <div class="section-head"><div><span class="eyebrow">AUDITORÍA DEL TORNEO</span><h2>Historial completo</h2></div><span class="small-muted">Firestore · solo lectura</span></div>
-        <div class="timeline panel" id="history-list"></div>
-      </section>
-
-      <section id="admin-view" class="view">
-        <div class="section-head"><div><span class="eyebrow">CONTROL CENTRAL</span><h2>Supervisión de mesas</h2></div><div class="admin-actions"><button class="outline-btn">Generar ronda</button><button class="primary-btn">Cerrar ronda 3 →</button></div></div>
-        <div class="admin-kpis"><div><span>Mesas en vivo</span><strong>6</strong></div><div><span>Esperando jugador</span><strong>2</strong></div><div><span>Resultados pendientes</span><strong id="pending-count">3</strong></div><div><span>Jugadores aprobados</span><strong>16</strong></div></div>
-        <div class="table-panel panel"><div class="filter-row"><div class="filters"><button class="filter active">Todas <b>8</b></button><button class="filter">En vivo <b>6</b></button><button class="filter">Pendientes <b>3</b></button><button class="filter">Revisar <b>1</b></button></div><input class="search" placeholder="Buscar jugador o mesa…" /></div><div class="admin-table" id="admin-table"></div></div>
-      </section>
     </main>
-  </div>
 
-  <div class="modal-backdrop" id="modal-backdrop" hidden>
-    <div class="modal">
-      <button class="modal-close" id="modal-close">×</button>
-      <span class="eyebrow">INSCRIPCIÓN AL TORNEO</span>
-      <h2>Reserva tu lugar en Copa Primavera 2026</h2>
-      <p>La solicitud se guarda de forma independiente y queda pendiente de aprobación administrativa.</p>
-      <label>Nombre y apellido<input id="reg-name" value="Lucía Velasco"></label>
-      <label>Correo electrónico<input id="reg-email" value="lucia@ejemplo.com" type="email"></label>
-      <button class="primary-btn full" id="submit-registration">Enviar inscripción <span>→</span></button>
-      <div class="form-note">Identificador: <code>uid_demo_lucia</code></div>
-    </div>
-  </div>
-  <script src="app.js"></script>
+    <script>
+        document
+            .getElementById("btnDescargar")
+            .addEventListener("click", function () {
+
+                console.log("Descarga solicitada: 1.bat");
+
+            });
+    </script>
+
 </body>
 </html>
+```
