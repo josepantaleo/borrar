@@ -1,6 +1,6 @@
 @echo off
 :: ==============================================================================
-:: SCRIPT DE LIMPIEZA PROFUNDA, OPTIMIZACION Y PERSONALIZACION VISUAL PRO
+:: SCRIPT DE LIMPIEZA PROFUNDA, OPTIMIZACION Y FONDO NEGRO CON ICONOS DE SISTEMA
 :: ==============================================================================
 setlocal enabledelayedexpansion
 
@@ -152,7 +152,7 @@ echo  [?] Carpetas personales y cachés purgadas.
 echo.
 
 echo +------------------------------------------------------------------------------+
-echo ¦ [7/11] PERSONALIZACION VISUAL: Aplicando estilo estandarizado a perfiles     ¦
+echo ¦ [7/11] PERSONALIZACION: Fondo negro e Iconos fundamentales de Escritorio     ¦
 echo +------------------------------------------------------------------------------+
 reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /v DisableSearchBoxSuggestions /t REG_DWORD /d 1 /f >nul 2>&1
 
@@ -162,36 +162,39 @@ for /d %%U in ("C:\Users\*") do (
         if /i not "!USER_NAME!"=="Default User" (
             if /i not "!USER_NAME!"=="All Users" (
                 if exist "%%U\NTUSER.DAT" (
-                    echo   [*] Aplicando entorno grafico a: !USER_NAME!
+                    echo   [*] Aplicando entorno gráfico a: !USER_NAME!
                     reg load "HKU\TempUserHive" "%%U\NTUSER.DAT" >nul 2>&1
                     if !errorlevel! equ 0 (
-                        :: Fondo negro solido
+                        :: Fondo Negro Solido estricto
                         reg add "HKU\TempUserHive\Control Panel\Desktop" /v Wallpaper /t REG_SZ /d "" /f >nul 2>&1
+                        reg add "HKU\TempUserHive\Control Panel\Desktop" /v WallpaperStyle /t REG_SZ /d "0" /f >nul 2>&1
+                        reg add "HKU\TempUserHive\Control Panel\Desktop" /v TileWallpaper /t REG_SZ /d "0" /f >nul 2>&1
                         reg add "HKU\TempUserHive\Control Panel\Colors" /v Background /t REG_SZ /d "0 0 0" /f >nul 2>&1
+
+                        :: Iconos fundamentales en el Escritorio (0 = Visible)
+                        reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" /v "{20D04FE0-3AEA-1069-A2D8-08002B30309D}" /t REG_DWORD /d 0 /f >nul 2>&1
+                        reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" /v "{59031a47-3f72-44a7-89c5-5595fe6b30ee}" /t REG_DWORD /d 0 /f >nul 2>&1
+                        reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" /v "{645FF040-5081-101B-9F08-00AA002F954E}" /t REG_DWORD /d 0 /f >nul 2>&1
+                        reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" /v "{5399E690-0968-11D1-9C99-00C04F79FA13}" /t REG_DWORD /d 0 /f >nul 2>&1
+                        reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel" /v "{F0230A0D-0A4E-4420-AA38-3A183e87B11c}" /t REG_DWORD /d 0 /f >nul 2>&1
 
                         :: Activar Modo Oscuro para Apps y Sistema
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f >nul 2>&1
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul 2>&1
 
-                        :: Rendimiento y sin transparencias
+                        :: Ajustes de Rendimiento visual y Alineacion
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" /v VisualFXSetting /t REG_DWORD /d 2 /f >nul 2>&1
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v EnableTransparency /t REG_DWORD /d 0 /f >nul 2>&1
-
-                        :: Alineación de iconos del Escritorio
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\Shell\Bags\1\Desktop" /v AutoArrange /t REG_DWORD /d 1 /f >nul 2>&1
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\Shell\Bags\1\Desktop" /v SnapToGrid /t REG_DWORD /d 1 /f >nul 2>&1
 
-                        :: Menú Inicio Normal (Alineado a la Izquierda)
+                        :: Menú Inicio e Iconos de Barra de Tareas Limpios
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v TaskbarAl /t REG_DWORD /d 0 /f >nul 2>&1
-                        reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Search" /v BingSearchEnabled /t REG_DWORD /d 0 /f >nul 2>&1
-                        reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v SystemPaneSuggestionsEnabled /t REG_DWORD /d 0 /f >nul 2>&1
-
-                        :: Limpieza de iconos innecesarios de Barra de Tareas (Widgets, Copilot, Vista de Tareas)
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v ShowTaskViewButton /t REG_DWORD /d 0 /f >nul 2>&1
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v TaskbarDa /t REG_DWORD /d 0 /f >nul 2>&1
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v ShowCopilotButton /t REG_DWORD /d 0 /f >nul 2>&1
 
-                        :: Explorador: Mostrar extensiones, mostrar ocultos y abrir en Este Equipo
+                        :: Explorador: Mostrar extensiones, ocultos y abrir en Este Equipo
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v HideFileExt /t REG_DWORD /d 0 /f >nul 2>&1
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v Hidden /t REG_DWORD /d 1 /f >nul 2>&1
                         reg add "HKU\TempUserHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v LaunchTo /t REG_DWORD /d 1 /f >nul 2>&1
@@ -207,7 +210,7 @@ for /d %%U in ("C:\Users\*") do (
         )
     )
 )
-echo  [?] Configuración de interfaz aplicada a todos los usuarios.
+echo  [?] Fondo negro e íconos de sistema aplicados a todos los perfiles.
 echo.
 
 echo +------------------------------------------------------------------------------+
