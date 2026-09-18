@@ -1,195 +1,4674 @@
-```html
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Descargar archivo 1.bat</title>
+    <title>Curso de JavaScript | IPEM 146</title>
+    <meta
+      name="description"
+      content="Curso introductorio de JavaScript con explicaciones, ejemplos ejecutables, ejercicios, evaluaciones y proyecto final."
+    />
+    <meta name="theme-color" content="#1d222d" />
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    <link rel="stylesheet" href="style.css" />
+  </head>
 
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            min-height: 100vh;
+  <body>
+    <a class="saltar-contenido" href="#contenidoPrincipal">
+      Ir al contenido principal
+    </a>
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
 
-            display: flex;
-            justify-content: center;
-            align-items: center;
+    <header class="header">
+      <button
+        class="btn-menu"
+        id="botonMenu"
+        type="button"
+        aria-label="Abrir menú de clases"
+        aria-controls="sidebar"
+        aria-expanded="false"
+      >
+        <span aria-hidden="true">☰</span>
+      </button>
 
-            padding: 20px;
-        }
-
-        .contenedor {
-            width: 100%;
-            max-width: 550px;
-
-            background: white;
-            padding: 45px 35px;
-
-            text-align: center;
-
-            border-radius: 20px;
-
-            box-shadow:
-                0 15px 40px rgba(0, 0, 0, 0.25);
-        }
-
-        .icono {
-            font-size: 70px;
-            margin-bottom: 15px;
-        }
-
-        h1 {
-            color: #1e3c72;
-            margin-bottom: 15px;
-            font-size: 30px;
-        }
-
-        p {
-            color: #555;
-            font-size: 17px;
-            line-height: 1.6;
-            margin-bottom: 30px;
-        }
-
-        .archivo {
-            background: #f1f5f9;
-            border: 1px solid #d9e2ec;
-
-            padding: 15px;
-            margin-bottom: 25px;
-
-            border-radius: 10px;
-
-            font-family: Consolas, monospace;
-            font-size: 16px;
-            color: #333;
-        }
-
-        .btn-descargar {
-            display: inline-block;
-
-            background: #1976d2;
-            color: white;
-
-            padding: 15px 30px;
-
-            border-radius: 10px;
-
-            text-decoration: none;
-
-            font-size: 17px;
-            font-weight: bold;
-
-            cursor: pointer;
-
-            transition: all 0.25s ease;
-
-            box-shadow: 0 5px 15px rgba(25, 118, 210, 0.3);
-        }
-
-        .btn-descargar:hover {
-            background: #125aa0;
-            transform: translateY(-3px);
-
-            box-shadow:
-                0 8px 20px rgba(25, 118, 210, 0.4);
-        }
-
-        .btn-descargar:active {
-            transform: translateY(0);
-        }
-
-        .info {
-            margin-top: 25px;
-
-            font-size: 13px;
-            color: #777;
-        }
-
-        footer {
-            margin-top: 30px;
-
-            font-size: 12px;
-            color: #999;
-        }
-
-        @media (max-width: 600px) {
-
-            .contenedor {
-                padding: 35px 20px;
-            }
-
-            h1 {
-                font-size: 25px;
-            }
-
-            .icono {
-                font-size: 55px;
-            }
-
-            .btn-descargar {
-                width: 100%;
-            }
-        }
-    </style>
-</head>
-
-<body>
-
-    <main class="contenedor">
-
-        <div class="icono">
-            📦
+      <div class="marca-curso">
+        <span class="marca-js" aria-hidden="true">JS</span>
+        <div>
+          <h1>JavaScript</h1>
+          <p>Formación Profesional · IPEM 146</p>
         </div>
+      </div>
 
-        <h1>Descargar archivo</h1>
+      <a class="practica" href="actividad.html">
+        <span aria-hidden="true">✦</span>
+        <span class="texto-actividad">Actividades</span>
+      </a>
 
-        <p>
-            Hacé clic en el botón para descargar
-            el archivo BAT.
-        </p>
-
-        <div class="archivo">
-            📄 1.bat
-        </div>
-
-        <a
-            href="1.bat"
-            download="1.bat"
-            class="btn-descargar"
-            id="btnDescargar"
+      <div class="progreso">
+        <span class="progreso-etiqueta">Progreso</span>
+        <div
+          class="barra"
+          id="barraCurso"
+          role="progressbar"
+          aria-label="Progreso del curso"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
         >
-            ⬇ Descargar 1.bat
-        </a>
+          <div class="barra-progreso" id="barraProgreso"></div>
+        </div>
+        <span id="progresoTexto">0%</span>
+      </div>
 
-        <div class="info">
-            El archivo se descargará directamente a tu computadora.
+      <button
+        class="btn-tema"
+        id="botonTema"
+        type="button"
+        aria-label="Activar modo claro"
+        aria-pressed="false"
+        title="Cambiar tema"
+      >
+        <span class="icono-tema" aria-hidden="true">☀</span>
+        <span class="sr-only">Cambiar tema</span>
+      </button>
+      <button class="btn-docente" id="abrirPanelDocente" type="button">
+        <span aria-hidden="true">▣</span>
+        <span class="texto-docente">Panel docente</span>
+      </button>
+    </header>
+
+    <div class="overlay-menu" id="overlayMenu" hidden></div>
+
+    <!-- =====================================================
+         LAYOUT
+    ====================================================== -->
+
+    <div class="layout">
+      <!-- =================================================
+             MENÚ LATERAL
+        ================================================== -->
+
+      <aside class="sidebar" id="sidebar" aria-label="Clases del curso">
+        <div class="sidebar-cabecera">
+          <div>
+            <span class="sidebar-eyebrow">Contenido</span>
+            <h2>Clases del curso</h2>
+          </div>
+          <button
+            class="btn-cerrar-menu"
+            id="cerrarMenu"
+            type="button"
+            aria-label="Cerrar menú de clases"
+          >
+            ×
+          </button>
         </div>
 
-        <footer>
-            Página de descarga
+        <nav>
+          <a href="#introduccion" class="activo">
+            <span>01</span>
+            Introducción
+          </a>
+
+          <a href="#variables">
+            <span>02</span>
+            Variables
+          </a>
+
+          <a href="#tipos">
+            <span>03</span>
+            Tipos de datos
+          </a>
+
+          <a href="#operadores">
+            <span>04</span>
+            Operadores
+          </a>
+
+          <a href="#condicionales">
+            <span>05</span>
+            Condicionales
+          </a>
+
+          <a href="#funciones">
+            <span>06</span>
+            Funciones
+          </a>
+
+          <a href="#arrays">
+            <span>07</span>
+            Arrays
+          </a>
+
+          <a href="#bucles">
+            <span>08</span>
+            Bucles
+          </a>
+
+          <a href="#objetos">
+            <span>09</span>
+            Objetos
+          </a>
+
+          <a href="#arrays-avanzados">
+            <span>10</span>
+            Arrays avanzados
+          </a>
+
+          <a href="#strings">
+            <span>11</span>
+            Strings
+          </a>
+
+          <a href="#scope">
+            <span>12</span>
+            Scope
+          </a>
+
+          <a href="#dom">
+            <span>13</span>
+            DOM
+          </a>
+
+          <a href="#eventos">
+            <span>14</span>
+            Eventos
+          </a>
+
+          <a href="#formularios">
+            <span>15</span>
+            Formularios
+          </a>
+
+          <a href="#localstorage">
+            <span>16</span>
+            LocalStorage
+          </a>
+
+          <a href="#json-fetch">
+            <span>17</span>
+            JSON y Fetch
+          </a>
+
+          <a href="#errores">
+            <span>18</span>
+            Errores
+          </a>
+
+          <a href="#proyecto">
+            <span>19</span>
+            Proyecto final
+          </a>
+          
+        </nav>
+      </aside>
+
+      <!-- =================================================
+             CONTENIDO
+        ================================================== -->
+
+      <main class="contenido" id="contenidoPrincipal" tabindex="-1">
+        <section class="panel-curso" aria-labelledby="tituloBienvenida">
+          <div>
+            <span class="etiqueta">Curso inicial · 19 clases</span>
+            <h2 id="tituloBienvenida">Aprendé JavaScript creando</h2>
+            <p>
+              Avanzá por cada clase, ejecutá los ejemplos, resolvé las prácticas
+              y comprobá lo aprendido antes de continuar.
+            </p>
+          </div>
+
+          <div class="herramientas-curso">
+            <label class="buscador" for="busquedaCurso">
+              <span aria-hidden="true">⌕</span>
+              <span class="sr-only">Buscar en el curso</span>
+              <input
+                id="busquedaCurso"
+                type="search"
+                placeholder="Buscar tema o concepto"
+                autocomplete="off"
+              />
+              <button class="btn-limpiar-busqueda" id="limpiarBusqueda" type="button" aria-label="Limpiar búsqueda" title="Limpiar búsqueda" hidden>×</button>
+            </label>
+            <button class="btn-secundario" id="reiniciarProgreso" type="button">
+              Reiniciar progreso
+            </button>
+            <p class="estado-curso" id="estadoCurso" aria-live="polite">
+              Clase actual: Introducción
+            </p>
+            <p class="ultima-actividad" id="ultimaActividad">
+              Todavía no hay actividad guardada.
+            </p>
+          </div>
+
+          <div
+            class="resultados-busqueda"
+            id="resultadosBusqueda"
+            aria-live="polite"
+            hidden
+          ></div>
+        </section>
+        <!-- =================================================
+                 01 INTRODUCCIÓN
+            ================================================== -->
+
+        <section id="introduccion" class="clase">
+          <h2 class="titulo-clase">JavaScript</h2>
+
+          <p class="descripcion">
+            Fundamentos de JavaScript para crear páginas web interactivas.
+          </p>
+
+          <div class="card">
+            <h2>¿Qué es JavaScript?</h2>
+
+            <p>
+              JavaScript es un lenguaje de programación que permite agregar
+              comportamiento e interactividad a nuestras páginas web. Es un
+              lenguaje interpretado, versátil y muy popular en el desarrollo web
+              moderno.
+            </p>
+          </div>
+
+          <div class="card">
+            <h2>¿Por qué aprender JavaScript?</h2>
+
+            <p>JavaScript te permite:</p>
+
+            <ul>
+              <li>Crear efectos visuales y animaciones</li>
+              <li>Validar formularios antes de enviarlos</li>
+              <li>Responder a acciones del usuario</li>
+              <li>Modificar el contenido de la página dinámicamente</li>
+              <li>Comunicarse con servidores sin recargar la página</li>
+            </ul>
+          </div>
+
+          <h2>🧪 ¿Cómo probar los códigos?</h2>
+
+          <p>
+            Tenés <strong>2 formas</strong> de probar los ejemplos de
+            JavaScript:
+          </p>
+
+          <ol>
+            <li>
+              <strong>Crear dos archivos en Visual Studio Code:</strong>
+              <code>prueba.html</code> y <code>prueba.js</code>.
+            </li>
+            <li>
+              <strong
+                >Ejecutar los ejemplos directamente desde este sitio web</strong
+              >, sin necesidad de crear los archivos manualmente.
+            </li>
+          </ol>
+          <div class="nota">
+            <strong>Recomendación</strong>
+            <p>
+              Si estás aprendiendo programación, probá primero los ejemplos en
+              el sitio y luego creá tus propios archivos
+              <code>prueba.html</code> y <code>prueba.js</code> para practicar.
+            </p>
+          </div>
+
+          <figure class="diagrama-archivos">
+            <div class="archivo-ejemplo">
+              <span>HTML</span>
+              <strong>prueba.html</strong>
+              <code>&lt;script src="prueba.js"&gt;&lt;/script&gt;</code>
+            </div>
+            <span class="conexion-archivos" aria-hidden="true">→</span>
+            <div class="archivo-ejemplo">
+              <span>JS</span>
+              <strong>prueba.js</strong>
+              <code>console.log("Hola");</code>
+            </div>
+            <figcaption>
+              El archivo HTML carga el archivo JavaScript mediante la etiqueta
+              <code>script</code>.
+            </figcaption>
+          </figure>
+
+          <h2>Código JS para probar</h2>
+
+          <div class="codigo">
+            <pre><code>const nombre = "Estudiante";
+
+console.log(`¡Hola, ${nombre}!`);
+console.log("Tu primer programa funciona.");</code></pre>
+          </div>
+
+          <h2>HTML + CSS + JavaScript</h2>
+
+          <div class="tecnologias">
+            <div class="tecnologia html">
+              <strong>HTML</strong>
+              <span>Estructura</span>
+            </div>
+
+            <div class="tecnologia css">
+              <strong>CSS</strong>
+              <span>Diseño</span>
+            </div>
+
+            <div class="tecnologia js">
+              <strong>JS</strong>
+              <span>Interactividad</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>¿Cómo incluir JavaScript?</h2>
+
+            <p>Hay tres formas de usar JavaScript:</p>
+
+            <ol>
+              <li>
+                En atributos HTML:
+                <code>&lt;button onclick="alert('Hola')"&gt;</code>
+              </li>
+
+              <li>
+                En etiqueta script:
+                <code>&lt;script&gt;...código...&lt;/script&gt;</code>
+              </li>
+
+              <li>
+                En un archivo externo:
+                <code>&lt;script src="script.js"&gt;&lt;/script&gt;</code>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 02 VARIABLES
+            ================================================== -->
+
+        <section id="variables" class="clase">
+          <h2 class="titulo-clase">Variables</h2>
+
+          <p>
+            Las variables sirven para guardar información que podemos utilizar
+            posteriormente.
+          </p>
+
+          <div class="card">
+            <h2>¿Qué es una variable?</h2>
+
+            <p>
+              Una variable es un contenedor que guarda un valor. Podemos
+              compararlo con una caja en la que guardamos algo. La caja tiene un
+              nombre y adentro hay un valor.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let nombre = "Juan";
+let edad = 20;
+let altura = 1.75;
+
+console.log(nombre);
+console.log(edad);
+console.log(altura);</code></pre>
+          </div>
+
+          <div class="card">
+            <h2>Palabras clave para variables</h2>
+
+            <ul>
+              <li>
+                <strong>let:</strong>
+                Variable que puede cambiar.
+              </li>
+
+              <li>
+                <strong>const:</strong>
+                Variable que no puede cambiar.
+              </li>
+
+              <li>
+                <strong>var:</strong>
+                Variable antigua. Se recomienda utilizar
+                <code>let</code> o <code>const</code>.
+              </li>
+            </ul>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let ciudad = "Córdoba";
+
+// puede cambiar
+ciudad = "Villa Dolores";
+
+const PI = 3.14159;
+
+// NO puede cambiar
+
+
+const persona = {
+    nombre: "Ana",
+    edad: 25
+};
+
+persona.edad = 26;
+
+console.log(persona);</code></pre>
+          </div>
+
+          <div class="nota">
+            <strong>💡 Recordá</strong>
+
+            <p>
+              Usa <code>const</code> por defecto. Solo usa
+              <code>let</code> cuando necesites cambiar el valor de la variable.
+            </p>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 03 TIPOS DE DATOS
+            ================================================== -->
+
+        <section id="tipos" class="clase">
+          <h2 class="titulo-clase">Tipos de datos</h2>
+
+          <p>JavaScript puede trabajar con diferentes tipos de información.</p>
+
+          <div class="grid">
+            <div class="card pequeño">
+              <h3>String</h3>
+              <p>Texto</p>
+              <code>"Hola mundo"</code>
+            </div>
+
+            <div class="card pequeño">
+              <h3>Number</h3>
+              <p>Números</p>
+              <code>25</code>
+            </div>
+
+            <div class="card pequeño">
+              <h3>Boolean</h3>
+              <p>Verdadero o falso</p>
+              <code>true</code>
+            </div>
+
+            <div class="card pequeño">
+              <h3>Array</h3>
+              <p>Listas de valores</p>
+              <code>[1, 2, 3]</code>
+            </div>
+
+            <div class="card pequeño">
+              <h3>Object</h3>
+              <p>Objetos complejos</p>
+              <code>{nombre: "Ana"}</code>
+            </div>
+
+            <div class="card pequeño">
+              <h3>null / undefined</h3>
+              <p>Sin valor</p>
+              <code>null</code>
+            </div>
+          </div>
+
+          <div class="codigo">
+            <pre><code>// String
+const nombre = "Juan";
+const saludo = "Hola";
+const mensaje = `Bienvenido ${nombre}`;
+
+// Number
+const edad = 25;
+const precio = 19.99;
+const negativo = -10;
+
+// Boolean
+const esEstudiante = true;
+const tieneLicencia = false;
+
+// typeof
+console.log(typeof nombre);
+console.log(typeof edad);
+console.log(typeof esEstudiante);</code></pre>
+          </div>
+
+          <div class="card">
+            <h3>Valores que suelen confundirse</h3>
+            <ul>
+              <li>
+                <code>undefined</code>: una variable o propiedad todavía no
+                tiene un valor asignado.
+              </li>
+              <li>
+                <code>null</code>: ausencia de valor indicada de manera
+                intencional.
+              </li>
+              <li>
+                <code>NaN</code>: resultado numérico inválido. Se comprueba con
+                <code>Number.isNaN()</code>.
+              </li>
+            </ul>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let respuesta;
+const seleccion = null;
+const numeroInvalido = Number("hola");
+
+console.log(respuesta); // undefined
+console.log(seleccion); // null
+console.log(Number.isNaN(numeroInvalido)); // true</code></pre>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 04 OPERADORES
+            ================================================== -->
+
+        <section id="operadores" class="clase">
+          <h2 class="titulo-clase">Operadores</h2>
+
+          <p>
+            Los operadores permiten realizar operaciones matemáticas y
+            comparaciones.
+          </p>
+
+          <div class="card">
+            <h2>Operadores Aritméticos</h2>
+
+            <p>Se utilizan para realizar operaciones matemáticas.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let a = 10;
+let b = 5;
+
+console.log(a + b);
+console.log(a - b);
+console.log(a * b);
+console.log(a / b);
+console.log(a % b);
+console.log(a ** 2);</code></pre>
+          </div>
+
+          <div class="card">
+            <h2>Operadores de Comparación</h2>
+
+            <p>
+              Comparan valores y devuelven
+              <code>true</code> o <code>false</code>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>console.log(10 > 5);
+console.log(10 < 5);
+console.log(10 >= 10);
+console.log(10 <= 5);
+console.log(10 === "10");
+console.log(10 !== "10");</code></pre>
+          </div>
+
+          <div class="nota">
+            <strong>Usá igualdad estricta</strong>
+            <p>
+              Preferí <code>===</code> y <code>!==</code>. Además del valor,
+              comparan el tipo de dato y evitan conversiones automáticas
+              difíciles de detectar.
+            </p>
+          </div>
+
+          <div class="card">
+            <h2>Operadores Lógicos</h2>
+
+            <p>Combinan condiciones booleanas.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const edad = 25;
+const tieneDocumento = true;
+
+// AND
+console.log(edad >= 18 && tieneDocumento);
+
+// OR
+console.log(edad < 18 || tieneDocumento);
+
+// NOT
+console.log(!tieneDocumento);</code></pre>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 05 CONDICIONALES
+            ================================================== -->
+
+        <section id="condicionales" class="clase">
+          <h2 class="titulo-clase">Condicionales</h2>
+
+          <p>
+            Los condicionales permiten ejecutar código dependiendo de una
+            condición.
+          </p>
+
+          <div class="card">
+            <h2>if / else</h2>
+
+            <p>Si la condición es verdadera se ejecuta un bloque.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const edad = 20;
+
+if (edad >= 18) {
+
+    console.log("Sos mayor de edad");
+
+} else {
+
+    console.log("Sos menor de edad");
+
+}</code></pre>
+          </div>
+
+          <div class="card">
+            <h2>else if</h2>
+
+            <p>Permite trabajar con múltiples condiciones.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const calificacion = 8;
+
+if (calificacion >= 9) {
+
+    console.log("Excelente");
+
+} else if (calificacion >= 7) {
+
+    console.log("Bueno");
+
+} else if (calificacion >= 5) {
+
+    console.log("Aprobado");
+
+} else {
+
+    console.log("Desaprobado");
+
+}</code></pre>
+          </div>
+
+          <div class="card">
+            <h2>switch</h2>
+
+            <p>Permite comparar un valor con diferentes casos.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const dia = 3;
+
+let nombreDia;
+
+switch (dia) {
+
+    case 1:
+        nombreDia = "Lunes";
+        break;
+
+    case 2:
+        nombreDia = "Martes";
+        break;
+
+    case 3:
+        nombreDia = "Miércoles";
+        break;
+
+    default:
+        nombreDia = "Día inválido";
+}
+
+console.log(nombreDia);</code></pre>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO</span>
+
+            <h3>
+              Construi un código para que dados 3 números se determine el mayor.
+            </h3>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 06 FUNCIONES
+            ================================================== -->
+
+        <section id="funciones" class="clase">
+          <h2 class="titulo-clase">Funciones en JavaScript</h2>
+
+          <p>
+            Una <strong>función</strong> es un bloque de código que podemos
+            crear una vez y reutilizar todas las veces que necesitemos.
+          </p>
+
+          <p>
+            Las funciones permiten organizar mejor nuestros programas, evitar
+            repetir código y dividir un problema grande en partes más pequeñas.
+          </p>
+
+          <!-- CONCEPTO -->
+          <div class="explicacion">
+            <h2>¿Qué es una función?</h2>
+
+            <p>
+              Podemos imaginar una función como una pequeña máquina: recibe
+              datos, realiza una tarea y, si es necesario, devuelve un
+              resultado.
+            </p>
+
+            <pre><code>Datos
+   ↓
+Función
+   ↓
+Proceso
+   ↓
+Resultado</code></pre>
+          </div>
+
+          <!-- SINTAXIS -->
+          <div class="explicacion">
+            <h2>Crear una función</h2>
+
+            <p>
+              Para crear una función podemos utilizar la palabra
+              <code>function</code>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function saludar() {
+
+    console.log("Hola mundo");
+
+}
+
+saludar();</code></pre>
+          </div>
+
+          <p>
+            La función se ejecuta cuando escribimos su nombre seguido de
+            paréntesis:
+            <code>saludar()</code>.
+          </p>
+
+          <!-- PARAMETROS -->
+          <div class="explicacion">
+            <h2>Funciones con parámetros</h2>
+
+            <p>
+              Una función puede recibir información mediante
+              <strong>parámetros</strong>.
+            </p>
+
+            <p>
+              Los parámetros funcionan como variables que reciben los datos
+              enviados cuando llamamos a la función.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function saludar(nombre) {
+
+    console.log("Hola " + nombre);
+
+}
+
+saludar("Juan");
+saludar("María");
+saludar("Pedro");</code></pre>
+          </div>
+
+          <p>
+            En este ejemplo, <code>nombre</code> es el parámetro. Los valores
+            <code>"Juan"</code>, <code>"María"</code> y <code>"Pedro"</code> son
+            los argumentos.
+          </p>
+
+          <!-- PARAMETROS Y ARGUMENTOS -->
+          <div class="explicacion">
+            <h2>Parámetros y argumentos</h2>
+
+            <p>Es importante diferenciar estos dos conceptos:</p>
+
+            <ul>
+              <li>
+                <strong>Parámetro:</strong> variable definida en la función.
+              </li>
+
+              <li>
+                <strong>Argumento:</strong> valor que enviamos a la función.
+              </li>
+            </ul>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function sumar(a, b) {
+
+    return a + b;
+
+}
+
+sumar(10, 5);</code></pre>
+          </div>
+
+          <p>En este ejemplo:</p>
+
+          <ul>
+            <li><code>a</code> y <code>b</code> son parámetros.</li>
+            <li><code>10</code> y <code>5</code> son argumentos.</li>
+          </ul>
+
+          <!-- RETURN -->
+          <div class="explicacion">
+            <h2>Devolver un resultado con return</h2>
+
+            <p>
+              La palabra <code>return</code> permite devolver un valor desde una
+              función.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function sumar(a, b) {
+
+    return a + b;
+
+}
+
+const resultado = sumar(10, 5);
+
+console.log(resultado);</code></pre>
+          </div>
+
+          <p>El resultado de la función es <strong>15</strong>.</p>
+
+          <p>Podemos guardar el resultado de una función en una variable:</p>
+
+          <div class="codigo">
+            <pre><code>const resultado = sumar(20, 30);
+
+console.log(resultado);</code></pre>
+          </div>
+
+          <!-- OPERACIONES -->
+          <div class="explicacion">
+            <h2>Funciones para realizar operaciones</h2>
+
+            <p>
+              Podemos crear funciones para realizar diferentes operaciones
+              matemáticas.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function sumar(a, b) {
+    return a + b;
+}
+
+function restar(a, b) {
+    return a - b;
+}
+
+function multiplicar(a, b) {
+    return a * b;
+}
+
+function dividir(a, b) {
+    return a / b;
+}
+
+console.log(sumar(10, 5));
+console.log(restar(10, 5));
+console.log(multiplicar(10, 5));
+console.log(dividir(10, 5));</code></pre>
+          </div>
+
+          <!-- DIVISION POR CERO -->
+          <div class="explicacion">
+            <h2>Funciones con condiciones</h2>
+
+            <p>
+              Una función también puede utilizar estructuras
+              <code>if</code>, <code>else</code> y otras instrucciones de
+              JavaScript.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function dividir(a, b) {
+
+    if (b === 0) {
+
+        return "No se puede dividir por cero";
+
+    }
+
+    return a / b;
+}
+
+console.log(dividir(10, 2));
+
+console.log(dividir(10, 0));</code></pre>
+          </div>
+
+          <!-- MAYOR DE TRES -->
+          <div class="explicacion">
+            <h2>Ejemplo: encontrar el número mayor</h2>
+
+            <p>
+              Podemos crear una función que reciba tres números y devuelva cuál
+              es el mayor.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function mayorDeTres(a, b, c) {
+
+    if (a > b &amp;&amp; a > c) {
+
+        return a;
+
+    }
+
+    if (b > a &amp;&amp; b > c) {
+
+        return b;
+
+    }
+
+    return c;
+}
+
+console.log(mayorDeTres(10, 25, 15));</code></pre>
+          </div>
+
+          <!-- VALOR PREDETERMINADO -->
+          <div class="explicacion">
+            <h2>Parámetros con valores predeterminados</h2>
+
+            <p>
+              Podemos establecer un valor que se utilizará cuando no enviemos un
+              argumento.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function saludar(nombre = "Amigo") {
+
+    console.log(`Hola, ${nombre}!`);
+
+}
+
+saludar();
+
+saludar("Juan");</code></pre>
+          </div>
+
+          <p>
+            La primera llamada utiliza el valor predeterminado
+            <code>"Amigo"</code>.
+          </p>
+
+          <!-- FUNCIONES FLECHA -->
+          <div class="explicacion">
+            <h2>Funciones flecha</h2>
+
+            <p>
+              JavaScript también permite crear funciones utilizando una sintaxis
+              más corta llamada <strong>función flecha</strong>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const multiplicar = (a, b) =&gt; {
+
+    return a * b;
+
+};
+
+console.log(multiplicar(3, 4));</code></pre>
+          </div>
+
+          <!-- VERSION CORTA -->
+          <div class="explicacion">
+            <h2>Funciones flecha en versión corta</h2>
+
+            <p>
+              Cuando una función solamente necesita devolver una expresión,
+              podemos escribirla de una manera más sencilla.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const sumar = (a, b) =&gt; a + b;
+
+const restar = (a, b) =&gt; a - b;
+
+const multiplicar = (a, b) =&gt; a * b;
+
+console.log(sumar(10, 5));
+
+console.log(restar(10, 3));
+
+console.log(multiplicar(4, 5));</code></pre>
+          </div>
+
+          <!-- UN PARAMETRO -->
+          <div class="explicacion">
+            <h2>Funciones con un solo parámetro</h2>
+
+            <p>
+              Cuando una función flecha tiene un solo parámetro, podemos
+              escribirla sin paréntesis.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const doble = numero =&gt; numero * 2;
+
+console.log(doble(5));
+
+console.log(doble(10));</code></pre>
+          </div>
+
+          <!-- FUNCIONES QUE REALIZAN ACCIONES -->
+          <div class="explicacion">
+            <h2>Funciones que realizan acciones</h2>
+
+            <p>
+              No todas las funciones necesitan devolver un valor. Algunas
+              simplemente realizan una acción.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function mostrarMensaje(mensaje) {
+
+    console.log(mensaje);
+
+}
+
+mostrarMensaje("Bienvenido al curso de JavaScript");</code></pre>
+          </div>
+
+          <!-- FUNCIONES CON CALCULOS -->
+          <div class="explicacion">
+            <h2>Ejemplo: calcular un promedio</h2>
+
+            <p>
+              Podemos crear una función para resolver un problema específico,
+              como calcular el promedio de tres números.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function calcularPromedio(n1, n2, n3) {
+
+    return (n1 + n2 + n3) / 3;
+
+}
+
+const promedio = calcularPromedio(8, 9, 10);
+
+console.log("Promedio:", promedio);</code></pre>
+          </div>
+
+          <!-- FUNCIONES ENCADENADAS -->
+          <div class="explicacion">
+            <h2>Una función puede utilizar otra función</h2>
+
+            <p>
+              Podemos combinar funciones para construir soluciones más grandes a
+              partir de pequeñas partes.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function sumar(a, b) {
+
+    return a + b;
+
+}
+
+function duplicar(numero) {
+
+    return numero * 2;
+
+}
+
+const resultado = sumar(10, 5);
+
+console.log(duplicar(resultado));</code></pre>
+          </div>
+
+          <!-- EJEMPLO COMPLETO -->
+          <div class="explicacion">
+            <h2>Ejemplo completo</h2>
+
+            <p>
+              En el siguiente ejemplo utilizamos varias funciones para realizar
+              diferentes operaciones.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function sumar(a, b) {
+    return a + b;
+}
+
+function restar(a, b) {
+    return a - b;
+}
+
+function multiplicar(a, b) {
+    return a * b;
+}
+
+function dividir(a, b) {
+
+    if (b === 0) {
+        return "No se puede dividir por cero";
+    }
+
+    return a / b;
+}
+
+console.log("Suma:", sumar(20, 10));
+
+console.log("Resta:", restar(20, 10));
+
+console.log("Multiplicación:", multiplicar(20, 10));
+
+console.log("División:", dividir(20, 10));</code></pre>
+          </div>
+
+          <!-- RESUMEN -->
+          <div class="explicacion">
+            <h2>📌 Para recordar</h2>
+
+            <p>
+              Una función puede recibir datos, procesarlos y devolver un
+              resultado.
+            </p>
+
+            <pre><code>function nombreFuncion(parametros) {
+
+    // instrucciones
+
+    return resultado;
+
+}</code></pre>
+
+            <ul>
+              <li><strong>function:</strong> permite declarar una función.</li>
+              <li><strong>Nombre:</strong> identifica la función.</li>
+              <li><strong>Parámetros:</strong> datos que recibe.</li>
+              <li><strong>Argumentos:</strong> valores que enviamos.</li>
+              <li><strong>return:</strong> devuelve un resultado.</li>
+              <li>
+                <strong>():</strong> permiten llamar o ejecutar la función.
+              </li>
+            </ul>
+          </div>
+
+          <!-- ESQUEMA -->
+          <div class="explicacion">
+            <h2>🧠 ¿Cómo pensar una función?</h2>
+
+            <pre><code>        DATOS
+          ↓
+      PARÁMETROS
+          ↓
+       FUNCIÓN
+          ↓
+       PROCESO
+          ↓
+       RETURN
+          ↓
+      RESULTADO</code></pre>
+          </div>
+
+          <!-- EJERCICIOS -->
+          <div class="ejercicios">
+            <h2>🎯 Ejercicios</h2>
+
+            <h3>Ejercicio 1</h3>
+
+            <p>
+              Crea una función llamada <code>saludar</code> que reciba un nombre
+              y muestre:
+            </p>
+
+            <pre><code>Hola Juan</code></pre>
+
+            <h3>Ejercicio 2</h3>
+
+            <p>
+              Crea una función llamada <code>cuadrado</code> que reciba un
+              número y devuelva su cuadrado.
+            </p>
+
+            <h3>Ejercicio 3</h3>
+
+            <p>
+              Crea una función llamada <code>mayor</code> que reciba dos números
+              y devuelva cuál es el mayor.
+            </p>
+
+            <h3>Ejercicio 4</h3>
+
+            <p>
+              Crea una función llamada <code>esPar</code> que reciba un número y
+              devuelva <code>true</code> si es par y <code>false</code> si es
+              impar.
+            </p>
+
+            <h3>Ejercicio 5</h3>
+
+            <p>
+              Crea una función flecha que reciba un número y devuelva su doble.
+            </p>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 07 ARRAYS
+            ================================================== -->
+
+        <section id="arrays" class="clase">
+          <h2 class="titulo-clase">Arrays en JavaScript</h2>
+
+          <p>
+            Los <strong>arrays</strong> permiten guardar varios valores dentro
+            de una misma variable.
+          </p>
+
+          <p>
+            Son ideales para trabajar con listas de datos como nombres, frutas,
+            números, notas, jugadores, productos y mucho más.
+          </p>
+
+          <!-- ¿QUÉ ES UN ARRAY? -->
+
+          <div class="explicacion">
+            <h2>¿Qué es un Array?</h2>
+
+            <p>
+              Un array es una estructura que permite almacenar varios elementos
+              de forma ordenada.
+            </p>
+
+            <p>
+              Cada elemento ocupa una posición llamada
+              <strong>índice</strong>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+console.log(frutas);</code></pre>
+          </div>
+
+          <!-- ÍNDICES -->
+
+          <div class="explicacion">
+            <h2>Índices</h2>
+
+            <p>
+              En JavaScript, los índices comienzan en
+              <strong>0</strong>.
+            </p>
+
+            <pre><code>Índice:    0          1          2
+           ↓          ↓          ↓
+Frutas:  Manzana    Banana    Naranja</code></pre>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+console.log(frutas[0]);
+console.log(frutas[1]);
+console.log(frutas[2]);</code></pre>
+          </div>
+
+          <!-- MODIFICAR -->
+
+          <div class="explicacion">
+            <h2>Modificar elementos</h2>
+
+            <p>Podemos cambiar un elemento utilizando su índice.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+frutas[1] = "Pera";
+
+console.log(frutas);</code></pre>
+          </div>
+
+          <!-- LENGTH -->
+
+          <div class="explicacion">
+            <h2>Conocer la cantidad de elementos</h2>
+
+            <p>
+              La propiedad <code>length</code> nos indica cuántos elementos
+              contiene el array.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+console.log(frutas.length);</code></pre>
+          </div>
+
+          <!-- ÚLTIMO ELEMENTO -->
+
+          <div class="explicacion">
+            <h2>Obtener el último elemento</h2>
+
+            <p>
+              Podemos obtener el último elemento utilizando
+              <code>length - 1</code>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+console.log(frutas[frutas.length - 1]);</code></pre>
+          </div>
+
+          <!-- PUSH -->
+
+          <div class="explicacion">
+            <h2>Agregar elementos con push()</h2>
+
+            <p>
+              <code>push()</code> agrega uno o más elementos al final del array.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana"
+];
+
+frutas.push("Naranja");
+
+console.log(frutas);</code></pre>
+          </div>
+
+          <!-- POP -->
+
+          <div class="explicacion">
+            <h2>Eliminar elementos con pop()</h2>
+
+            <p><code>pop()</code> elimina el último elemento.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+frutas.pop();
+
+console.log(frutas);</code></pre>
+          </div>
+
+          <!-- UNSHIFT -->
+
+          <div class="explicacion">
+            <h2>Agregar al principio con unshift()</h2>
+
+            <p>
+              <code>unshift()</code> agrega elementos al comienzo del array.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Banana",
+    "Naranja"
+];
+
+frutas.unshift("Manzana");
+
+console.log(frutas);</code></pre>
+          </div>
+
+          <!-- SHIFT -->
+
+          <div class="explicacion">
+            <h2>Eliminar el primer elemento con shift()</h2>
+
+            <p><code>shift()</code> elimina el primer elemento del array.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+frutas.shift();
+
+console.log(frutas);</code></pre>
+          </div>
+
+          <!-- RECORRER -->
+
+          <div class="explicacion">
+            <h2>Recorrer un array</h2>
+
+            <p>
+              Podemos utilizar un bucle <code>for</code> para recorrer todos los
+              elementos.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+for (let i = 0; i &lt; frutas.length; i++) {
+
+    console.log(frutas[i]);
+
+}</code></pre>
+          </div>
+
+          <!-- FOR OF -->
+
+          <div class="explicacion">
+            <h2>Recorrer con for...of</h2>
+
+            <p>
+              <code>for...of</code> permite recorrer directamente los valores
+              del array.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+for (const fruta of frutas) {
+
+    console.log(fruta);
+
+}</code></pre>
+          </div>
+
+          <!-- ARRAY DE NUMEROS -->
+
+          <div class="explicacion">
+            <h2>Arrays de números</h2>
+
+            <p>Un array también puede almacenar números.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const numeros = [
+    10,
+    20,
+    30,
+    40,
+    50
+];
+
+console.log(numeros[0]);
+console.log(numeros[3]);</code></pre>
+          </div>
+
+          <!-- SUMAR -->
+
+          <div class="explicacion">
+            <h2>Sumar los elementos</h2>
+
+            <p>Podemos recorrer un array y acumular sus valores.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const numeros = [
+    10,
+    20,
+    30,
+    40
+];
+
+let suma = 0;
+
+for (const numero of numeros) {
+
+    suma += numero;
+
+}
+
+console.log("Suma:", suma);</code></pre>
+          </div>
+
+          <!-- INCLUDES -->
+
+          <div class="explicacion">
+            <h2>Buscar elementos con includes()</h2>
+
+            <p>
+              <code>includes()</code> permite comprobar si un elemento existe
+              dentro del array.
+            </p>
+
+            <p>Devuelve <code>true</code> o <code>false</code>.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+console.log(frutas.includes("Banana"));
+
+console.log(frutas.includes("Pera"));</code></pre>
+          </div>
+
+          <!-- INDEXOF -->
+
+          <div class="explicacion">
+            <h2>Buscar la posición con indexOf()</h2>
+
+            <p><code>indexOf()</code> devuelve la posición de un elemento.</p>
+
+            <p>Si no encuentra el elemento devuelve <code>-1</code>.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+console.log(frutas.indexOf("Banana"));
+
+console.log(frutas.indexOf("Pera"));</code></pre>
+          </div>
+
+          <!-- JOIN -->
+
+          <div class="explicacion">
+            <h2>Unir elementos con join()</h2>
+
+            <p>
+              <code>join()</code> permite convertir los elementos del array en
+              un texto.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+const texto = frutas.join(", ");
+
+console.log(texto);</code></pre>
+          </div>
+
+          <!-- MAP -->
+
+          <div class="explicacion">
+            <h2>Transformar elementos con map()</h2>
+
+            <p>
+              <code>map()</code> permite crear un nuevo array transformando cada
+              elemento.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const numeros = [
+    1,
+    2,
+    3,
+    4,
+    5
+];
+
+const dobles = numeros.map(numero =&gt; numero * 2);
+
+console.log(dobles);</code></pre>
+          </div>
+
+          <!-- FILTER -->
+
+          <div class="explicacion">
+            <h2>Filtrar elementos con filter()</h2>
+
+            <p>
+              <code>filter()</code> crea un nuevo array solamente con los
+              elementos que cumplen una condición.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const numeros = [
+    5,
+    10,
+    15,
+    20,
+    25
+];
+
+const mayores = numeros.filter(numero =&gt; numero &gt; 10);
+
+console.log(mayores);</code></pre>
+          </div>
+
+          <!-- OBJETOS -->
+
+          <div class="explicacion">
+            <h2>Arrays de objetos</h2>
+
+            <p>
+              Los arrays pueden contener objetos. Esta estructura es muy
+              utilizada en aplicaciones reales.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const jugadores = [
+
+    {
+        nombre: "Juan",
+        puntos: 10
+    },
+
+    {
+        nombre: "Pedro",
+        puntos: 8
+    },
+
+    {
+        nombre: "María",
+        puntos: 12
+    }
+
+];
+
+console.log(jugadores[0].nombre);
+
+console.log(jugadores[2].puntos);</code></pre>
+          </div>
+
+          <!-- RECORRER OBJETOS -->
+
+          <div class="explicacion">
+            <h2>Recorrer un array de objetos</h2>
+
+            <p>
+              Podemos utilizar <code>for...of</code> para recorrer todos los
+              objetos.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const jugadores = [
+
+    {
+        nombre: "Juan",
+        puntos: 10
+    },
+
+    {
+        nombre: "Pedro",
+        puntos: 8
+    },
+
+    {
+        nombre: "María",
+        puntos: 12
+    }
+
+];
+
+for (const jugador of jugadores) {
+
+    console.log(
+        jugador.nombre + ": " + jugador.puntos
+    );
+
+}</code></pre>
+          </div>
+
+          <!-- EJEMPLO COMPLETO -->
+
+          <div class="explicacion">
+            <h2>Ejemplo completo: notas</h2>
+
+            <p>
+              Vamos a utilizar un array para guardar las notas de un alumno,
+              calcular la cantidad de notas, la suma y el promedio.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const notas = [
+    8,
+    7,
+    10,
+    9,
+    6
+];
+
+let suma = 0;
+
+for (const nota of notas) {
+
+    suma += nota;
+
+}
+
+const promedio = suma / notas.length;
+
+console.log("Cantidad:", notas.length);
+
+console.log("Suma:", suma);
+
+console.log("Promedio:", promedio);</code></pre>
+          </div>
+
+          <!-- RESUMEN -->
+
+          <div class="explicacion">
+            <h2>📌 Métodos importantes</h2>
+
+            <ul>
+              <li><code>push()</code> → agrega elementos al final.</li>
+
+              <li><code>pop()</code> → elimina el último elemento.</li>
+
+              <li><code>unshift()</code> → agrega elementos al principio.</li>
+
+              <li><code>shift()</code> → elimina el primer elemento.</li>
+
+              <li>
+                <code>includes()</code> → comprueba si existe un elemento.
+              </li>
+
+              <li><code>indexOf()</code> → obtiene la posición.</li>
+
+              <li><code>join()</code> → une los elementos como texto.</li>
+
+              <li><code>map()</code> → transforma los elementos.</li>
+
+              <li><code>filter()</code> → filtra elementos.</li>
+
+              <li><code>length</code> → indica la cantidad de elementos.</li>
+            </ul>
+          </div>
+
+          <!-- ESQUEMA -->
+
+          <div class="explicacion">
+            <h2>🧠 Para recordar</h2>
+
+            <pre><code>const frutas = [
+    "Manzana",
+    "Banana",
+    "Naranja"
+];
+
+frutas[0]
+     ↓
+"Manzana"
+
+frutas[1]
+     ↓
+"Banana"
+
+frutas[2]
+     ↓
+"Naranja"
+
+frutas.length
+     ↓
+3</code></pre>
+          </div>
+
+          <!-- EJERCICIOS -->
+
+          <div class="ejercicios">
+            <h2>🎯 Ejercicios</h2>
+
+            <h3>Ejercicio 1</h3>
+
+            <p>
+              Crea un array llamado <code>colores</code> con cinco colores.
+              Muestra el primer y el último color.
+            </p>
+
+            <h3>Ejercicio 2</h3>
+
+            <p>
+              Crea un array de frutas y agrega dos frutas utilizando
+              <code>push()</code>.
+            </p>
+
+            <h3>Ejercicio 3</h3>
+
+            <p>
+              Crea un array de números y calcula la suma de todos sus elementos.
+            </p>
+
+            <h3>Ejercicio 4</h3>
+
+            <p>Crea un array con cinco notas y calcula el promedio.</p>
+
+            <h3>Ejercicio 5</h3>
+
+            <p>
+              Crea un array de nombres y utiliza
+              <code>includes()</code> para comprobar si existe un nombre
+              determinado.
+            </p>
+
+            <h3>Ejercicio 6</h3>
+
+            <p>
+              Crea un array de números y utiliza
+              <code>filter()</code> para obtener solamente los números mayores
+              que 10.
+            </p>
+
+            <h3>Ejercicio 7</h3>
+
+            <p>
+              Crea un array de números y utiliza
+              <code>map()</code> para obtener el doble de cada número.
+            </p>
+
+            <h3>Ejercicio 8</h3>
+
+            <p>
+              Crea un array de jugadores con las propiedades
+              <code>nombre</code> y <code>puntos</code>. Luego recórrelo y
+              muestra los datos de cada jugador.
+            </p>
+
+            <h3>🏆 Desafío</h3>
+
+            <p>
+              Crea un array con las puntuaciones de varios jugadores. Calcula la
+              suma total, el promedio y determina cuál es la puntuación más
+              alta.
+            </p>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 08 BUCLES
+            ================================================== -->
+
+        <section id="bucles" class="clase">
+          <h2 class="titulo-clase">Bucles</h2>
+
+          <p>
+            Los <strong>bucles</strong> permiten repetir una tarea varias veces
+            sin tener que escribir el mismo código nuevamente.
+          </p>
+
+          <p>
+            Son fundamentales para recorrer arrays, procesar datos, realizar
+            cálculos y repetir instrucciones.
+          </p>
+
+          <!-- CONCEPTO -->
+
+          <div class="explicacion">
+            <h2>¿Qué es un bucle?</h2>
+
+            <p>
+              Un bucle repite un bloque de código mientras se cumpla una
+              determinada condición.
+            </p>
+
+            <pre><code>Inicio
+   ↓
+¿Se cumple la condición?
+   ↓
+  Sí
+   ↓
+Ejecutar código
+   ↓
+Actualizar
+   ↓
+Volver a comprobar
+   ↓
+  No
+   ↓
+Fin</code></pre>
+          </div>
+
+          <!-- FOR -->
+
+          <div class="explicacion">
+            <h2>1. Bucle for</h2>
+
+            <p>
+              El bucle <code>for</code> se utiliza principalmente cuando sabemos
+              cuántas veces queremos repetir una tarea.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 1; i &lt;= 5; i++) {
+
+    console.log("Vuelta:", i);
+
+}</code></pre>
+          </div>
+
+          <div class="explicacion">
+            <h2>¿Cómo funciona el for?</h2>
+
+            <p>El <code>for</code> tiene tres partes:</p>
+
+            <pre><code>for (inicio; condición; actualización) {
+
+    // código
+
+}</code></pre>
+
+            <ul>
+              <li><strong>Inicio:</strong> se crea el contador.</li>
+
+              <li><strong>Condición:</strong> determina si continúa.</li>
+
+              <li><strong>Actualización:</strong> modifica el contador.</li>
+            </ul>
+          </div>
+
+          <!-- CONTADOR -->
+
+          <div class="explicacion">
+            <h2>Contador</h2>
+
+            <p>
+              Una variable contador permite controlar las vueltas que realiza el
+              bucle.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 1; i &lt;= 10; i++) {
+
+    console.log(i);
+
+}</code></pre>
+          </div>
+
+          <!-- DESCENDENTE -->
+
+          <div class="explicacion">
+            <h2>Contador descendente</h2>
+
+            <p>
+              También podemos contar hacia atrás utilizando el operador
+              <code>--</code>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 10; i &gt;= 1; i--) {
+
+    console.log(i);
+
+}</code></pre>
+          </div>
+
+          <!-- INCREMENTOS -->
+
+          <div class="explicacion">
+            <h2>Contar de dos en dos</h2>
+
+            <p>Podemos modificar el contador utilizando otros valores.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 0; i &lt;= 20; i += 2) {
+
+    console.log(i);
+
+}</code></pre>
+          </div>
+
+          <!-- WHILE -->
+
+          <div class="explicacion">
+            <h2>2. Bucle while</h2>
+
+            <p>
+              El bucle <code>while</code> repite una tarea mientras una
+              condición sea verdadera.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let contador = 1;
+
+while (contador &lt;= 5) {
+
+    console.log(contador);
+
+    contador++;
+
+}</code></pre>
+          </div>
+
+          <div class="explicacion">
+            <h2>⚠️ Cuidado con los bucles infinitos</h2>
+
+            <p>
+              Es muy importante modificar la variable utilizada en la condición.
+            </p>
+
+            <p>
+              Si la condición nunca deja de ser verdadera, podemos crear un
+              <strong>bucle infinito</strong>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let contador = 1;
+
+while (contador &lt;= 5) {
+
+    console.log(contador);
+
+    contador++;
+
+}</code></pre>
+          </div>
+
+          <!-- DO WHILE -->
+
+          <div class="explicacion">
+            <h2>3. Bucle do...while</h2>
+
+            <p>
+              El <code>do...while</code> ejecuta el código al menos una vez y
+              después comprueba la condición.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let contador = 1;
+
+do {
+
+    console.log(contador);
+
+    contador++;
+
+} while (contador &lt;= 5);</code></pre>
+          </div>
+
+          <!-- DIFERENCIA -->
+
+          <div class="explicacion">
+            <h2>while vs do...while</h2>
+
+            <p>En <code>while</code>, primero se comprueba la condición.</p>
+
+            <p>
+              En <code>do...while</code>, primero se ejecuta el código y después
+              se comprueba la condición.
+            </p>
+          </div>
+
+          <!-- ARRAYS -->
+
+          <div class="explicacion">
+            <h2>4. Recorrer arrays con for</h2>
+
+            <p>
+              Una de las aplicaciones más importantes de los bucles es recorrer
+              todos los elementos de un array.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const nombres = [
+    "Ana",
+    "Luis",
+    "Sofía"
+];
+
+for (let i = 0; i &lt; nombres.length; i++) {
+
+    console.log(nombres[i]);
+
+}</code></pre>
+          </div>
+
+          <!-- FOR OF -->
+
+          <div class="explicacion">
+            <h2>5. for...of</h2>
+
+            <p>
+              <code>for...of</code> permite recorrer directamente los valores de
+              un array.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const nombres = [
+    "Ana",
+    "Luis",
+    "Sofía"
+];
+
+for (const nombre of nombres) {
+
+    console.log(nombre);
+
+}</code></pre>
+          </div>
+
+          <!-- CONDICIONES -->
+
+          <div class="explicacion">
+            <h2>6. Bucles con if</h2>
+
+            <p>
+              Podemos combinar bucles y condiciones para seleccionar
+              determinados valores.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 1; i &lt;= 20; i++) {
+
+    if (i % 2 === 0) {
+
+        console.log(i);
+
+    }
+
+}</code></pre>
+          </div>
+
+          <p>Este programa muestra solamente los números pares.</p>
+
+          <!-- ACUMULADOR -->
+
+          <div class="explicacion">
+            <h2>7. Acumuladores</h2>
+
+            <p>
+              Un acumulador permite guardar y actualizar un resultado durante
+              las diferentes vueltas del bucle.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>let suma = 0;
+
+for (let i = 1; i &lt;= 5; i++) {
+
+    suma += i;
+
+}
+
+console.log("Suma:", suma);</code></pre>
+          </div>
+
+          <p>El programa calcula:</p>
+
+          <pre><code>1 + 2 + 3 + 4 + 5 = 15</code></pre>
+
+          <!-- BREAK -->
+
+          <div class="explicacion">
+            <h2>8. break</h2>
+
+            <p>
+              <code>break</code> permite detener completamente la ejecución de
+              un bucle.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 1; i &lt;= 10; i++) {
+
+    if (i === 6) {
+
+        break;
+
+    }
+
+    console.log(i);
+
+}</code></pre>
+          </div>
+
+          <!-- CONTINUE -->
+
+          <div class="explicacion">
+            <h2>9. continue</h2>
+
+            <p>
+              <code>continue</code> permite saltar una vuelta del bucle y
+              continuar con la siguiente.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 1; i &lt;= 10; i++) {
+
+    if (i === 5) {
+
+        continue;
+
+    }
+
+    console.log(i);
+
+}</code></pre>
+          </div>
+
+          <!-- TABLA -->
+
+          <div class="explicacion">
+            <h2>10. Tabla de multiplicar</h2>
+
+            <p>Los bucles son ideales para generar tablas de multiplicar.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const numero = 5;
+
+for (let i = 1; i &lt;= 10; i++) {
+
+    console.log(
+        numero + " x " + i + " = " + (numero * i)
+    );
+
+}</code></pre>
+          </div>
+
+          <!-- BUCLE ANIDADO -->
+
+          <div class="explicacion">
+            <h2>11. Bucles anidados</h2>
+
+            <p>
+              Un bucle puede estar dentro de otro. Esto se denomina
+              <strong>bucle anidado</strong>.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>for (let i = 1; i &lt;= 3; i++) {
+
+    for (let j = 1; j &lt;= 3; j++) {
+
+        console.log(i, j);
+
+    }
+
+}</code></pre>
+          </div>
+
+          <!-- ARRAY OBJETOS -->
+
+          <div class="explicacion">
+            <h2>12. Recorrer arrays de objetos</h2>
+
+            <p>Los bucles también permiten recorrer listas de objetos.</p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const jugadores = [
+
+    {
+        nombre: "Juan",
+        puntos: 10
+    },
+
+    {
+        nombre: "Pedro",
+        puntos: 8
+    },
+
+    {
+        nombre: "María",
+        puntos: 12
+    }
+
+];
+
+for (const jugador of jugadores) {
+
+    console.log(
+        jugador.nombre + ": " + jugador.puntos
+    );
+
+}</code></pre>
+          </div>
+
+          <!-- EJEMPLO COMPLETO -->
+
+          <div class="explicacion">
+            <h2>13. Ejemplo completo</h2>
+
+            <p>
+              Vamos a recorrer un array de números y mostrar solamente los
+              números pares.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const numeros = [
+    5,
+    8,
+    12,
+    15,
+    20,
+    23
+];
+
+for (const numero of numeros) {
+
+    if (numero % 2 === 0) {
+
+        console.log("Número par:", numero);
+
+    }
+
+}</code></pre>
+          </div>
+
+          <!-- RESUMEN -->
+
+          <div class="explicacion">
+            <h2>📌 Para recordar</h2>
+
+            <ul>
+              <li>
+                <code>for</code> → repetir una tarea una cantidad determinada de
+                veces.
+              </li>
+
+              <li>
+                <code>while</code> → repetir mientras una condición sea
+                verdadera.
+              </li>
+
+              <li>
+                <code>do...while</code> → ejecutar al menos una vez antes de
+                comprobar la condición.
+              </li>
+
+              <li><code>for...of</code> → recorrer los valores de un array.</li>
+
+              <li><code>break</code> → detener el bucle.</li>
+
+              <li><code>continue</code> → saltar una vuelta.</li>
+            </ul>
+          </div>
+
+          <!-- ESQUEMA -->
+
+          <div class="explicacion">
+            <h2>🧠 ¿Qué bucle utilizar?</h2>
+
+            <pre><code>¿Necesito repetir código?
+          ↓
+         SÍ
+          ↓
+¿Sé cuántas veces?
+     ↙           ↘
+   SÍ             NO
+   ↓               ↓
+  for            while
+
+¿Estoy recorriendo un array?
+          ↓
+       for...of</code></pre>
+          </div>
+
+          <!-- EJERCICIOS -->
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIOS</span>
+
+            <h2>Ejercicio 1 — Contador</h2>
+
+            <p>
+              Creá un programa que muestre en consola los números del
+              <strong>1 al 20</strong>.
+            </p>
+
+            <p>
+              <strong>Desafío:</strong>
+              mostrar solamente los números pares.
+            </p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO 2</span>
+
+            <h2>Números impares</h2>
+
+            <p>Creá un programa que muestre los números impares del 1 al 20.</p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO 3</span>
+
+            <h2>Cuenta regresiva</h2>
+
+            <p>Utilizá un bucle para mostrar los números del 10 al 1.</p>
+
+            <p>
+              <strong>Desafío:</strong>
+              mostrar al finalizar:
+              <code>¡Despegue!</code>
+            </p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO 4</span>
+
+            <h2>Suma</h2>
+
+            <p>Calculá la suma de todos los números del 1 al 100.</p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO 5</span>
+
+            <h2>Tabla de multiplicar</h2>
+
+            <p>
+              Creá un programa que muestre la tabla de multiplicar de un número
+              del 1 al 10.
+            </p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO 6</span>
+
+            <h2>Recorrer un array</h2>
+
+            <p>
+              Creá un array con cinco nombres y utilizá
+              <code>for...of</code> para mostrar cada nombre.
+            </p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO 7</span>
+
+            <h2>Buscar un número</h2>
+
+            <p>
+              Creá un array de números y utilizá
+              <code>break</code> para detener el bucle cuando encuentres el
+              número <strong>10</strong>.
+            </p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO 8</span>
+
+            <h2>Saltar un número</h2>
+
+            <p>
+              Mostrá los números del 1 al 10, pero utilizando
+              <code>continue</code> para no mostrar el número 5.
+            </p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🏆 DESAFÍO FINAL</span>
+
+            <h2>Analizar puntuaciones</h2>
+
+            <p>Creá un array con las puntuaciones de varios jugadores.</p>
+
+            <p>Utilizá un bucle para calcular:</p>
+
+            <ul>
+              <li>La cantidad de jugadores.</li>
+
+              <li>La suma total de puntos.</li>
+
+              <li>El promedio.</li>
+
+              <li>La puntuación más alta.</li>
+
+              <li>La puntuación más baja.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 09 OBJETOS
+            ================================================== -->
+
+        <section id="objetos" class="clase">
+          <h2 class="titulo-clase">Objetos</h2>
+
+          <p>Los objetos permiten representar entidades con propiedades.</p>
+
+          <div class="codigo">
+            <pre><code>const alumno = {
+
+    nombre: "Martín",
+    edad: 15,
+    curso: "3° A",
+    aprobado: true
+
+};
+
+console.log(alumno.nombre);
+
+console.log(alumno["curso"]);
+
+alumno.edad = 16;
+
+alumno.nota = 9;</code></pre>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const persona = {
+
+    nombre: "Ana",
+
+    saludar() {
+
+        return `Hola, soy ${this.nombre}`;
+
+    }
+
+};
+
+console.log(persona.saludar());</code></pre>
+          </div>
+
+          <div class="card">
+            <h3>Agregar, eliminar y recorrer propiedades</h3>
+            <p>
+              Las propiedades pueden consultarse con punto o corchetes. Los
+              corchetes son útiles cuando el nombre está guardado en una
+              variable.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const producto = {
+    nombre: "Teclado",
+    precio: 25000,
+    disponible: true
+};
+
+const propiedad = "precio";
+
+console.log(producto[propiedad]);
+
+producto.stock = 8;
+delete producto.disponible;
+
+for (const clave of Object.keys(producto)) {
+    console.log(clave, producto[clave]);
+}</code></pre>
+          </div>
+
+          <div class="nota">
+            <strong>Objetos declarados con const</strong>
+            <p>
+              <code>const</code> impide reemplazar el objeto completo, pero sus
+              propiedades todavía pueden modificarse.
+            </p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🚀 EJERCICIO</span>
+
+            <h2>Ficha de estudiante</h2>
+
+            <p>Creá un objeto con nombre, edad, curso y tres notas.</p>
+
+            <p>Después calculá el promedio utilizando una función.</p>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 10 ARRAYS AVANZADOS
+            ================================================== -->
+
+        <section id="arrays-avanzados" class="clase">
+  <h2 class="titulo-clase">Arrays avanzados</h2>
+
+  <p class="descripcion">
+    En esta clase vamos a trabajar con arrays de forma profesional:
+    transformar datos, buscar información, filtrar resultados, ordenar,
+    calcular valores, combinar métodos y trabajar con arrays de objetos.
+  </p>
+
+  <div class="card">
+    <h2>🎯 Objetivos</h2>
+    <ul>
+      <li>Comprender cómo procesar arrays sin modificar accidentalmente el original.</li>
+      <li>Utilizar <code>map()</code>, <code>filter()</code>, <code>find()</code> y <code>reduce()</code>.</li>
+      <li>Usar <code>some()</code> y <code>every()</code> para realizar comprobaciones.</li>
+      <li>Ordenar arrays correctamente con <code>sort()</code>.</li>
+      <li>Combinar varios métodos en una misma operación.</li>
+      <li>Procesar arrays de objetos, una situación muy habitual en aplicaciones reales.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🧠 ¿Qué significa trabajar un array de forma avanzada?</h2>
+    <p>
+      Un array avanzado no significa solamente tener muchos elementos.
+      Significa poder <strong>analizar, transformar, buscar, seleccionar y
+      resumir información</strong> utilizando métodos de JavaScript.
+    </p>
+    <p>
+      Por ejemplo, una aplicación escolar podría tener un array con todos
+      los estudiantes y obtener solamente los aprobados, calcular el
+      promedio, buscar un estudiante o contar cuántos tienen una determinada nota.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣ map() — Transformar elementos</h2>
+    <p>
+      <code>map()</code> recorre todos los elementos y devuelve un
+      <strong>nuevo array</strong> con el resultado de la transformación.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const numeros = [1, 2, 3, 4, 5];
+
+const dobles = numeros.map(numero => numero * 2);
+
+console.log(numeros);
+console.log(dobles);</code></pre>
+  </div>
+
+  <div class="nota">
+    <strong>💡 Recordá</strong>
+    <p>
+      <code>map()</code> tiene la misma cantidad de elementos que el array
+      original. Lo que cambia es el valor de cada elemento.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣ filter() — Seleccionar elementos</h2>
+    <p>
+      <code>filter()</code> crea un nuevo array solamente con los elementos
+      que cumplen una condición.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const edades = [12, 15, 18, 21, 14, 25];
+
+const mayores = edades.filter(edad => edad >= 18);
+
+console.log(mayores);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>3️⃣ find() — Encontrar un elemento</h2>
+    <p>
+      <code>find()</code> devuelve el <strong>primer elemento</strong> que
+      cumple la condición. Si no encuentra ninguno, devuelve <code>undefined</code>.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const numeros = [5, 8, 12, 20, 30];
+
+const encontrado = numeros.find(numero => numero > 10);
+
+console.log(encontrado);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>4️⃣ findIndex() — Buscar la posición</h2>
+    <p>
+      Es parecido a <code>find()</code>, pero devuelve la posición del primer
+      elemento que cumple la condición. Si no existe, devuelve <code>-1</code>.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombres = ["Ana", "Juan", "Martín", "Lucía"];
+
+const posicion = nombres.findIndex(nombre => nombre === "Martín");
+
+console.log(posicion);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>5️⃣ reduce() — Obtener un único resultado</h2>
+    <p>
+      <code>reduce()</code> permite recorrer un array y convertir todos sus
+      valores en un único resultado: una suma, un promedio, un contador,
+      un objeto, etc.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const notas = [7, 8, 10, 6];
+
+const suma = notas.reduce(
+  (acumulador, nota) => acumulador + nota,
+  0
+);
+
+const promedio = suma / notas.length;
+
+console.log("Suma:", suma);
+console.log("Promedio:", promedio);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>6️⃣ some() — ¿Al menos uno cumple?</h2>
+    <p>
+      Devuelve <code>true</code> si por lo menos un elemento cumple la condición.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const notas = [4, 6, 7, 9];
+
+const hayAprobados = notas.some(nota => nota >= 6);
+
+console.log(hayAprobados);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>7️⃣ every() — ¿Todos cumplen?</h2>
+    <p>
+      Devuelve <code>true</code> solamente si todos los elementos cumplen
+      la condición.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const notas = [7, 8, 9, 10];
+
+const todosAprobados = notas.every(nota => nota >= 6);
+
+console.log(todosAprobados);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>8️⃣ sort() — Ordenar arrays</h2>
+    <p>
+      Para ordenar números correctamente debemos proporcionar una función
+      de comparación.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const numeros = [30, 5, 100, 20, 8];
+
+const ascendente = [...numeros].sort((a, b) => a - b);
+const descendente = [...numeros].sort((a, b) => b - a);
+
+console.log("Original:", numeros);
+console.log("Ascendente:", ascendente);
+console.log("Descendente:", descendente);</code></pre>
+  </div>
+
+  <div class="nota">
+    <strong>⚠️ Cuidado con sort()</strong>
+    <p>
+      <code>sort()</code> modifica el array sobre el que se ejecuta.
+      Por eso usamos <code>[...numeros]</code> para crear una copia antes
+      de ordenar.
+    </p>
+    <p>
+      Además, sin una función de comparación, JavaScript puede ordenar
+      números como texto.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>9️⃣ includes() — Comprobar si existe un valor</h2>
+    <p>
+      <code>includes()</code> devuelve <code>true</code> o <code>false</code>
+      según el array contenga el valor indicado.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const materias = [
+  "Matemática",
+  "Lengua",
+  "Historia",
+  "Programación"
+];
+
+console.log(materias.includes("Programación"));
+console.log(materias.includes("Física"));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>🔟 slice() — Copiar una parte del array</h2>
+    <p>
+      <code>slice()</code> devuelve una parte del array sin modificar el original.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const numeros = [10, 20, 30, 40, 50];
+
+const parte = numeros.slice(1, 4);
+
+console.log(parte);
+console.log(numeros);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣1️⃣ Arrays de objetos</h2>
+    <p>
+      Esta es una de las estructuras más importantes para desarrollar
+      aplicaciones reales. Podemos almacenar muchos objetos dentro de un array.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const alumnos = [
+  {
+    nombre: "Ana",
+    edad: 16,
+    nota: 9
+  },
+  {
+    nombre: "Juan",
+    edad: 17,
+    nota: 6
+  },
+  {
+    nombre: "Lucía",
+    edad: 16,
+    nota: 10
+  },
+  {
+    nombre: "Pedro",
+    edad: 17,
+    nota: 4
+  }
+];
+
+console.log(alumnos[0].nombre);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣2️⃣ filter() con objetos</h2>
+    <p>
+      Podemos seleccionar objetos completos utilizando una propiedad.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const aprobados = alumnos.filter(
+  alumno => alumno.nota >= 6
+);
+
+console.log(aprobados);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣3️⃣ map() con objetos</h2>
+    <p>
+      Podemos obtener una lista nueva a partir de una propiedad de cada objeto.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombres = alumnos.map(
+  alumno => alumno.nombre
+);
+
+console.log(nombres);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣4️⃣ find() con objetos</h2>
+    <p>
+      Podemos buscar un objeto utilizando una propiedad.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const alumno = alumnos.find(
+  alumno => alumno.nombre === "Lucía"
+);
+
+console.log(alumno);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣5️⃣ reduce() con objetos</h2>
+    <p>
+      Podemos calcular el promedio de las notas de todos los alumnos.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const sumaNotas = alumnos.reduce(
+  (total, alumno) => total + alumno.nota,
+  0
+);
+
+const promedio = sumaNotas / alumnos.length;
+
+console.log("Promedio:", promedio.toFixed(2));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣6️⃣ Encadenar métodos</h2>
+    <p>
+      Una de las técnicas más útiles es combinar varios métodos para resolver
+      un problema en una sola expresión.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const alumnosDestacados = alumnos
+  .filter(alumno => alumno.nota >= 8)
+  .map(alumno => alumno.nombre);
+
+console.log(alumnosDestacados);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣7️⃣ Encadenamiento avanzado: filtrar, transformar y ordenar</h2>
+    <p>
+      Podemos obtener los alumnos aprobados, transformar sus datos y ordenar
+      las notas de mayor a menor.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const resultado = alumnos
+  .filter(alumno => alumno.nota >= 6)
+  .map(alumno => ({
+    nombre: alumno.nombre,
+    nota: alumno.nota
+  }))
+  .sort((a, b) => b.nota - a.nota);
+
+console.log(resultado);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣8️⃣ Spread operator (...) para copiar y combinar</h2>
+    <p>
+      El operador <code>...</code> permite crear copias y combinar arrays
+      fácilmente.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const primerGrupo = ["Ana", "Juan"];
+const segundoGrupo = ["Lucía", "Pedro"];
+
+const todos = [
+  ...primerGrupo,
+  ...segundoGrupo
+];
+
+console.log(todos);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣9️⃣ Agregar elementos sin modificar el original</h2>
+    <p>
+      Podemos crear un nuevo array agregando elementos mediante spread.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const alumnosIniciales = ["Ana", "Juan"];
+
+const alumnosActualizados = [
+  ...alumnosIniciales,
+  "Lucía"
+];
+
+console.log(alumnosIniciales);
+console.log(alumnosActualizados);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣0️⃣ Eliminar elementos sin modificar el original</h2>
+    <p>
+      Podemos combinar <code>filter()</code> con una condición para crear
+      una nueva lista sin determinado elemento.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombres = ["Ana", "Juan", "Lucía", "Pedro"];
+
+const sinJuan = nombres.filter(
+  nombre => nombre !== "Juan"
+);
+
+console.log(sinJuan);
+console.log(nombres);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣1️⃣ Crear estadísticas con reduce()</h2>
+    <p>
+      <code>reduce()</code> también puede utilizarse para construir objetos
+      con estadísticas.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const notas = [4, 7, 8, 10, 5, 9];
+
+const estadisticas = notas.reduce(
+  (resultado, nota) => {
+    resultado.total++;
+
+    if (nota >= 6) {
+      resultado.aprobados++;
+    } else {
+      resultado.desaprobados++;
+    }
+
+    return resultado;
+  },
+  {
+    total: 0,
+    aprobados: 0,
+    desaprobados: 0
+  }
+);
+
+console.log(estadisticas);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣2️⃣ Agrupar información</h2>
+    <p>
+      Podemos utilizar <code>reduce()</code> para organizar elementos
+      según una categoría.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const alumnos = [
+  { nombre: "Ana", curso: "5A" },
+  { nombre: "Juan", curso: "5B" },
+  { nombre: "Lucía", curso: "5A" },
+  { nombre: "Pedro", curso: "5B" }
+];
+
+const grupos = alumnos.reduce(
+  (resultado, alumno) => {
+    if (!resultado[alumno.curso]) {
+      resultado[alumno.curso] = [];
+    }
+
+    resultado[alumno.curso].push(alumno);
+
+    return resultado;
+  },
+  {}
+);
+
+console.log(grupos);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣3️⃣ Diferencia entre map(), filter() y reduce()</h2>
+    <ul>
+      <li><strong>map()</strong> → transforma cada elemento.</li>
+      <li><strong>filter()</strong> → selecciona elementos.</li>
+      <li><strong>find()</strong> → encuentra el primer elemento.</li>
+      <li><strong>findIndex()</strong> → encuentra la posición.</li>
+      <li><strong>reduce()</strong> → obtiene un resultado acumulado.</li>
+      <li><strong>some()</strong> → comprueba si alguno cumple.</li>
+      <li><strong>every()</strong> → comprueba si todos cumplen.</li>
+      <li><strong>sort()</strong> → ordena el array.</li>
+      <li><strong>includes()</strong> → comprueba si existe un valor.</li>
+      <li><strong>slice()</strong> → obtiene una copia de una parte.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🔍 ¿Qué método debo elegir?</h2>
+    <p>Antes de programar, preguntate qué resultado necesitás:</p>
+    <ul>
+      <li>¿Quiero cambiar cada elemento? → <code>map()</code></li>
+      <li>¿Quiero quedarme con algunos? → <code>filter()</code></li>
+      <li>¿Quiero encontrar uno? → <code>find()</code></li>
+      <li>¿Quiero saber dónde está? → <code>findIndex()</code></li>
+      <li>¿Quiero sumar o acumular? → <code>reduce()</code></li>
+      <li>¿Quiero saber si alguno cumple? → <code>some()</code></li>
+      <li>¿Quiero comprobar que todos cumplen? → <code>every()</code></li>
+      <li>¿Quiero ordenar? → <code>sort()</code></li>
+      <li>¿Quiero comprobar si existe? → <code>includes()</code></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🧩 Ejemplo completo: sistema de estudiantes</h2>
+    <p>
+      En este ejemplo combinamos varios métodos para obtener información
+      útil de un grupo de estudiantes.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const estudiantes = [
+  { nombre: "Ana", nota: 9, curso: "5A" },
+  { nombre: "Juan", nota: 5, curso: "5A" },
+  { nombre: "Lucía", nota: 10, curso: "5B" },
+  { nombre: "Pedro", nota: 7, curso: "5B" }
+];
+
+const aprobados = estudiantes
+  .filter(estudiante => estudiante.nota >= 6);
+
+const nombresAprobados = aprobados
+  .map(estudiante => estudiante.nombre);
+
+const suma = estudiantes.reduce(
+  (total, estudiante) => total + estudiante.nota,
+  0
+);
+
+const promedio = suma / estudiantes.length;
+
+const mejorEstudiante = estudiantes
+  .reduce((mejor, estudiante) =>
+    estudiante.nota > mejor.nota
+      ? estudiante
+      : mejor
+  );
+
+const ordenados = [...estudiantes]
+  .sort((a, b) => b.nota - a.nota);
+
+console.log("Aprobados:", aprobados);
+console.log("Nombres:", nombresAprobados);
+console.log("Promedio:", promedio.toFixed(2));
+console.log("Mejor estudiante:", mejorEstudiante);
+console.log("Ordenados:", ordenados);</code></pre>
+  </div>
+
+  <div class="nota">
+    <strong>⚠️ Error frecuente</strong>
+    <p>
+      No confundas el array original con el array que devuelve un método.
+      Métodos como <code>map()</code>, <code>filter()</code> y <code>slice()</code>
+      devuelven nuevos arrays. En cambio, <code>sort()</code> modifica el array
+      sobre el que trabaja.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 1</span>
+    <h2>Transformar números</h2>
+    <p>
+      Creá un array con 6 números y utilizá <code>map()</code> para obtener
+      un nuevo array con sus cuadrados.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 2</span>
+    <h2>Filtrar aprobados</h2>
+    <p>
+      Creá un array con 8 notas y utilizá <code>filter()</code> para obtener
+      solamente las notas mayores o iguales a 6.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 3</span>
+    <h2>Buscar estudiante</h2>
+    <p>
+      Creá un array de objetos con nombre y edad. Utilizá <code>find()</code>
+      para encontrar un estudiante determinado.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 4</span>
+    <h2>Calcular promedio</h2>
+    <p>
+      Creá un array de notas y utilizá <code>reduce()</code> para calcular
+      la suma y después el promedio.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 5</span>
+    <h2>Verificar condiciones</h2>
+    <p>
+      Creá un array de edades. Utilizá <code>some()</code> para saber si hay
+      algún mayor de edad y <code>every()</code> para comprobar si todas las
+      edades son positivas.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 6</span>
+    <h2>Ordenar estudiantes</h2>
+    <p>
+      Creá un array de estudiantes con nombre y nota. Utilizá
+      <code>sort()</code> para ordenarlos de mayor a menor nota sin modificar
+      el array original.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 7</span>
+    <h2>Encadenar métodos</h2>
+    <p>
+      A partir de un array de estudiantes, obtené los nombres de quienes
+      tengan una nota mayor o igual a 8 utilizando <code>filter()</code>
+      y <code>map()</code>.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 8</span>
+    <h2>Estadísticas</h2>
+    <p>
+      Utilizá <code>reduce()</code> para determinar cuántos estudiantes
+      aprobaron y cuántos desaprobaron.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🏆 DESAFÍO FINAL</span>
+    <h2>Sistema avanzado de alumnos</h2>
+    <p>
+      Creá un array con al menos 8 estudiantes. Cada estudiante debe tener:
+      <strong>nombre, edad, curso y nota</strong>.
+    </p>
+    <p>El programa debe calcular:</p>
+    <ul>
+      <li>Lista de alumnos aprobados.</li>
+      <li>Lista de nombres de los alumnos destacados con nota ≥ 8.</li>
+      <li>Promedio general.</li>
+      <li>Mejor estudiante.</li>
+      <li>Peor estudiante.</li>
+      <li>Cantidad de aprobados.</li>
+      <li>Cantidad de desaprobados.</li>
+      <li>Lista ordenada de mayor a menor nota.</li>
+      <li>Comprobar si existe algún estudiante con nota 10.</li>
+    </ul>
+    <p>
+      <strong>Condición:</strong> resolver utilizando al menos
+      <code>filter()</code>, <code>map()</code>, <code>find()</code>,
+      <code>reduce()</code>, <code>some()</code> y <code>sort()</code>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>📌 Resumen final</h2>
+    <ul>
+      <li><code>map()</code> transforma.</li>
+      <li><code>filter()</code> selecciona.</li>
+      <li><code>find()</code> busca un elemento.</li>
+      <li><code>findIndex()</code> busca una posición.</li>
+      <li><code>reduce()</code> acumula y resume.</li>
+      <li><code>some()</code> pregunta si alguno cumple.</li>
+      <li><code>every()</code> pregunta si todos cumplen.</li>
+      <li><code>sort()</code> ordena.</li>
+      <li><code>includes()</code> comprueba existencia.</li>
+      <li><code>slice()</code> copia una parte.</li>
+      <li><code>...spread</code> permite copiar y combinar arrays.</li>
+    </ul>
+    <p>
+      Estos métodos son fundamentales para trabajar con datos en aplicaciones
+      web, sistemas escolares, paneles administrativos y proyectos con Firebase.
+    </p>
+  </div>
+</section>
+
+        <!-- =================================================
+                 11 STRINGS
+            ================================================== -->
+
+        <section id="strings" class="clase">
+  <h2 class="titulo-clase">Strings y métodos de texto</h2>
+
+  <p class="descripcion">
+    Los <strong>strings</strong> representan textos. JavaScript ofrece numerosos
+    métodos para consultar, transformar, buscar, separar y construir cadenas.
+    Estos métodos son fundamentales para formularios, nombres de usuarios,
+    mensajes, validaciones y aplicaciones web.
+  </p>
+
+  <div class="card">
+    <h2>🎯 Objetivos</h2>
+    <ul>
+      <li>Comprender qué es un string y cómo se trabaja con texto.</li>
+      <li>Obtener la longitud de una cadena.</li>
+      <li>Convertir texto a mayúsculas y minúsculas.</li>
+      <li>Buscar texto y comprobar si existe.</li>
+      <li>Extraer partes de una cadena.</li>
+      <li>Eliminar espacios innecesarios.</li>
+      <li>Reemplazar y dividir texto.</li>
+      <li>Combinar métodos para resolver problemas reales.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣ ¿Qué es un String?</h2>
+    <p>
+      Un string es una cadena de caracteres. Puede escribirse utilizando
+      comillas dobles, comillas simples o backticks.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombre = "Ana";
+const curso = '5° A';
+const mensaje = `Bienvenida ${nombre}`;
+
+console.log(nombre);
+console.log(curso);
+console.log(mensaje);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣ length — Saber cuántos caracteres tiene</h2>
+    <p>
+      La propiedad <code>length</code> devuelve la cantidad de caracteres
+      de un string.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const texto = "JavaScript";
+
+console.log(texto.length);</code></pre>
+  </div>
+
+  <div class="nota">
+    <strong>💡 Importante</strong>
+    <p>
+      <code>length</code> es una <strong>propiedad</strong>, no un método.
+      Por eso se escribe <code>texto.length</code> y no
+      <code>texto.length()</code>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>3️⃣ toUpperCase() — Convertir a mayúsculas</h2>
+    <p>
+      Convierte todos los caracteres posibles del texto a mayúsculas.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombre = "Juan Pérez";
+
+console.log(nombre.toUpperCase());</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>4️⃣ toLowerCase() — Convertir a minúsculas</h2>
+    <p>
+      Convierte el texto a minúsculas. Es muy útil para realizar
+      comparaciones sin importar cómo escribió el usuario.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const respuesta = "SI";
+
+if (respuesta.toLowerCase() === "si") {
+  console.log("Respuesta afirmativa");
+}</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>5️⃣ trim() — Eliminar espacios de los extremos</h2>
+    <p>
+      <code>trim()</code> elimina espacios al principio y al final del string.
+      Es especialmente útil para datos ingresados en formularios.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombre = "   Martín   ";
+
+const limpio = nombre.trim();
+
+console.log(limpio);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>6️⃣ includes() — Comprobar si existe un texto</h2>
+    <p>
+      Devuelve <code>true</code> si encuentra el texto buscado y
+      <code>false</code> si no lo encuentra.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const mensaje = "Aprendiendo JavaScript";
+
+console.log(mensaje.includes("JavaScript"));
+console.log(mensaje.includes("Python"));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>7️⃣ startsWith() — Comprobar cómo comienza</h2>
+    <p>
+      Comprueba si un string comienza con un determinado texto.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const codigo = "JS-2026";
+
+console.log(codigo.startsWith("JS"));
+console.log(codigo.startsWith("PY"));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>8️⃣ endsWith() — Comprobar cómo termina</h2>
+    <p>
+      Comprueba si el string termina con un determinado texto.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const archivo = "actividad.html";
+
+console.log(archivo.endsWith(".html"));
+console.log(archivo.endsWith(".pdf"));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>9️⃣ indexOf() — Buscar la posición</h2>
+    <p>
+      Devuelve la posición donde aparece por primera vez un texto.
+      Si no lo encuentra, devuelve <code>-1</code>.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const texto = "JavaScript es un lenguaje";
+
+console.log(texto.indexOf("JavaScript"));
+console.log(texto.indexOf("lenguaje"));
+console.log(texto.indexOf("Python"));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>🔟 lastIndexOf() — Buscar desde el final</h2>
+    <p>
+      Devuelve la posición de la última aparición de un texto.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const texto = "JavaScript es genial y JavaScript es útil";
+
+console.log(texto.lastIndexOf("JavaScript"));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣1️⃣ charAt() — Obtener un carácter</h2>
+    <p>
+      Permite obtener el carácter que se encuentra en una posición determinada.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const palabra = "Hola";
+
+console.log(palabra.charAt(0));
+console.log(palabra.charAt(1));
+console.log(palabra.charAt(3));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣2️⃣ Acceder mediante índices</h2>
+    <p>
+      También podemos acceder directamente a un carácter utilizando
+      corchetes.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const palabra = "Código";
+
+console.log(palabra[0]);
+console.log(palabra[2]);
+console.log(palabra[5]);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣3️⃣ slice() — Extraer una parte del texto</h2>
+    <p>
+      <code>slice()</code> permite obtener una sección de un string sin
+      modificar el original.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const texto = "JavaScript";
+
+const parte1 = texto.slice(0, 4);
+const parte2 = texto.slice(4);
+
+console.log(parte1);
+console.log(parte2);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣4️⃣ substring() — Extraer texto</h2>
+    <p>
+      <code>substring()</code> también permite extraer una parte de una cadena.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const texto = "Programación";
+
+const parte = texto.substring(0, 7);
+
+console.log(parte);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣5️⃣ replace() — Reemplazar texto</h2>
+    <p>
+      Permite reemplazar una coincidencia por otro texto.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const mensaje = "Hola Juan";
+
+const nuevoMensaje =
+  mensaje.replace("Juan", "Ana");
+
+console.log(nuevoMensaje);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣6️⃣ replaceAll() — Reemplazar todas las coincidencias</h2>
+    <p>
+      <code>replaceAll()</code> reemplaza todas las apariciones del texto indicado.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const texto = "rojo rojo rojo";
+
+const nuevoTexto =
+  texto.replaceAll("rojo", "azul");
+
+console.log(nuevoTexto);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣7️⃣ split() — Convertir un string en array</h2>
+    <p>
+      <code>split()</code> divide un string utilizando un separador y
+      devuelve un array.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombres = "Ana,Juan,Lucía,Pedro";
+
+const lista = nombres.split(",");
+
+console.log(lista);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣8️⃣ join() — Convertir un array en string</h2>
+    <p>
+      <code>join()</code> realiza el proceso inverso: une los elementos
+      de un array en un string.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const materias = [
+  "Matemática",
+  "Lengua",
+  "Historia"
+];
+
+const texto = materias.join(" - ");
+
+console.log(texto);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣9️⃣ repeat() — Repetir texto</h2>
+    <p>
+      Permite repetir una cadena una determinada cantidad de veces.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const separador = "-".repeat(20);
+
+console.log(separador);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣0️⃣ padStart() — Completar desde el comienzo</h2>
+    <p>
+      Agrega caracteres al principio hasta alcanzar una longitud determinada.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const numero = "7";
+
+const codigo = numero.padStart(4, "0");
+
+console.log(codigo);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣1️⃣ padEnd() — Completar al final</h2>
+    <p>
+      Agrega caracteres al final hasta alcanzar la longitud indicada.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombre = "Ana";
+
+console.log(nombre.padEnd(10, "."));</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣2️⃣ Comparar strings</h2>
+    <p>
+      Podemos comparar cadenas utilizando operadores como
+      <code>===</code>, pero es importante normalizar el texto cuando
+      proviene de un usuario.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const respuestaUsuario = "  SI  ";
+
+if (respuestaUsuario.trim().toLowerCase() === "si") {
+  console.log("Respuesta correcta");
+}</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣3️⃣ Encadenamiento de métodos</h2>
+    <p>
+      Los métodos de strings pueden combinarse. Esto es muy útil cuando
+      necesitamos limpiar y transformar datos.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombreUsuario = "   jUaN pErEz   ";
+
+const nombreLimpio =
+  nombreUsuario
+    .trim()
+    .toLowerCase();
+
+console.log(nombreLimpio);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣4️⃣ String y formularios</h2>
+    <p>
+      Una situación real: un usuario escribe su nombre en un formulario.
+      Antes de guardarlo podemos eliminar espacios y comprobar que tenga contenido.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const nombre = "   Martín   ";
+
+const nombreProcesado = nombre.trim();
+
+if (nombreProcesado.length > 0) {
+  console.log("Nombre válido:", nombreProcesado);
+} else {
+  console.log("Debe ingresar un nombre");
+}</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣5️⃣ Analizar palabras</h2>
+    <p>
+      Podemos combinar <code>trim()</code>, <code>split()</code> y
+      <code>length</code> para contar palabras.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const frase = "JavaScript es muy interesante";
+
+const palabras = frase.trim().split(" ");
+
+console.log("Cantidad:", palabras.length);
+console.log(palabras);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣6️⃣ Métodos que no modifican el string original</h2>
+    <p>
+      Los strings son inmutables. Esto significa que los métodos generan
+      nuevos strings en lugar de cambiar directamente el original.
+    </p>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const texto = "hola";
+
+const mayusculas = texto.toUpperCase();
+
+console.log(texto);
+console.log(mayusculas);</code></pre>
+  </div>
+
+  <div class="nota">
+    <strong>⚠️ Error frecuente</strong>
+    <p>
+      Esto no cambia la variable original:
+    </p>
+    <code>texto.toUpperCase();</code>
+    <p>
+      Si querés guardar el resultado, tenés que asignarlo:
+    </p>
+    <code>texto = texto.toUpperCase();</code>
+    <p>
+      Si la variable fue declarada con <code>const</code>, podés guardar
+      el resultado en otra variable.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>🧩 Ejemplo completo: procesar un nombre</h2>
+  </div>
+
+  <div class="codigo">
+    <pre><code>const entrada = "   ana PEREZ   ";
+
+const nombre = entrada
+  .trim()
+  .toLowerCase();
+
+const palabras = nombre.split(" ");
+
+const nombreFormateado = palabras
+  .map(palabra =>
+    palabra.charAt(0).toUpperCase() +
+    palabra.slice(1)
+  )
+  .join(" ");
+
+console.log(nombreFormateado);</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>🔍 Tabla rápida de métodos</h2>
+    <ul>
+      <li><code>length</code> → cantidad de caracteres.</li>
+      <li><code>toUpperCase()</code> → mayúsculas.</li>
+      <li><code>toLowerCase()</code> → minúsculas.</li>
+      <li><code>trim()</code> → elimina espacios de los extremos.</li>
+      <li><code>includes()</code> → comprueba si contiene texto.</li>
+      <li><code>startsWith()</code> → comprueba cómo comienza.</li>
+      <li><code>endsWith()</code> → comprueba cómo termina.</li>
+      <li><code>indexOf()</code> → encuentra una posición.</li>
+      <li><code>lastIndexOf()</code> → encuentra la última posición.</li>
+      <li><code>charAt()</code> → obtiene un carácter.</li>
+      <li><code>slice()</code> → extrae una parte.</li>
+      <li><code>substring()</code> → extrae una parte.</li>
+      <li><code>replace()</code> → reemplaza una coincidencia.</li>
+      <li><code>replaceAll()</code> → reemplaza todas.</li>
+      <li><code>split()</code> → convierte string en array.</li>
+      <li><code>repeat()</code> → repite texto.</li>
+      <li><code>padStart()</code> → completa al comienzo.</li>
+      <li><code>padEnd()</code> → completa al final.</li>
+    </ul>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 1</span>
+    <h2>Contar caracteres</h2>
+    <p>
+      Creá una variable con una frase y mostrala junto con la cantidad
+      de caracteres utilizando <code>length</code>.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 2</span>
+    <h2>Normalizar nombre</h2>
+    <p>
+      Pedí o simulá un nombre escrito con espacios y mayúsculas/minúsculas.
+      Utilizá <code>trim()</code> y <code>toLowerCase()</code>.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 3</span>
+    <h2>Buscar una palabra</h2>
+    <p>
+      Creá una frase y utilizá <code>includes()</code> para determinar si
+      contiene la palabra <strong>JavaScript</strong>.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 4</span>
+    <h2>Extraer información</h2>
+    <p>
+      Creá un texto con un nombre completo y utilizá <code>slice()</code>
+      para obtener una parte del mismo.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 5</span>
+    <h2>Separar palabras</h2>
+    <p>
+      Creá una frase y utilizá <code>split(" ")</code> para convertirla
+      en un array de palabras.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 6</span>
+    <h2>Reemplazar texto</h2>
+    <p>
+      Creá un mensaje y utilizá <code>replace()</code> y
+      <code>replaceAll()</code> para cambiar una palabra.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🚀 EJERCICIO 7</span>
+    <h2>Validar código</h2>
+    <p>
+      Creá un código como <code>JS-2026</code> y comprobá con
+      <code>startsWith()</code> y <code>endsWith()</code> que tenga
+      el formato esperado.
+    </p>
+  </div>
+
+  <div class="ejercicio">
+    <span>🏆 DESAFÍO FINAL</span>
+    <h2>Procesador de nombres</h2>
+    <p>
+      Creá un programa que reciba un nombre completo escrito de cualquier manera.
+      El programa debe:
+    </p>
+    <ul>
+      <li>Eliminar espacios innecesarios.</li>
+      <li>Convertir todo a minúsculas.</li>
+      <li>Separar el nombre y apellido.</li>
+      <li>Convertir la primera letra de cada palabra en mayúscula.</li>
+      <li>Volver a unir las palabras.</li>
+      <li>Mostrar la cantidad de caracteres.</li>
+      <li>Mostrar la cantidad de palabras.</li>
+      <li>Comprobar si contiene determinada palabra.</li>
+    </ul>
+    <p>
+      <strong>Condición:</strong> utilizar al menos
+      <code>trim()</code>, <code>toLowerCase()</code>, <code>split()</code>,
+      <code>map()</code>, <code>charAt()</code>, <code>slice()</code>,
+      <code>join()</code> y <code>includes()</code>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>📌 Recordatorio</h2>
+    <p>
+      Los métodos de strings permiten transformar y analizar textos de manera
+      sencilla. En aplicaciones reales se utilizan constantemente para
+      formularios, búsquedas, validaciones, usuarios, contraseñas, archivos,
+      mensajes y datos provenientes de Firebase.
+    </p>
+  </div>
+</section>
+
+        <!-- =================================================
+                 12 SCOPE
+            ================================================== -->
+
+        <section id="scope" class="clase">
+          <h2 class="titulo-clase">Scope y buenas prácticas</h2>
+
+          <p>El scope determina dónde podemos utilizar una variable.</p>
+
+          <div class="codigo">
+            <pre><code>const nombre = "Ana";
+
+if (true) {
+
+    const mensaje = "Hola";
+
+    let edad = 15;
+
+    console.log(nombre);
+
+    console.log(mensaje);
+
+    console.log(edad);
+
+}
+
+// mensaje y edad no existen
+// fuera del bloque.</code></pre>
+          </div>
+
+          <div class="card">
+            <h3>Tres niveles de alcance</h3>
+            <ul>
+              <li><strong>Global:</strong> accesible desde gran parte del programa.</li>
+              <li><strong>De función:</strong> existe solamente dentro de la función.</li>
+              <li><strong>De bloque:</strong> existe dentro de llaves con <code>let</code> o <code>const</code>.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h2>Buenas prácticas</h2>
+
+            <ul>
+              <li>Usar <code>const</code> por defecto.</li>
+
+              <li>Usar <code>let</code> cuando el valor debe cambiar.</li>
+
+              <li>Elegir nombres claros.</li>
+
+              <li>Evitar código repetido.</li>
+
+              <li>Separar el programa en funciones pequeñas.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 13 DOM
+            ================================================== -->
+
+        <section id="dom" class="clase">
+          <h2 class="titulo-clase">DOM</h2>
+
+          <p>
+            El DOM permite acceder y modificar los elementos HTML desde
+            JavaScript.
+          </p>
+
+          <div class="codigo">
+            <pre><code>const titulo =
+    document.querySelector("#titulo");
+
+if (titulo) {
+    titulo.textContent =
+        "Hola JavaScript";
+
+    titulo.classList.add("destacado");
+}</code></pre>
+          </div>
+
+          <div class="nota">
+            <strong>Comprobá que el elemento exista</strong>
+            <p>
+              <code>querySelector()</code> devuelve <code>null</code> cuando no
+              encuentra el elemento. Comprobarlo evita errores al acceder a sus
+              propiedades.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3>Crear y agregar elementos</h3>
+            <p>
+              Para contenido de texto, preferí <code>textContent</code>. Usar
+              <code>innerHTML</code> con datos del usuario puede introducir
+              contenido no deseado.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const lista =
+    document.querySelector("#lista");
+
+const elemento =
+    document.createElement("li");
+
+elemento.textContent =
+    "Nuevo contenido";
+
+lista.appendChild(elemento);
+
+// Para quitarlo:
+// elemento.remove();</code></pre>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 14 EVENTOS
+            ================================================== -->
+
+        <section id="eventos" class="clase">
+          <h2 class="titulo-clase">Eventos</h2>
+
+          <p>
+            Los eventos permiten reaccionar a acciones del usuario, como hacer
+            clic, escribir, enviar un formulario o presionar una tecla.
+          </p>
+
+          <div class="card">
+            <h3>Escuchar un evento</h3>
+            <p>
+              <code>addEventListener()</code> recibe el nombre del evento y una
+              función que se ejecutará cuando ese evento ocurra.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const boton =
+    document.querySelector("#boton");
+
+boton.addEventListener(
+    "click",
+    function(evento) {
+
+        console.log("Hiciste clic");
+        console.log(evento.target);
+
+    }
+);</code></pre>
+          </div>
+
+          <div class="card">
+            <h3>Eventos frecuentes</h3>
+            <ul>
+              <li><code>click</code>: clic sobre un elemento.</li>
+              <li><code>input</code>: cambia el valor de un campo.</li>
+              <li><code>change</code>: se confirma un cambio.</li>
+              <li><code>submit</code>: se envía un formulario.</li>
+              <li><code>keydown</code>: se presiona una tecla.</li>
+            </ul>
+          </div>
+
+          <div class="ejercicio">
+            <span>PRÁCTICA</span>
+            <h3>Contador de clics</h3>
+            <p>
+              Creá un botón y un texto. Cada clic debe aumentar un contador y
+              actualizar el texto mediante <code>textContent</code>.
+            </p>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 15 FORMULARIOS
+            ================================================== -->
+
+        <section id="formularios" class="clase">
+          <h2 class="titulo-clase">Formularios</h2>
+
+          <p>
+            JavaScript puede leer y validar los datos ingresados. HTML debe
+            aportar primero etiquetas, tipos de campo y restricciones básicas.
+          </p>
+
+          <div class="codigo">
+            <pre><code class="language-html">&lt;form id="formulario" novalidate&gt;
+  &lt;label for="nombre"&gt;Nombre&lt;/label&gt;
+  &lt;input
+    id="nombre"
+    name="nombre"
+    type="text"
+    required
+    minlength="2"
+    aria-describedby="errorNombre"
+  /&gt;
+  &lt;p id="errorNombre" aria-live="polite"&gt;&lt;/p&gt;
+  &lt;button type="submit"&gt;Guardar&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const formulario =
+    document.querySelector("#formulario");
+
+const nombre =
+    document.querySelector("#nombre");
+
+formulario.addEventListener(
+    "submit",
+    function(evento) {
+
+        evento.preventDefault();
+
+        if (nombre.value.trim() === "") {
+
+            const errorNombre =
+                document.querySelector(
+                    "#errorNombre"
+                );
+
+            errorNombre.textContent =
+                "Ingresá tu nombre";
+
+            nombre.focus();
+
+            return;
+
+        }
+
+        console.log(
+            "Nombre:",
+            nombre.value
+        );
+
+    }
+);</code></pre>
+          </div>
+
+          <div class="card">
+            <h3>Validación en dos niveles</h3>
+            <ul>
+              <li>
+                <strong>HTML:</strong> <code>required</code>,
+                <code>minlength</code>, <code>type="email"</code> y otros
+                atributos.
+              </li>
+              <li>
+                <strong>JavaScript:</strong> reglas propias del problema y
+                mensajes dinámicos.
+              </li>
+            </ul>
+          </div>
+
+          <div class="ejercicio">
+            <span>PRÁCTICA</span>
+            <h3>Registro de estudiante</h3>
+            <p>
+              Creá un formulario con nombre, edad y correo. Validá los campos,
+              mostrales mensajes junto a cada control y agregá los datos a una
+              lista sin recargar la página.
+            </p>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 15 LOCAL STORAGE
+            ================================================== -->
+
+        <section id="localstorage" class="clase">
+          <h2 class="titulo-clase">LocalStorage</h2>
+
+          <p>Permite guardar pequeños datos en el navegador.</p>
+
+          <div class="codigo">
+            <pre><code>localStorage.setItem(
+    "nombre",
+    "Ana"
+);
+
+const nombre =
+    localStorage.getItem("nombre");
+
+console.log(nombre);
+
+localStorage.removeItem("nombre");
+
+// localStorage.clear();</code></pre>
+          </div>
+
+          <div class="codigo">
+            <pre><code>const usuario = {
+
+    nombre: "Lucas",
+
+    puntos: 120
+
+};
+
+localStorage.setItem(
+    "usuario",
+    JSON.stringify(usuario)
+);
+
+const datos =
+    JSON.parse(
+        localStorage.getItem("usuario")
+    );
+
+console.log(datos.nombre);
+
+console.log(datos.puntos);</code></pre>
+          </div>
+
+          <div class="card">
+            <h3>Lectura segura</h3>
+            <p>
+              El dato puede no existir o contener JSON inválido. Conviene usar
+              un valor inicial y capturar errores.
+            </p>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function leerJugadores() {
+    try {
+        const texto =
+            localStorage.getItem("jugadores");
+
+        return texto
+            ? JSON.parse(texto)
+            : [];
+    } catch (error) {
+        console.error(
+            "No se pudieron leer los datos",
+            error
+        );
+
+        return [];
+    }
+}</code></pre>
+          </div>
+
+          <div class="nota">
+            <strong>Límites y privacidad</strong>
+            <p>
+              <code>localStorage</code> guarda texto en ese navegador. No es una
+              base de datos y no debe usarse para contraseñas ni información
+              sensible.
+            </p>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 16 JSON Y FETCH
+            ================================================== -->
+
+        <section id="json-fetch" class="clase">
+          <h2 class="titulo-clase">JSON y Fetch</h2>
+
+          <p>
+            JSON permite intercambiar información. Fetch permite realizar
+            solicitudes a servidores.
+          </p>
+
+          <div class="codigo">
+            <pre><code>const alumno = {
+
+    nombre: "Sofía",
+    edad: 14,
+    puntos: 85
+
+};
+
+const textoJSON =
+    JSON.stringify(alumno);
+
+console.log(textoJSON);
+
+const objeto =
+    JSON.parse(textoJSON);
+
+console.log(objeto.nombre);</code></pre>
+          </div>
+
+          <div class="codigo">
+            <pre><code>async function cargarDatos() {
+
+    try {
+
+        const respuesta =
+            await fetch(
+                "https://jsonplaceholder.typicode.com/users"
+            );
+
+        if (!respuesta.ok) {
+            throw new Error(
+                `Error HTTP: ${respuesta.status}`
+            );
+        }
+
+        const usuarios =
+            await respuesta.json();
+
+        console.log(usuarios);
+
+    } catch (error) {
+
+        console.error(
+            "Ocurrió un error:",
+            error
+        );
+
+    }
+
+}
+
+cargarDatos();</code></pre>
+          </div>
+
+          <div class="card">
+            <h3>Qué ocurre en una petición</h3>
+            <ol>
+              <li><code>fetch()</code> inicia la solicitud.</li>
+              <li><code>await</code> espera la respuesta sin bloquear la página.</li>
+              <li><code>response.ok</code> comprueba el estado HTTP.</li>
+              <li><code>response.json()</code> convierte el cuerpo en datos.</li>
+              <li><code>catch</code> maneja fallos de red o errores lanzados.</li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 17 ERRORES
+            ================================================== -->
+
+        <section id="errores" class="clase">
+          <h2 class="titulo-clase">Errores y depuración</h2>
+
+          <p>Aprender a encontrar errores es fundamental.</p>
+
+          <div class="codigo">
+            <pre><code>try {
+
+    const numero =
+        Number("abc");
+
+    if (Number.isNaN(numero)) {
+
+        throw new Error(
+            "No es un número válido"
+        );
+
+    }
+
+    console.log(numero);
+
+} catch (error) {
+
+    console.error(
+        error.message
+    );
+
+}</code></pre>
+          </div>
+
+          <div class="card">
+            <h2>Herramientas del navegador</h2>
+
+            <p>
+              Practicá con
+              <code>console.log()</code>, <code>console.table()</code>,
+              breakpoints y el panel Console.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3>Tipos de errores</h3>
+            <ul>
+              <li>
+                <strong>Sintaxis:</strong> el código no respeta la gramática del
+                lenguaje.
+              </li>
+              <li>
+                <strong>Ejecución:</strong> el programa comienza, pero una
+                instrucción falla.
+              </li>
+              <li>
+                <strong>Lógica:</strong> el programa funciona, aunque devuelve
+                un resultado incorrecto.
+              </li>
+            </ul>
+          </div>
+
+          <div class="codigo">
+            <pre><code>function convertirEdad(valor) {
+    const edad = Number(valor);
+
+    if (Number.isNaN(edad)) {
+        throw new TypeError(
+            "La edad debe ser numérica"
+        );
+    }
+
+    return edad;
+}
+
+try {
+    console.log(convertirEdad("quince"));
+} catch (error) {
+    console.error(error.message);
+} finally {
+    console.log("Validación terminada");
+}</code></pre>
+          </div>
+        </section>
+
+        <!-- =================================================
+                 18 PROYECTO FINAL
+            ================================================== -->
+
+        <section id="proyecto" class="clase">
+          <h2 class="titulo-clase">Proyecto final: Sistema de torneo de ajedrez</h2>
+
+          <p>
+            Integrá todo lo aprendido construyendo una pequeña aplicación web.
+          </p>
+
+          <div class="card">
+            <h2>Objetivo</h2>
+
+            <p>
+              Crear una aplicación para registrar jugadores, asignar puntos y
+              mostrar una clasificación.
+            </p>
+          </div>
+
+          <div class="card">
+            <h2>Etapa 1 — Datos</h2>
+
+            <ul>
+              <li>Crear un array de jugadores.</li>
+
+              <li>Cada jugador debe ser un objeto.</li>
+
+              <li>Guardar nombre, categoría y puntos.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h2>Etapa 2 — Funciones</h2>
+
+            <ul>
+              <li>Agregar jugador.</li>
+
+              <li>Eliminar jugador.</li>
+
+              <li>Sumar puntos.</li>
+
+              <li>Buscar jugador.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h2>Etapa 3 — DOM</h2>
+
+            <ul>
+              <li>Mostrar jugadores en una tabla.</li>
+
+              <li>Crear botones de acción.</li>
+
+              <li>Actualizar la clasificación sin recargar.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h2>Etapa 4 — Persistencia</h2>
+
+            <p>Guardar los jugadores en LocalStorage.</p>
+          </div>
+
+          <div class="ejercicio">
+            <span>🏆 DESAFÍO FINAL</span>
+
+            <h2>De programador a creador</h2>
+
+            <p>
+              Construí una versión funcional del sistema. Dividí el problema en
+              partes, investigá, probá, detectá errores y mejorá
+              progresivamente.
+            </p>
+          </div>
+
+          <div class="nota">
+            <strong>💡 Método de aprendizaje</strong>
+
+            <p>
+              <strong>
+                APRENDER → PRACTICAR → JUGAR → CREAR → PROBAR → ANALIZAR →
+                MEJORAR
+              </strong>
+            </p>
+          </div>
+        </section>
+
+        <nav class="navegacion-clases" aria-label="Navegación entre clases">
+          <button class="btn-navegacion" id="claseAnterior" type="button">
+            <span aria-hidden="true">←</span>
+            <span>
+              <small>Anterior</small>
+              <strong id="nombreClaseAnterior">Inicio</strong>
+            </span>
+          </button>
+          <button class="btn-navegacion siguiente" id="claseSiguiente" type="button">
+            <span>
+              <small>Siguiente</small>
+              <strong id="nombreClaseSiguiente">Variables</strong>
+            </span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </nav>
+
+        <footer class="footer-curso">
+          <p>
+            IPEM 146 · Formación Profesional Programador Web · Profesor J.
+            Pantaleo
+          </p>
+          <p>Contenido revisado y organizado para aprendizaje progresivo.</p>
         </footer>
+      </main>
+    </div>
 
-    </main>
+    <section class="panel-docente" id="panelDocente" hidden aria-labelledby="tituloPanelDocente">
+      <div class="panel-docente-cabecera">
+        <div>
+          <span class="clase-meta">Seguimiento</span>
+          <h2 id="tituloPanelDocente">Progreso de estudiantes</h2>
+          <p id="estadoPanelDocente">Iniciá sesión como docente para consultar los avances.</p>
+        </div>
+        <button class="btn-cerrar-panel" id="cerrarPanelDocente" type="button" aria-label="Cerrar panel docente">×</button>
+      </div>
+      <div class="panel-docente-controles">
+        <button class="btn-secundario" id="iniciarSesionDocente" type="button">Ingresar con Google</button>
+        <button class="btn-secundario" id="actualizarPanelDocente" type="button" disabled>Actualizar</button>
+      </div>
+      <div class="tabla-docente-wrap">
+        <table class="tabla-docente">
+          <thead><tr><th>Estudiante</th><th>Progreso</th><th>Clases</th><th>Última actividad</th></tr></thead>
+          <tbody id="tablaDocenteCuerpo"><tr><td colspan="4">Todavía no se cargaron datos.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
 
-    <script>
-        document
-            .getElementById("btnDescargar")
-            .addEventListener("click", function () {
-
-                console.log("Descarga solicitada: 1.bat");
-
-            });
-    </script>
-
-</body>
+    <!-- =====================================================
+         SISTEMA INTERACTIVO: COPIAR + EJECUTAR CÓDIGO,
+         PROGRESO POR CLASE Y NAVEGACIÓN ACTIVA
+    ====================================================== -->
+    <script src="app.js" defer></script>
+  </body>
 </html>
-```

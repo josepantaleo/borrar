@@ -1053,6 +1053,7 @@
               }
           });
           actualizarProgreso();
+          actualizarControlesTutorProgramacion();
       });
       window.addEventListener("pantalla-bloqueada-estudiante", () => {
           pantallaBloqueada = true;
@@ -1188,6 +1189,10 @@
           avisoSinConexionSegundos: 30,
           alertaSinConexionSegundos: 120,
           retencionDias: 180,
+          tutorHabilitado: true,
+          evaluacionFormal: false,
+          nivelMaximoTutor: 6,
+          limiteConsultasTutor: 12,
           dominiosPermitidos: [],
           dominiosAlerta: [],
           dominiosIgnorados: []
@@ -1695,12 +1700,17 @@
           configuracionSeguimientoActual = {
               ...configuracionSeguimientoActual,
               ...configuracionRecibida,
+              tutorHabilitado: configuracionRecibida.tutorHabilitado !== false,
+              evaluacionFormal: configuracionRecibida.evaluacionFormal === true,
+              nivelMaximoTutor: Math.max(1, Math.min(6, Number(configuracionRecibida.nivelMaximoTutor) || 6)),
+              limiteConsultasTutor: Math.max(1, Math.min(50, Number(configuracionRecibida.limiteConsultasTutor) || 12)),
               dominiosPermitidos: Array.isArray(configuracionRecibida.dominiosPermitidos) ? configuracionRecibida.dominiosPermitidos : configuracionSeguimientoActual.dominiosPermitidos,
               dominiosAlerta: Array.isArray(configuracionRecibida.dominiosAlerta) ? configuracionRecibida.dominiosAlerta : configuracionSeguimientoActual.dominiosAlerta,
               dominiosIgnorados: Array.isArray(configuracionRecibida.dominiosIgnorados) ? configuracionRecibida.dominiosIgnorados : configuracionSeguimientoActual.dominiosIgnorados
           };
           LIMITE_SALIDAS_PARA_BLOQUEO = Math.max(1, Number(configuracionSeguimientoActual.limiteSalidas) || 5);
           window.configuracionSeguimientoActual = configuracionSeguimientoActual;
+          actualizarControlesTutorProgramacion();
           aplicarRubricaSocratica(datos.rubricaSocratica || rubricaSocraticaActual);
           ignorarSalidasHasta = Date.now() + 3000;
           claseHabilitada = Boolean(iniciada);
@@ -3100,7 +3110,8 @@
                                               </button>
                                           </div>
                                       </div>
-                                      <div class="student-ai-principle"><i class="fa-solid fa-shield-halved"></i> Te guía con pistas y preguntas. No entrega la solución completa.</div>
+                                      <div class="student-ai-principle"><i class="fa-solid fa-shield-halved"></i> La ayuda avanza por niveles. La solución completa solo está disponible en el nivel 6 cuando el docente lo permite.</div>
+                                      <div class="student-ai-policy" id="ai-policy-${sec.id}" role="status" aria-live="polite"></div>
                                       <div class="ai-chat-messages" id="ai-chat-messages-${sec.id}" aria-live="polite"></div>
                                       <div class="ai-chat-quick-actions">
                                           <button class="btn btn-chat-primary" type="button" onclick="pedirPistaIA('${sec.id}', 'pista')"><i class="fa-solid fa-lightbulb"></i> Nueva pista</button>
@@ -3109,11 +3120,14 @@
                                           <button class="btn btn-secondary" type="button" onclick="pedirPistaIA('${sec.id}', 'linea')"><i class="fa-solid fa-list-ol"></i> Error por línea</button>
                                           <button class="btn btn-chat-danger" type="button" onclick="limpiarChatIA('${sec.id}')"><i class="fa-solid fa-trash-can"></i> Limpiar</button>
                                       </div>
-                                      <div class="student-ai-hint-levels" aria-label="Nivel de pista progresiva">
-                                          <span><i class="fa-solid fa-stairs"></i> Pista progresiva</span>
-                                          <button type="button" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'pista1')">1</button>
-                                          <button type="button" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'pista2')">2</button>
-                                          <button type="button" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'pista3')">3</button>
+                                      <div class="student-ai-hint-levels" aria-label="Niveles de ayuda progresiva">
+                                          <span><i class="fa-solid fa-stairs"></i> Nivel de ayuda</span>
+                                          <button type="button" data-ai-level="1" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel1')" title="Recordatorio conceptual"><strong>1</strong><small>Concepto</small></button>
+                                          <button type="button" data-ai-level="2" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel2')" title="Pregunta orientadora"><strong>2</strong><small>Pregunta</small></button>
+                                          <button type="button" data-ai-level="3" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel3')" title="Identificación del error"><strong>3</strong><small>Error</small></button>
+                                          <button type="button" data-ai-level="4" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel4')" title="Pseudocódigo"><strong>4</strong><small>Pseudocódigo</small></button>
+                                          <button type="button" data-ai-level="5" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel5')" title="Fragmento parcial"><strong>5</strong><small>Fragmento</small></button>
+                                          <button type="button" data-ai-level="6" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel6')" title="Solución comentada"><strong>6</strong><small>Solución</small></button>
                                       </div>
                                       <form class="ai-chat-composer" onsubmit="enviarMensajeIA(event, '${sec.id}')">
                                           <input class="ai-chat-input" id="ai-chat-input-${sec.id}" maxlength="240" autocomplete="off" placeholder="Preguntá sobre tu código o el error..." aria-label="Pregunta a la IA sobre ${sec.title}" ${isFinalized ? 'disabled' : ''}>
@@ -3191,6 +3205,7 @@
           await window.iniciarColaboracionCRDTEstudiante?.();
           bloquearCopiaYPegado();
           actualizarProgreso();
+          actualizarControlesTutorProgramacion();
 
           // Autoguardado de respaldo: captura también cambios que no pasan por localStorage.
           clearInterval(window.__firebaseAutoSaveInterval);
@@ -4682,6 +4697,105 @@
 
       const historialChatIA = {};
 
+      // TUTOR_LEVEL_POLICY_START
+      const NIVELES_AYUDA_TUTOR = Object.freeze([
+          { nivel: 1, nombre: "Recordatorio conceptual" },
+          { nivel: 2, nombre: "Pregunta orientadora" },
+          { nivel: 3, nombre: "Identificación del error" },
+          { nivel: 4, nombre: "Pseudocódigo" },
+          { nivel: 5, nombre: "Fragmento parcial" },
+          { nivel: 6, nombre: "Solución comentada" }
+      ]);
+
+      function normalizarConfiguracionTutor(configuracion = {}) {
+          return {
+              habilitado: configuracion.tutorHabilitado !== false,
+              evaluacionFormal: configuracion.evaluacionFormal === true,
+              nivelMaximo: Math.max(1, Math.min(6, Number(configuracion.nivelMaximoTutor) || 6)),
+              limiteConsultas: Math.max(1, Math.min(50, Number(configuracion.limiteConsultasTutor) || 12))
+          };
+      }
+
+      function evaluarAccesoTutor({
+          desafioExiste = true,
+          habilitado = true,
+          evaluacionFormal = false,
+          nivel = 1,
+          nivelMaximo = 6,
+          consultasUsadas = 0,
+          limiteConsultas = 12
+      } = {}) {
+          if (!desafioExiste) return { permitido: false, codigo: "desafio-inexistente", mensaje: "El desafío solicitado ya no está disponible." };
+          if (!habilitado) return { permitido: false, codigo: "tutor-desactivado", mensaje: evaluacionFormal ? "El tutor está desactivado durante esta evaluación formal." : "El docente desactivó temporalmente el tutor." };
+          if (Number(nivel) > Number(nivelMaximo)) return { permitido: false, codigo: "nivel-limitado", mensaje: `El docente habilitó ayudas hasta el nivel ${nivelMaximo}.` };
+          if (Number(consultasUsadas) >= Number(limiteConsultas)) return { permitido: false, codigo: "cuota-agotada", mensaje: `Alcanzaste el límite de ${limiteConsultas} consultas para este desafío.` };
+          return { permitido: true, codigo: "permitido", mensaje: "" };
+      }
+      // TUTOR_LEVEL_POLICY_END
+
+      function obtenerNivelAyudaTutor(modo = "consulta", pregunta = "") {
+          const coincidencia = String(modo).match(/(?:nivel|pista)([1-6])$/);
+          if (coincidencia) return Number(coincidencia[1]);
+          const texto = normalizarEvaluacion(`${modo} ${pregunta}`);
+          if (/solucion comentada|solucion completa/.test(texto)) return 6;
+          if (/fragmento|parte del codigo/.test(texto)) return 5;
+          if (/pseudocodigo/.test(texto)) return 4;
+          if (/error|linea|revisar/.test(texto)) return 3;
+          if (/pregunta|casos|prueba|siguiente/.test(texto)) return 2;
+          return 1;
+      }
+
+      function contarConsultasTutor(sectionId) {
+          return (historialChatIA[sectionId] || []).filter(mensaje =>
+              mensaje.rol === "student" && mensaje.noConsumeCuota !== true
+          ).length;
+      }
+
+      function obtenerEstadoTutor(sectionId, nivel = 1) {
+          const configuracion = normalizarConfiguracionTutor(configuracionSeguimientoActual);
+          const usadas = contarConsultasTutor(sectionId);
+          const acceso = evaluarAccesoTutor({
+              desafioExiste: seccionesData.some(sec => sec.id === sectionId),
+              habilitado: configuracion.habilitado,
+              evaluacionFormal: configuracion.evaluacionFormal,
+              nivel,
+              nivelMaximo: configuracion.nivelMaximo,
+              consultasUsadas: usadas,
+              limiteConsultas: configuracion.limiteConsultas
+          });
+          return { ...configuracion, ...acceso, usadas, restantes: Math.max(0, configuracion.limiteConsultas - usadas) };
+      }
+
+      function etiquetaNivelTutor(nivel) {
+          return NIVELES_AYUDA_TUTOR.find(item => item.nivel === Number(nivel))?.nombre || "Consulta guiada";
+      }
+
+      function actualizarControlesTutorProgramacion(sectionId = "") {
+          const ids = sectionId ? [sectionId] : seccionesData.map(sec => sec.id);
+          ids.forEach(id => {
+              const estadoBase = obtenerEstadoTutor(id, 1);
+              const politica = document.getElementById(`ai-policy-${id}`);
+              if (politica) {
+                  politica.className = `student-ai-policy ${estadoBase.habilitado ? "" : "is-disabled"} ${estadoBase.evaluacionFormal ? "is-formal" : ""}`.trim();
+                  politica.innerHTML = estadoBase.habilitado
+                      ? `<span><i class="fa-solid fa-gauge-high"></i> ${estadoBase.restantes}/${estadoBase.limiteConsultas} consultas disponibles</span><span><i class="fa-solid fa-layer-group"></i> Nivel máximo ${estadoBase.nivelMaximo}${estadoBase.evaluacionFormal ? " · evaluación formal" : ""}</span>`
+                      : `<span><i class="fa-solid fa-lock"></i> ${escaparTextoAnalista(estadoBase.mensaje)}</span>`;
+              }
+              document.querySelectorAll(`#${CSS.escape(id)} [data-ai-level]`).forEach(control => {
+                  const nivel = Number(control.dataset.aiLevel || 1);
+                  const estado = obtenerEstadoTutor(id, nivel);
+                  control.disabled = !estado.permitido || Boolean(actividadesFinalizadas[id] || modulosPausados[id]);
+                  control.setAttribute("aria-disabled", String(control.disabled));
+                  if (!estado.permitido) control.title = estado.mensaje;
+              });
+              const input = document.getElementById(`ai-chat-input-${id}`);
+              if (input) {
+                  input.disabled = !estadoBase.permitido || Boolean(actividadesFinalizadas[id] || modulosPausados[id]);
+                  input.placeholder = estadoBase.permitido ? "Preguntá sobre tu código o el error..." : estadoBase.mensaje;
+              }
+          });
+      }
+
       function guardarChatIA(sectionId) {
           const mensajes = historialChatIA[sectionId] || [];
           setLocalStorage(`ai_chat_${sectionId}`, JSON.stringify(mensajes.slice(-20)));
@@ -4705,19 +4819,29 @@
           contenedor.innerHTML = mensajes.length
               ? mensajes.map(m => {
                   const esEstudiante = m.rol === "student";
-                  return `<div class="ai-chat-message ${esEstudiante ? "student" : "assistant"}">
-                      <span class="ai-message-label">${esEstudiante ? "Tu consulta" : "Guía IA"}</span>${escaparTextoAnalista(m.texto)}
+                  const nivel = Number(m.nivel || 0);
+                  return `<div class="ai-chat-message ${esEstudiante ? "student" : "assistant"} ${m.tipo === "error-servicio" ? "is-service-error" : ""}">
+                      <span class="ai-message-label">${esEstudiante ? "Tu consulta" : "Guía IA"}${nivel ? ` · Nivel ${nivel}: ${escaparTextoAnalista(etiquetaNivelTutor(nivel))}` : ""}</span>${escaparTextoAnalista(m.texto)}
                   </div>`;
               }).join("")
               : `<div class="ai-chat-message assistant"><span class="ai-message-label">Guía IA</span>Voy a leer tu código antes de responder. Puedo ayudarte a entender la consigna, localizar un error, revisar decisiones y diseñar pruebas. Te daré pistas progresivas, no la solución completa.</div>`;
           contenedor.scrollTop = contenedor.scrollHeight;
       }
 
-      function agregarMensajeChatIA(sectionId, rol, texto) {
+      function agregarMensajeChatIA(sectionId, rol, texto, metadata = {}) {
           if (!historialChatIA[sectionId]) historialChatIA[sectionId] = [];
-          historialChatIA[sectionId].push({ rol, texto: String(texto || "").trim() });
+          historialChatIA[sectionId].push({
+              rol,
+              texto: String(texto || "").trim(),
+              nivel: Number(metadata.nivel || 0) || null,
+              tipo: metadata.tipo || "",
+              proveedor: metadata.proveedor || "",
+              noConsumeCuota: metadata.noConsumeCuota === true,
+              creadoEn: new Date().toISOString()
+          });
           guardarChatIA(sectionId);
           renderizarChatIA(sectionId);
+          actualizarControlesTutorProgramacion(sectionId);
           actualizarEstadoChatIA(sectionId, "saving", "Pendiente de guardar");
           programarGuardadoFirebase();
       }
@@ -4816,8 +4940,19 @@
       }
 
       async function generarRespuestaChatIASegura(sectionId, pregunta, modo = "consulta") {
+          const nivel = obtenerNivelAyudaTutor(modo, pregunta);
+          const estado = obtenerEstadoTutor(sectionId, nivel);
+          if (!estado.permitido) {
+              actualizarEstadoChatIA(sectionId, "error", estado.mensaje);
+              return estado.mensaje;
+          }
           const respaldoLocal = generarRespuestaChatIA(sectionId, pregunta, modo);
+          if (navigator.onLine === false) {
+              actualizarEstadoChatIA(sectionId, "error", "Sin conexión · Tutor local activo");
+              return `${respaldoLocal}\n\nAviso: no hay conexión. Se utilizó el tutor local y la consulta quedó disponible para continuar trabajando.`;
+          }
           if (!window.firebaseAIRealConfigurada || typeof window.consultarTutorIAFirebase !== "function") {
+              actualizarEstadoChatIA(sectionId, "saved", "Tutor local activo");
               return respaldoLocal;
           }
           const sec = seccionesData.find(s => s.id === sectionId) || {};
@@ -4852,11 +4987,12 @@
                   consulta,
                   new Promise((_, reject) => setTimeout(() => reject(new Error("Tiempo de espera agotado.")), 15000))
               ]);
+              actualizarEstadoChatIA(sectionId, "saved", "Tutor IA disponible");
               return validarRespuestaTutorRemoto(respuestaRemota, respaldoLocal);
           } catch (error) {
               console.warn("Tutor IA remoto no disponible; se usará el tutor local.", error);
               actualizarEstadoChatIA(sectionId, "error", "Tutor local activo");
-              return respaldoLocal;
+              return `${respaldoLocal}\n\nAviso: el proveedor de IA no respondió. Se utilizó el tutor local y la consulta quedó registrada sin reintento automático.`;
           }
       }
 
@@ -4873,10 +5009,74 @@
           const texto = normalizarEvaluacion(`${pregunta} ${modo}`);
           const diagnostico = diagnosticarCodigoChatIA(code, sec, evaluacion, historial);
           const pendientes = diagnostico.conceptosPendientes;
-          const nivelPista = /^pista[123]$/.test(modo)
-              ? Number(modo.slice(-1))
-              : obtenerNivelPistaIA(sectionId, pregunta);
+          const nivelPista = obtenerNivelAyudaTutor(modo, pregunta);
           const preguntaSocratica = (sec.preguntasSocraticas || [])[Math.min(nivelPista - 1, Math.max(0, (sec.preguntasSocraticas || []).length - 1))];
+
+          if (/^nivel[1-6]$/.test(modo)) {
+              const linea = diagnostico.lineaError || diagnostico.lineaSospechosa;
+              const tipoError = diagnostico.delimitadores.length
+                  ? "sintaxis"
+                  : diagnostico.errorTexto || diagnostico.asignacionEnCondicion || diagnostico.funcionSinRetorno
+                      ? "lógica o ejecución"
+                      : pendientes.length
+                          ? "comprensión"
+                          : "validación";
+              const casoPrueba = diagnostico.errorTexto
+                  ? `El último caso ejecutado falló con: ${diagnostico.errorTexto}.`
+                  : diagnostico.tieneDecision
+                      ? "Probá un caso que cumpla la condición y otro que no la cumpla."
+                      : "Probá una entrada habitual y otra límite.";
+              if (nivelPista === 1) {
+                  return construirRespuestaIA(
+                      `Nivel 1 · ${etiquetaNivelTutor(1)}`,
+                      `Este desafío trabaja ${sec.theory || "el concepto indicado en la consigna"}. El foco actual es ${pendientes[0] || "explicar la entrada, el proceso y la salida"}.`,
+                      "Escribí con tus palabras qué debería recibir el programa, qué debería transformar y qué debería mostrar.",
+                      preguntaSocratica || "¿Qué concepto de la consigna podés nombrar antes de tocar el código?"
+                  );
+              }
+              if (nivelPista === 2) {
+                  return construirRespuestaIA(
+                      `Nivel 2 · ${etiquetaNivelTutor(2)}`,
+                      `Pensá el problema como una secuencia de decisiones; todavía no hace falta escribir la solución.`,
+                      "¿Qué valor debería tener la variable principal antes y después de la instrucción que estás revisando?",
+                      preguntaSocratica || casoPrueba
+                  );
+              }
+              if (nivelPista === 3) {
+                  return construirRespuestaIA(
+                      `Nivel 3 · ${etiquetaNivelTutor(3)}`,
+                      `El problema parece de ${tipoError}${linea ? ` y la zona para revisar es la línea ${linea}` : ""}.`,
+                      diagnostico.errorTexto
+                          ? `Compará el valor esperado con el valor real justo antes de esa línea y cambiá una sola cosa.`
+                          : "Revisá el fragmento que concentra la condición, el retorno o el delimitador desbalanceado.",
+                      casoPrueba
+                  );
+              }
+              if (nivelPista === 4) {
+                  return construirRespuestaIA(
+                      `Nivel 4 · ${etiquetaNivelTutor(4)}`,
+                      "Pasemos la solución a pseudocódigo, sin sintaxis JavaScript lista para copiar.",
+                      `1. Recibir los datos.\n2. ${pendientes[0] ? `Resolver ${pendientes[0]}.` : "Aplicar la decisión o repetición necesaria."}\n3. Comprobar el resultado.\n4. Mostrar la salida.`,
+                      preguntaSocratica || "¿Qué paso del pseudocódigo podés convertir primero en una instrucción?"
+                  );
+              }
+              if (nivelPista === 5) {
+                  return construirRespuestaIA(
+                      `Nivel 5 · ${etiquetaNivelTutor(5)}`,
+                      "Te muestro solo la forma parcial del fragmento que deberías completar.",
+                      pendientes.length
+                          ? `Fragmento orientativo: ${pendientes[0]}(...)\n// completá los datos, la condición o el retorno según la consigna.`
+                          : "Fragmento orientativo: const resultado = /* completá la transformación */;",
+                      "¿Qué parte falta completar para que el caso de prueba produzca la salida esperada?"
+                  );
+              }
+              return construirRespuestaIA(
+                  `Nivel 6 · ${etiquetaNivelTutor(6)}`,
+                  "Este nivel muestra una solución comentada y debe usarse para comparar decisiones, no para copiarla directamente.",
+                  `// Entrada: definí los datos que pide la consigna.\n// Proceso: aplicá ${pendientes[0] || "la regla principal"}.\n// Salida: verificá el resultado con un caso habitual y uno límite.\n// Completá la sintaxis con tus propias decisiones.`,
+                  casoPrueba
+              );
+          }
 
           if (/^(hola|buenas|buen dia|buenas tardes|buenas noches)\b/.test(texto)) {
               return construirRespuestaIA(
@@ -5099,12 +5299,30 @@
               linea: "Explicame el error o la línea más importante de mi código.",
               pista1: "Dame una pista de nivel 1: ayudame a ubicar el concepto sin decirme cómo resolverlo.",
               pista2: "Dame una pista de nivel 2: ayudame a convertir el concepto en un paso concreto.",
-              pista3: "Dame una pista de nivel 3: indicame qué cambio mínimo puedo probar ahora."
+              pista3: "Dame una pista de nivel 3: indicame qué cambio mínimo puedo probar ahora.",
+              nivel1: "Solicito nivel 1: recordatorio conceptual.",
+              nivel2: "Solicito nivel 2: pregunta orientadora.",
+              nivel3: "Solicito nivel 3: identificación del error.",
+              nivel4: "Solicito nivel 4: pseudocódigo.",
+              nivel5: "Solicito nivel 5: fragmento parcial.",
+              nivel6: "Solicito nivel 6: solución comentada."
           };
           const pregunta = textos[modo] || textos.pista;
-          agregarMensajeChatIA(sectionId, "student", pregunta);
+          const nivel = obtenerNivelAyudaTutor(modo, pregunta);
+          const estado = obtenerEstadoTutor(sectionId, nivel);
+          if (!estado.permitido) {
+              agregarMensajeChatIA(sectionId, "assistant", estado.mensaje, { nivel, tipo: "politica", noConsumeCuota: true });
+              return;
+          }
+          agregarMensajeChatIA(sectionId, "student", pregunta, { nivel });
           const respuesta = await generarRespuestaChatIASegura(sectionId, pregunta, modo);
-          agregarMensajeChatIA(sectionId, "assistant", respuesta);
+          const falloProveedor = respuesta.includes("el proveedor de IA no respondió");
+          const sinConexion = respuesta.includes("no hay conexión");
+          agregarMensajeChatIA(sectionId, "assistant", respuesta, {
+              nivel,
+              tipo: falloProveedor ? "error-servicio" : sinConexion ? "sin-conexion" : "",
+              proveedor: falloProveedor || sinConexion || !window.firebaseAIRealConfigurada ? "local" : "firebase-ai"
+          });
       }
 
       function limpiarChatIA(sectionId) {
@@ -5122,11 +5340,23 @@
           const input = document.getElementById(`ai-chat-input-${sectionId}`);
           const pregunta = input?.value.trim() || "";
           if (!pregunta) return;
+          const nivel = obtenerNivelAyudaTutor("consulta", pregunta);
+          const estado = obtenerEstadoTutor(sectionId, nivel);
+          if (!estado.permitido) {
+              agregarMensajeChatIA(sectionId, "assistant", estado.mensaje, { nivel, tipo: "politica", noConsumeCuota: true });
+              return;
+          }
           input.value = "";
           input.disabled = true;
-          agregarMensajeChatIA(sectionId, "student", pregunta);
+          agregarMensajeChatIA(sectionId, "student", pregunta, { nivel });
           const respuesta = await generarRespuestaChatIASegura(sectionId, pregunta);
-          agregarMensajeChatIA(sectionId, "assistant", respuesta);
+          const falloProveedor = respuesta.includes("el proveedor de IA no respondió");
+          const sinConexion = respuesta.includes("no hay conexión");
+          agregarMensajeChatIA(sectionId, "assistant", respuesta, {
+              nivel,
+              tipo: falloProveedor ? "error-servicio" : sinConexion ? "sin-conexion" : "",
+              proveedor: falloProveedor || sinConexion || !window.firebaseAIRealConfigurada ? "local" : "firebase-ai"
+          });
           input.disabled = false;
           input.focus();
       }

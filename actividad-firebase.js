@@ -21,7 +21,7 @@
         autocompletion,
         completionKeymap,
         startCompletion
-} from "./codemirror-bundle.js?v=20260918-7";
+} from "./codemirror-bundle.js?v=20260918-9";
 
       window.CodeMirror6 = {
         Compartment,
@@ -3203,6 +3203,10 @@
           avisoSinConexionSegundos: Math.max(15, Math.min(600, Number(configuracion?.avisoSinConexionSegundos) || 30)),
           alertaSinConexionSegundos: Math.max(60, Math.min(3600, Number(configuracion?.alertaSinConexionSegundos) || 120)),
           retencionDias: Math.max(1, Math.min(3650, Number(configuracion?.retencionDias) || 180)),
+          tutorHabilitado: configuracion?.tutorHabilitado !== false,
+          evaluacionFormal: configuracion?.evaluacionFormal === true,
+          nivelMaximoTutor: Math.max(1, Math.min(6, Number(configuracion?.nivelMaximoTutor) || 6)),
+          limiteConsultasTutor: Math.max(1, Math.min(50, Number(configuracion?.limiteConsultasTutor) || 12)),
           dominiosPermitidos: listaDominios(configuracion?.dominiosPermitidos),
           dominiosAlerta: listaDominios(configuracion?.dominiosAlerta),
           dominiosIgnorados: listaDominios(configuracion?.dominiosIgnorados),
@@ -4763,6 +4767,8 @@
           if(remotos.length===19) window.dispatchEvent(new CustomEvent('desafios-profesor-data',{detail:remotos}));
         }, err => window.dispatchEvent(new CustomEvent('desafios-firebase-error',{detail:err.message})));
       };
+
+
 
 
 
