@@ -1,0 +1,2087 @@
+rules_version = '2';
+
+// Actualizado el 5 de septiembre de 2026.
+// Incluye auditoría segura, mensajería, colaboración CRDT, presencia y aportes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsDocument(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isActiveStudent(uid) {
+      return verifiedEmail() &&
+        ownsDocument(uid) &&
+        exists(/databases/$(database)/documents/estudiantes/$(uid)) &&
+        get(
+          /databases/$(database)/documents/estudiantes/$(uid)
+        ).data.get('estadoCuenta', 'pendiente') == 'activo';
+    }
+
+    function verifiedEmail() {
+      return signedIn() &&
+        request.auth.token.get('email_verified', false) == true;
+    }
+
+    function authenticatedEmail() {
+      return request.auth.token.get('email', '');
+    }
+
+    function isPrincipalTeacherAdmin() {
+      return verifiedEmail() &&
+        authenticatedEmail() == 'ipem146centenario@gmail.com';
+    }
+
+    function isManagedTeacher() {
+      return verifiedEmail() &&
+        exists(
+          /databases/$(database)/documents/docentesAutorizados/$(authenticatedEmail())
+        ) &&
+        get(
+          /databases/$(database)/documents/docentesAutorizados/$(authenticatedEmail())
+        ).data.get('email', '') == authenticatedEmail() &&
+        get(
+          /databases/$(database)/documents/docentesAutorizados/$(authenticatedEmail())
+        ).data.get('activo', false) == true;
+    }
+
+    function isTeacher() {
+      return isPrincipalTeacherAdmin() || isManagedTeacher();
+    }
+
+    function validTeacherRecord(docenteId) {
+      return request.resource.data.keys().hasAll([
+          'email',
+          'nombre',
+          'rol',
+          'activo',
+          'creadoEn',
+          'creadoPor',
+          'actualizadoEn',
+          'actualizadoPor',
+          'bajaEn',
+          'bajaPor',
+          'motivoBaja'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'email',
+          'nombre',
+          'rol',
+          'activo',
+          'creadoEn',
+          'creadoPor',
+          'actualizadoEn',
+          'actualizadoPor',
+          'bajaEn',
+          'bajaPor',
+          'motivoBaja'
+        ]) &&
+        request.resource.data.email == docenteId &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() >= 5 &&
+        request.resource.data.email.size() <= 254 &&
+        request.resource.data.nombre is string &&
+        request.resource.data.nombre.size() >= 1 &&
+        request.resource.data.nombre.size() <= 120 &&
+        request.resource.data.rol is string &&
+        request.resource.data.activo is bool &&
+        request.resource.data.creadoEn is timestamp &&
+        request.resource.data.creadoPor is string &&
+        request.resource.data.actualizadoEn == request.time &&
+        request.resource.data.actualizadoPor == authenticatedEmail() &&
+        (
+          request.resource.data.bajaEn == null ||
+          request.resource.data.bajaEn is timestamp
+        ) &&
+        request.resource.data.bajaPor is string &&
+        request.resource.data.motivoBaja is string &&
+        request.resource.data.motivoBaja.size() <= 300 &&
+        (
+          docenteId == 'ipem146centenario@gmail.com'
+            ? (
+              request.resource.data.rol == 'administrador' &&
+              request.resource.data.activo == true
+            )
+            : request.resource.data.rol == 'docente'
+        );
+    }
+
+    function studentMutableFields() {
+      return [
+        'estudiante',
+        'salidasPestana',
+        'eventosSalidasPestana',
+        'pantallaBloqueada',
+        'pantallaBloqueadaEn',
+        'pantallaBloqueadaSalidas',
+        'pantallaBloqueadaSeccion',
+        'codigos',
+        'tiemposRestantes',
+        'finalizadas',
+        'historialResultados',
+        'chatIA',
+        'ayudasComprension',
+        'contadorPrevisualizaciones',
+        'estadosRecomendacionesInforme',
+        'seccionActiva',
+        'versionCodigo',
+        'versionApp',
+        'nombreGoogle',
+        'fotoGoogle',
+        'emailVerificado',
+        'seguimientoExtension',
+        'jitsiParticipacion',
+        'versionScript',
+        'intentosPortapapeles',
+        'presenciaEnLinea',
+        'presenciaActualizadaEn',
+        'presenciaActualizadaEnCliente',
+        'versionLocal',
+        'versionLocalEn',
+        'actualizadoEn'
+      ];
+    }
+
+    function teacherMutableStudentFields() {
+      return [
+        'estadoCuenta',
+        'bajaMotivo',
+        'bajaFecha',
+        'bajaPor',
+        'rechazoMotivo',
+        'rechazadoEn',
+        'rechazadoPor',
+        'aprobadoEn',
+        'aprobadoPor',
+        'revisionSalidas',
+        'notasDesafiosDocente',
+        'pantallaBloqueada',
+        'pantallaBloqueadaEn',
+        'pantallaBloqueadaSalidas',
+        'pantallaBloqueadaSeccion',
+        'bloqueoManual',
+        'ultimoBloqueoManual',
+        'cantidadDesbloqueos',
+        'ultimoDesbloqueo',
+        'desbloqueoPantalla',
+        'jitsiSala',
+        'jitsiGrupal',
+        'planesRefuerzo',
+        'mensajeDocenteActual',
+        'actualizadoEn'
+      ];
+    }
+
+    function validTeacherStudentUpdate(uid) {
+      return isTeacher() &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(teacherMutableStudentFields()) &&
+        request.resource.data.get('actualizadoEn', null) == request.time &&
+        request.resource.data.get('estadoCuenta', resource.data.get('estadoCuenta', 'pendiente')) in [
+          'pendiente',
+          'activo',
+          'rechazado',
+          'inactivo'
+        ] &&
+        request.resource.data.get('bajaMotivo', '') is string &&
+        request.resource.data.get('bajaMotivo', '').size() <= 500 &&
+        request.resource.data.get('rechazoMotivo', '') is string &&
+        request.resource.data.get('rechazoMotivo', '').size() <= 500 &&
+        request.resource.data.get('bajaPor', '') is string &&
+        request.resource.data.get('bajaPor', '').size() <= 254 &&
+        request.resource.data.get('rechazadoPor', '') is string &&
+        request.resource.data.get('rechazadoPor', '').size() <= 254 &&
+        request.resource.data.get('aprobadoPor', '') is string &&
+        request.resource.data.get('aprobadoPor', '').size() <= 254 &&
+        request.resource.data.get('revisionSalidas', {}) is map &&
+        request.resource.data.get('notasDesafiosDocente', {}) is map &&
+        request.resource.data.get('planesRefuerzo', []) is list &&
+        request.resource.data.get('planesRefuerzo', []).size() <= 100 &&
+        request.resource.data.get('mensajeDocenteActual', {}) is map;
+    }
+
+    function newStudentAllowedFields() {
+      return [
+        'estudiante',
+        'salidasPestana',
+        'eventosSalidasPestana',
+        'codigos',
+        'tiemposRestantes',
+        'finalizadas',
+        'historialResultados',
+        'chatIA',
+        'ayudasComprension',
+        'contadorPrevisualizaciones',
+        'estadosRecomendacionesInforme',
+        'seccionActiva',
+        'versionCodigo',
+        'versionApp',
+        'nombreGoogle',
+        'fotoGoogle',
+        'emailVerificado',
+        'seguimientoExtension',
+        'versionLocal',
+        'versionLocalEn',
+        'actualizadoEn',
+        'uid',
+        'email',
+        'estadoCuenta',
+        'solicitudAprobacionEn'
+      ];
+    }
+
+    function validNewStudent(uid) {
+      return ownsDocument(uid) &&
+        request.resource.data.keys().hasAll([
+          'uid',
+          'email',
+          'estudiante',
+          'estadoCuenta'
+        ]) &&
+        request.resource.data.keys().hasOnly(newStudentAllowedFields()) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.email ==
+          request.auth.token.get('email', '') &&
+        request.resource.data.get('emailVerificado', false) ==
+          request.auth.token.get('email_verified', false) &&
+        request.resource.data.get('versionLocal', 0) is number &&
+        request.resource.data.get('versionLocal', 0) >= 0 &&
+        request.resource.data.get('versionLocalEn', '') is string &&
+        request.resource.data.get('versionLocalEn', '').size() <= 40 &&
+        request.resource.data.estadoCuenta == 'pendiente';
+    }
+
+    function validStudentUpdate(uid) {
+      return verifiedEmail() &&
+        ownsDocument(uid) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.get('emailVerificado', false) ==
+          request.auth.token.get('email_verified', false) &&
+        request.resource.data.get('versionLocal', 0) is number &&
+        request.resource.data.get('versionLocal', 0) >=
+          resource.data.get('versionLocal', 0) &&
+        request.resource.data.get('versionLocalEn', '') is string &&
+        request.resource.data.get('versionLocalEn', '').size() <= 40 &&
+        // El alumno puede activar el bloqueo, pero nunca quitar uno existente.
+        (
+          resource.data.get('pantallaBloqueada', false) != true ||
+          request.resource.data.get('pantallaBloqueada', false) == true
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['seguimientoExtension']) ||
+          (
+            request.resource.data.seguimientoExtension is map &&
+            request.resource.data.seguimientoExtension.keys().hasAll([
+              'instalada',
+              'activa',
+              'version',
+              'ultimaSenalEn',
+              'dominioActual',
+              'tituloActual',
+              'visitaIniciadaEn',
+              'salidaGrupoId',
+              'pendientes',
+              'claseId'
+            ]) &&
+            request.resource.data.seguimientoExtension.keys().hasOnly([
+              'instalada',
+              'activa',
+              'version',
+              'ultimaSenalEn',
+              'dominioActual',
+              'tituloActual',
+              'visitaIniciadaEn',
+              'salidaGrupoId',
+              'pendientes',
+              'claseId'
+            ]) &&
+            request.resource.data.seguimientoExtension.instalada is bool &&
+            request.resource.data.seguimientoExtension.activa is bool &&
+            request.resource.data.seguimientoExtension.version is string &&
+            request.resource.data.seguimientoExtension.version.size() <= 30 &&
+            request.resource.data.seguimientoExtension.ultimaSenalEn is string &&
+            request.resource.data.seguimientoExtension.ultimaSenalEn.size() <= 40 &&
+            request.resource.data.seguimientoExtension.dominioActual is string &&
+            request.resource.data.seguimientoExtension.dominioActual.size() <= 120 &&
+            request.resource.data.seguimientoExtension.tituloActual is string &&
+            request.resource.data.seguimientoExtension.tituloActual.size() <= 300 &&
+            request.resource.data.seguimientoExtension.visitaIniciadaEn is string &&
+            request.resource.data.seguimientoExtension.visitaIniciadaEn.size() <= 40 &&
+            request.resource.data.seguimientoExtension.salidaGrupoId is string &&
+            request.resource.data.seguimientoExtension.salidaGrupoId.size() <= 160 &&
+            request.resource.data.seguimientoExtension.pendientes is number &&
+            request.resource.data.seguimientoExtension.pendientes >= 0 &&
+            request.resource.data.seguimientoExtension.pendientes <= 500 &&
+            request.resource.data.seguimientoExtension.claseId is string &&
+            request.resource.data.seguimientoExtension.claseId.size() <= 120
+          )
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['versionScript']) ||
+          (
+            request.resource.data.versionScript is string &&
+            request.resource.data.versionScript.size() <= 80
+          )
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['presenciaEnLinea']) ||
+          request.resource.data.presenciaEnLinea is bool
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['presenciaActualizadaEn']) ||
+          request.resource.data.presenciaActualizadaEn is timestamp
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['presenciaActualizadaEnCliente']) ||
+          (
+            request.resource.data.presenciaActualizadaEnCliente is number &&
+            request.resource.data.presenciaActualizadaEnCliente > 0
+          )
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['intentosPortapapeles']) ||
+          (
+            request.resource.data.intentosPortapapeles is map &&
+            request.resource.data.intentosPortapapeles.keys().hasAll([
+              'total',
+              'conteos',
+              'riesgo',
+              'intentosUltimosDosMinutos',
+              'versionScript',
+              'ultimoIntento',
+              'historial'
+            ]) &&
+            request.resource.data.intentosPortapapeles.keys().hasOnly([
+              'total',
+              'conteos',
+              'riesgo',
+              'intentosUltimosDosMinutos',
+              'versionScript',
+              'ultimoIntento',
+              'historial'
+            ]) &&
+            request.resource.data.intentosPortapapeles.total is number &&
+            request.resource.data.intentosPortapapeles.total >= 0 &&
+            request.resource.data.intentosPortapapeles.total <= 100000 &&
+            request.resource.data.intentosPortapapeles.conteos is map &&
+            request.resource.data.intentosPortapapeles.conteos.keys().hasOnly([
+              'copiar',
+              'cortar',
+              'pegar'
+            ]) &&
+            request.resource.data.intentosPortapapeles.conteos.copiar is number &&
+            request.resource.data.intentosPortapapeles.conteos.cortar is number &&
+            request.resource.data.intentosPortapapeles.conteos.pegar is number &&
+            request.resource.data.intentosPortapapeles.riesgo in [
+              'sin-datos',
+              'bajo',
+              'medio',
+              'alto'
+            ] &&
+            request.resource.data.intentosPortapapeles.intentosUltimosDosMinutos is number &&
+            request.resource.data.intentosPortapapeles.intentosUltimosDosMinutos >= 0 &&
+            request.resource.data.intentosPortapapeles.intentosUltimosDosMinutos <= 1000 &&
+            request.resource.data.intentosPortapapeles.versionScript is string &&
+            request.resource.data.intentosPortapapeles.versionScript.size() <= 80 &&
+            request.resource.data.intentosPortapapeles.ultimoIntento is map &&
+            request.resource.data.intentosPortapapeles.historial is list &&
+            request.resource.data.intentosPortapapeles.historial.size() <= 50
+          )
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['jitsiParticipacion']) ||
+          (
+            request.resource.data.jitsiParticipacion is map &&
+            request.resource.data.jitsiParticipacion.keys().hasAll([
+              'llamadaId',
+              'tipo',
+              'estado',
+              'actualizadoEn'
+            ]) &&
+            request.resource.data.jitsiParticipacion.keys().hasOnly([
+              'llamadaId',
+              'tipo',
+              'estado',
+              'actualizadoEn'
+            ]) &&
+            request.resource.data.jitsiParticipacion.llamadaId is string &&
+            request.resource.data.jitsiParticipacion.llamadaId.size() > 0 &&
+            request.resource.data.jitsiParticipacion.llamadaId.size() <= 180 &&
+            request.resource.data.jitsiParticipacion.tipo in [
+              'individual',
+              'grupal'
+            ] &&
+            request.resource.data.jitsiParticipacion.estado in [
+              'notificado',
+              'unido',
+              'rechazado',
+              'salio',
+              'finalizada'
+            ] &&
+            request.resource.data.jitsiParticipacion.actualizadoEn ==
+              request.time &&
+            (
+              (
+                request.resource.data.jitsiParticipacion.tipo ==
+                  'individual' &&
+                resource.data.get('jitsiSala', {}).get('id', '') ==
+                  request.resource.data.jitsiParticipacion.llamadaId
+              ) ||
+              (
+                request.resource.data.jitsiParticipacion.tipo ==
+                  'grupal' &&
+                resource.data.get('jitsiGrupal', {}).get('id', '') ==
+                  request.resource.data.jitsiParticipacion.llamadaId
+              )
+            )
+          )
+        ) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(studentMutableFields());
+    }
+
+    function validIncompleteStudentRegistration(uid) {
+      return ownsDocument(uid) &&
+        (
+          resource.data.get('uid', '') == '' ||
+          resource.data.get('email', '') == '' ||
+          !resource.data.keys().hasAny(['estadoCuenta'])
+        ) &&
+        validNewStudent(uid);
+    }
+
+    function validLegacyStudentRecovery(uid) {
+      return verifiedEmail() &&
+        ownsDocument(uid) &&
+        (
+          resource.data.get('uid', '') == '' ||
+          resource.data.get('email', '') == '' ||
+          !resource.data.keys().hasAny(['estadoCuenta'])
+        ) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.email == authenticatedEmail() &&
+        request.resource.data.estadoCuenta == 'pendiente' &&
+        request.resource.data.get('emailVerificado', false) ==
+          request.auth.token.get('email_verified', false) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'uid',
+          'email',
+          'estadoCuenta',
+          'emailVerificado',
+          'nombreGoogle',
+          'fotoGoogle',
+          'actualizadoEn'
+        ]);
+    }
+
+    function validStudentResubmission(uid) {
+      return verifiedEmail() &&
+        ownsDocument(uid) &&
+        resource.data.estadoCuenta == 'rechazado' &&
+        request.resource.data.estadoCuenta == 'pendiente' &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.emailVerificado ==
+          request.auth.token.get('email_verified', false) &&
+        request.resource.data.keys().hasAll([
+          'estudiante',
+          'solicitudAprobacionEn',
+          'antecedentesRechazo'
+        ]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estudiante',
+          'emailVerificado',
+          'estadoCuenta',
+          'solicitudAprobacionEn',
+          'antecedentesRechazo',
+          'actualizadoEn'
+        ]);
+    }
+
+    function validCompatibleMessageStatusUpdate(uid) {
+      return verifiedEmail() &&
+        ownsDocument(uid) &&
+        resource.data.get('mensajeDocenteActual', {}) is map &&
+        request.resource.data.get('mensajeDocenteActual', {}) is map &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['mensajeDocenteActual']) &&
+        request.resource.data.mensajeDocenteActual
+          .diff(resource.data.mensajeDocenteActual).affectedKeys()
+          .hasOnly(['recibido', 'recibidoEn', 'leido', 'leidoEn']) &&
+        (
+          !request.resource.data.mensajeDocenteActual
+            .diff(resource.data.mensajeDocenteActual).affectedKeys()
+            .hasAny(['recibido', 'recibidoEn']) ||
+          (
+            request.resource.data.mensajeDocenteActual.recibido == true &&
+            request.resource.data.mensajeDocenteActual.recibidoEn ==
+              request.time
+          )
+        ) &&
+        (
+          !request.resource.data.mensajeDocenteActual
+            .diff(resource.data.mensajeDocenteActual).affectedKeys()
+            .hasAny(['leido', 'leidoEn']) ||
+          (
+            request.resource.data.mensajeDocenteActual.leido == true &&
+            request.resource.data.mensajeDocenteActual.leidoEn ==
+              request.time &&
+            request.resource.data.mensajeDocenteActual.recibido == true
+          )
+        );
+    }
+
+    // Señal liviana de conexión: separada del progreso y del código completo.
+    // El alumno solo puede publicar su propio UID y el docente solo puede leerla.
+    match /controlEstudiantes/{uid} {
+      function validStudentConnectionControl() {
+        return request.resource.data.keys().hasAll([
+            'uid',
+            'email',
+            'nombre',
+            'seccionActiva',
+            'escribiendo',
+            'versionCodigo',
+            'versionScript',
+            'sesionId',
+            'sesionIniciadaEnCliente',
+            'visibilidad',
+            'estadoConexion',
+            'motivoDesconexion',
+            'sesionesDuplicadas',
+            'otraSesionId',
+            'activoEn',
+            'activoEnCliente'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'uid',
+            'email',
+            'nombre',
+            'seccionActiva',
+            'escribiendo',
+            'versionCodigo',
+            'versionScript',
+            'sesionId',
+            'sesionIniciadaEnCliente',
+            'visibilidad',
+            'estadoConexion',
+            'motivoDesconexion',
+            'sesionesDuplicadas',
+            'otraSesionId',
+            'activoEn',
+            'activoEnCliente'
+          ]) &&
+          request.resource.data.uid == uid &&
+          request.resource.data.email ==
+            request.auth.token.get('email', '') &&
+          request.resource.data.nombre is string &&
+          request.resource.data.nombre.size() <= 254 &&
+          request.resource.data.seccionActiva is string &&
+          request.resource.data.seccionActiva.size() <= 100 &&
+          request.resource.data.escribiendo is bool &&
+          request.resource.data.versionCodigo is string &&
+          request.resource.data.versionCodigo.size() >= 1 &&
+          request.resource.data.versionCodigo.size() <= 20 &&
+          request.resource.data.versionScript is string &&
+          request.resource.data.versionScript.size() <= 80 &&
+          request.resource.data.sesionId is string &&
+          request.resource.data.sesionId.size() > 0 &&
+          request.resource.data.sesionId.size() <= 100 &&
+          request.resource.data.sesionIniciadaEnCliente is number &&
+          request.resource.data.sesionIniciadaEnCliente > 0 &&
+          request.resource.data.visibilidad in ['visible', 'hidden', 'prerender'] &&
+          request.resource.data.estadoConexion in [
+            'en_linea',
+            'trabajando',
+            'segundo_plano',
+            'inestable',
+            'sin_conexion',
+            'desconectado'
+          ] &&
+          request.resource.data.motivoDesconexion is string &&
+          request.resource.data.motivoDesconexion.size() <= 40 &&
+          request.resource.data.sesionesDuplicadas is bool &&
+          request.resource.data.otraSesionId is string &&
+          request.resource.data.otraSesionId.size() <= 100 &&
+          request.resource.data.activoEn == request.time &&
+          request.resource.data.activoEnCliente is number &&
+          request.resource.data.activoEnCliente > 0;
+      }
+
+      allow get: if ownsDocument(uid) || isTeacher();
+      allow list: if isTeacher();
+      allow create, update: if verifiedEmail() &&
+        ownsDocument(uid) &&
+        exists(/databases/$(database)/documents/estudiantes/$(uid)) &&
+        get(/databases/$(database)/documents/estudiantes/$(uid))
+          .data.get('estadoCuenta', 'pendiente') in ['activo', 'pendiente'] &&
+        validStudentConnectionControl();
+      allow delete: if ownsDocument(uid) || isTeacher();
+
+      match /sesiones/{sesionId} {
+        allow get, list: if ownsDocument(uid) || isTeacher();
+        allow create, update: if verifiedEmail() &&
+          ownsDocument(uid) &&
+          request.resource.data.keys().hasAll([
+            'uid',
+            'email',
+            'sesionId',
+            'visibilidad',
+            'estadoConexion',
+            'versionCodigo',
+            'versionScript',
+            'iniciadoEnCliente',
+            'ultimoLatidoCliente',
+            'ultimoLatido'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'uid',
+            'email',
+            'nombre',
+            'sesionId',
+            'seccionActiva',
+            'visibilidad',
+            'estadoConexion',
+            'versionCodigo',
+            'versionScript',
+            'iniciadoEnCliente',
+            'ultimoLatidoCliente',
+            'ultimoLatido',
+            'cerradoEn'
+          ]) &&
+          request.resource.data.uid == uid &&
+          request.resource.data.sesionId == sesionId &&
+          request.resource.data.email == authenticatedEmail() &&
+          request.resource.data.visibilidad in ['visible', 'hidden', 'prerender'] &&
+          request.resource.data.estadoConexion in [
+            'en_linea',
+            'trabajando',
+            'segundo_plano',
+            'inestable',
+            'sin_conexion',
+            'desconectado'
+          ] &&
+          request.resource.data.versionCodigo is string &&
+          request.resource.data.versionCodigo.size() <= 20 &&
+          request.resource.data.versionScript is string &&
+          request.resource.data.versionScript.size() <= 80 &&
+          request.resource.data.iniciadoEnCliente is number &&
+          request.resource.data.ultimoLatidoCliente is number &&
+          request.resource.data.ultimoLatido == request.time;
+        allow delete: if ownsDocument(uid) || isTeacher();
+      }
+    }
+
+    match /estudiantes/{uid}/historialAccesos/{eventoId} {
+      allow get, list: if ownsDocument(uid) || isTeacher();
+      allow create: if ownsDocument(uid) &&
+        request.resource.data.keys().hasAll([
+          'tipo',
+          'uid',
+          'email',
+          'sesionId',
+          'versionScript',
+          'visibilidad',
+          'navegador',
+          'sesionesDuplicadas',
+          'duracionSesionSegundos',
+          'fechaCliente',
+          'registradoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'tipo',
+          'uid',
+          'email',
+          'sesionId',
+          'versionScript',
+          'visibilidad',
+          'navegador',
+          'sesionesDuplicadas',
+          'duracionSesionSegundos',
+          'fechaCliente',
+          'registradoEn'
+        ]) &&
+        request.resource.data.tipo in ['inicio_sesion', 'cierre_sesion'] &&
+        request.resource.data.uid == uid &&
+        request.resource.data.email == authenticatedEmail() &&
+        request.resource.data.sesionId is string &&
+        request.resource.data.sesionId.size() > 0 &&
+        request.resource.data.sesionId.size() <= 100 &&
+        request.resource.data.versionScript is string &&
+        request.resource.data.versionScript.size() <= 80 &&
+        request.resource.data.visibilidad is string &&
+        request.resource.data.visibilidad.size() <= 20 &&
+        request.resource.data.navegador is string &&
+        request.resource.data.navegador.size() <= 160 &&
+        request.resource.data.sesionesDuplicadas is bool &&
+        request.resource.data.duracionSesionSegundos is number &&
+        request.resource.data.duracionSesionSegundos >= 0 &&
+        request.resource.data.duracionSesionSegundos <= 604800 &&
+        request.resource.data.fechaCliente is number &&
+        request.resource.data.fechaCliente > 0 &&
+        request.resource.data.registradoEn == request.time;
+      allow update: if false;
+      allow delete: if isTeacher();
+    }
+
+    match /estudiantes/{uid}/auditoriaPortapapeles/{eventoId} {
+      allow get, list: if isTeacher();
+      allow create: if ownsDocument(uid) &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'uid',
+          'email',
+          'accion',
+          'seccionId',
+          'versionScript',
+          'fechaEpoch',
+          'fechaISO',
+          'registradoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'uid',
+          'email',
+          'accion',
+          'seccionId',
+          'seccionTitulo',
+          'metodo',
+          'eventoOrigen',
+          'tecla',
+          'modificadores',
+          'seleccionCaracteres',
+          'visibilidad',
+          'conectado',
+          'versionScript',
+          'fechaISO',
+          'fechaEpoch',
+          'registradoEn'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.uid == uid &&
+        request.resource.data.email == authenticatedEmail() &&
+        request.resource.data.accion in ['copiar', 'cortar', 'pegar'] &&
+        request.resource.data.seccionId is string &&
+        request.resource.data.seccionId.size() <= 80 &&
+        request.resource.data.versionScript is string &&
+        request.resource.data.versionScript.size() <= 80 &&
+        request.resource.data.fechaEpoch is number &&
+        request.resource.data.fechaEpoch > 0 &&
+        request.resource.data.fechaISO is string &&
+        request.resource.data.fechaISO.size() <= 40 &&
+        request.resource.data.registradoEn == request.time;
+      allow update, delete: if false;
+    }
+
+    match /estudiantes/{uid} {
+      allow get: if ownsDocument(uid) || isTeacher();
+      allow list: if isTeacher();
+
+      // Una cuenta nueva solo puede registrarse como pendiente.
+      allow create: if validNewStudent(uid);
+
+      // El alumno conserva su progreso, pero no puede cambiar su estado.
+      // Solo un docente puede aceptar, rechazar, dar de baja o revisar.
+      allow update: if validStudentUpdate(uid) ||
+        validIncompleteStudentRegistration(uid) ||
+        validLegacyStudentRecovery(uid) ||
+        validStudentResubmission(uid) ||
+        validCompatibleMessageStatusUpdate(uid) ||
+        validTeacherStudentUpdate(uid);
+      allow delete: if isTeacher();
+    }
+
+    match /estudiantes/{uid}/historialDesbloqueos/{eventoId} {
+      allow get, list: if isTeacher();
+
+      // El evento es inmutable y solo puede crearlo el docente que desbloquea.
+      allow create: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'estudianteUid',
+          'desbloqueadoPor',
+          'desbloqueadoPorUid',
+          'desbloqueadoEn',
+          'motivo'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.estudianteUid == uid &&
+        request.resource.data.desbloqueadoPorUid == request.auth.uid &&
+        request.resource.data.motivo is string &&
+        request.resource.data.motivo.size() > 0 &&
+        request.resource.data.motivo.size() <= 500;
+
+      allow update: if false;
+
+      // Un docente puede eliminar el historial cuando borra definitivamente al estudiante.
+      allow delete: if isTeacher();
+    }
+
+    match /estudiantes/{uid}/historialDescuentos/{eventoId} {
+      allow get, list: if isTeacher();
+
+      // El historial de penalizaciones es inmutable y solo lo registra un docente autorizado.
+      allow create: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'estudianteUid',
+          'docente',
+          'docenteUid',
+          'cambiadoEn',
+          'valorAnterior',
+          'valorNuevo',
+          'motivoAnterior',
+          'motivoNuevo'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.estudianteUid == uid &&
+        request.resource.data.docenteUid == request.auth.uid &&
+        request.resource.data.docente ==
+          request.auth.token.get('email', '') &&
+        request.resource.data.cambiadoEn == request.time &&
+        request.resource.data.valorAnterior is number &&
+        request.resource.data.valorNuevo is number &&
+        request.resource.data.valorAnterior >= 0 &&
+        request.resource.data.valorAnterior <= 10 &&
+        request.resource.data.valorNuevo >= 0 &&
+        request.resource.data.valorNuevo <= 10 &&
+        request.resource.data.motivoAnterior is string &&
+        request.resource.data.motivoAnterior.size() <= 500 &&
+        request.resource.data.motivoNuevo is string &&
+        request.resource.data.motivoNuevo.size() <= 500;
+
+      allow update: if false;
+
+      // El docente puede eliminar el historial únicamente al borrar todos los datos del alumno.
+      allow delete: if isTeacher();
+    }
+
+    match /estudiantes/{uid}/historialNotasDesafios/{eventoId} {
+      // El estudiante puede consultar la auditoría de sus propias notas.
+      // Los docentes autorizados pueden consultar la de cualquier estudiante.
+      allow get, list: if ownsDocument(uid) || isTeacher();
+
+      // Cada cambio es inmutable y se crea en la misma transacción
+      // que actualiza notasDesafiosDocente en el documento del estudiante.
+      allow create: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'estudianteUid',
+          'sectionId',
+          'tipo',
+          'valorAnterior',
+          'valorNuevo',
+          'notaAutomatica',
+          'motivo',
+          'rubricaAnterior',
+          'rubricaNueva',
+          'intento',
+          'docente',
+          'docenteUid',
+          'cambiadoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'estudianteUid',
+          'sectionId',
+          'tipo',
+          'valorAnterior',
+          'valorNuevo',
+          'notaAutomatica',
+          'motivo',
+          'rubricaAnterior',
+          'rubricaNueva',
+          'intento',
+          'docente',
+          'docenteUid',
+          'cambiadoEn'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.estudianteUid == uid &&
+        request.resource.data.sectionId is string &&
+        request.resource.data.sectionId.size() > 0 &&
+        request.resource.data.sectionId.size() <= 120 &&
+        request.resource.data.tipo in [
+          'modificacion',
+          'restauracion'
+        ] &&
+        (
+          request.resource.data.valorAnterior == null ||
+          (
+            request.resource.data.valorAnterior is number &&
+            request.resource.data.valorAnterior >= 0 &&
+            request.resource.data.valorAnterior <= 10
+          )
+        ) &&
+        (
+          request.resource.data.valorNuevo == null ||
+          (
+            request.resource.data.valorNuevo is number &&
+            request.resource.data.valorNuevo >= 0 &&
+            request.resource.data.valorNuevo <= 10
+          )
+        ) &&
+        (
+          request.resource.data.notaAutomatica == null ||
+          (
+            request.resource.data.notaAutomatica is number &&
+            request.resource.data.notaAutomatica >= 0 &&
+            request.resource.data.notaAutomatica <= 10
+          )
+        ) &&
+        request.resource.data.motivo is string &&
+        request.resource.data.motivo.size() <= 1000 &&
+        (
+          request.resource.data.get('rubricaAnterior', null) == null ||
+          request.resource.data.get('rubricaAnterior', {}) is map
+        ) &&
+        (
+          request.resource.data.get('rubricaNueva', null) == null ||
+          request.resource.data.get('rubricaNueva', {}) is map
+        ) &&
+        request.resource.data.get('intento', {}) is map &&
+        request.resource.data.docente ==
+          request.auth.token.get('email', '') &&
+        request.resource.data.docenteUid == request.auth.uid &&
+        request.resource.data.cambiadoEn == request.time;
+
+      // La auditoría no puede editarse después de su creación.
+      allow update: if false;
+
+      // Solo se elimina al borrar definitivamente todos los datos del estudiante.
+      allow delete: if isTeacher();
+    }
+
+    match /estudiantes/{uid}/historialPestanas/{eventoId} {
+      allow get, list: if ownsDocument(uid) || isTeacher();
+
+      // El estudiante autenticado solo puede crear eventos para su propio historial.
+      // Después de guardado, el evento no puede modificarse.
+      allow create: if ownsDocument(uid) &&
+        exists(/databases/$(database)/documents/estudiantes/$(uid)) &&
+        get(/databases/$(database)/documents/estudiantes/$(uid)).data.get('estadoCuenta', 'activo') == 'activo' &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'estudianteUid',
+          'estudianteEmail',
+          'claseId',
+          'salidaGrupoId',
+          'tituloOrigen',
+          'seccionOrigen',
+          'seccionTitulo',
+          'tituloDestino',
+          'dominioDestino',
+          'salidaEn',
+          'regresoEn',
+          'duracionSegundos',
+          'extensionVersion',
+          'expiraEn',
+          'registradoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'estudianteUid',
+          'estudianteEmail',
+          'claseId',
+          'salidaGrupoId',
+          'tituloOrigen',
+          'seccionOrigen',
+          'seccionTitulo',
+          'tituloDestino',
+          'dominioDestino',
+          'salidaEn',
+          'regresoEn',
+          'duracionSegundos',
+          'extensionVersion',
+          'expiraEn',
+          'registradoEn'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.estudianteUid == uid &&
+        request.resource.data.estudianteEmail ==
+          request.auth.token.get('email', '') &&
+        request.resource.data.registradoEn == request.time &&
+        request.resource.data.claseId is string &&
+        request.resource.data.claseId.size() > 0 &&
+        request.resource.data.claseId.size() <= 120 &&
+        request.resource.data.salidaGrupoId is string &&
+        request.resource.data.salidaGrupoId.size() > 0 &&
+        request.resource.data.salidaGrupoId.size() <= 160 &&
+        exists(/databases/$(database)/documents/controlClase/$(request.resource.data.claseId)) &&
+        get(/databases/$(database)/documents/controlClase/$(request.resource.data.claseId)).data.iniciada == true &&
+        request.resource.data.tituloOrigen is string &&
+        request.resource.data.tituloOrigen.size() <= 300 &&
+        request.resource.data.seccionOrigen is string &&
+        request.resource.data.seccionOrigen.size() <= 120 &&
+        request.resource.data.seccionTitulo is string &&
+        request.resource.data.seccionTitulo.size() <= 200 &&
+        request.resource.data.tituloDestino is string &&
+        request.resource.data.tituloDestino.size() > 0 &&
+        request.resource.data.tituloDestino.size() <= 300 &&
+        request.resource.data.dominioDestino is string &&
+        request.resource.data.dominioDestino.size() > 0 &&
+        request.resource.data.dominioDestino.size() <= 120 &&
+        request.resource.data.salidaEn is string &&
+        request.resource.data.salidaEn.size() <= 40 &&
+        request.resource.data.regresoEn is string &&
+        request.resource.data.regresoEn.size() <= 40 &&
+        request.resource.data.duracionSegundos is number &&
+        request.resource.data.duracionSegundos >= 0 &&
+        request.resource.data.duracionSegundos <= 86400 &&
+        request.resource.data.extensionVersion is string &&
+        request.resource.data.extensionVersion.size() <= 30 &&
+        request.resource.data.expiraEn is timestamp &&
+        request.resource.data.expiraEn > request.time;
+
+      allow update: if false;
+
+      // Permite limpiar todos los datos cuando el docente elimina al estudiante.
+      allow delete: if isTeacher();
+    }
+
+    match /estudiantes/{uid}/revisionesPestanas/{revisionId} {
+      allow get, list: if isTeacher();
+      allow create, update: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'salidaGrupoId',
+          'estado',
+          'motivo',
+          'observacion',
+          'etiquetas',
+          'contabiliza',
+          'docente',
+          'docenteUid',
+          'revisadoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'salidaGrupoId',
+          'estado',
+          'motivo',
+          'observacion',
+          'etiquetas',
+          'contabiliza',
+          'docente',
+          'docenteUid',
+          'revisadoEn'
+        ]) &&
+        request.resource.data.salidaGrupoId is string &&
+        request.resource.data.salidaGrupoId.size() > 0 &&
+        request.resource.data.salidaGrupoId.size() <= 160 &&
+        request.resource.data.estado in [
+          'pendiente',
+          'revisada',
+          'justificada',
+          'no_justificada',
+          'permitida',
+          'advertencia'
+        ] &&
+        request.resource.data.motivo is string &&
+        request.resource.data.motivo.size() <= 120 &&
+        request.resource.data.observacion is string &&
+        request.resource.data.observacion.size() <= 1000 &&
+        request.resource.data.etiquetas is list &&
+        request.resource.data.etiquetas.size() <= 10 &&
+        request.resource.data.contabiliza is bool &&
+        request.resource.data.docente ==
+          request.auth.token.get('email', '') &&
+        request.resource.data.docenteUid == request.auth.uid &&
+        request.resource.data.revisadoEn == request.time;
+      allow delete: if isTeacher();
+    }
+
+    // Resumen limitado que el estudiante puede consultar.
+    // No incluye observaciones, etiquetas ni identidad del docente.
+    match /estudiantes/{uid}/revisionesPestanasEstudiante/{revisionId} {
+      allow get, list: if ownsDocument(uid) || isTeacher();
+      allow create, update: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'salidaGrupoId',
+          'estado',
+          'revisado',
+          'contabiliza',
+          'revisadoEn',
+          'actualizadoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'salidaGrupoId',
+          'estado',
+          'revisado',
+          'contabiliza',
+          'revisadoEn',
+          'actualizadoEn'
+        ]) &&
+        request.resource.data.salidaGrupoId is string &&
+        request.resource.data.salidaGrupoId.size() > 0 &&
+        request.resource.data.salidaGrupoId.size() <= 160 &&
+        request.resource.data.estado in [
+          'pendiente',
+          'revisada',
+          'justificada',
+          'no_justificada',
+          'permitida',
+          'advertencia'
+        ] &&
+        request.resource.data.revisado is bool &&
+        request.resource.data.contabiliza is bool &&
+        request.resource.data.revisadoEn is timestamp &&
+        request.resource.data.actualizadoEn == request.time;
+      allow delete: if isTeacher();
+    }
+
+    match /estudiantes/{uid}/mensajesDocente/{mensajeId} {
+      allow get, list: if ownsDocument(uid) || isTeacher();
+
+      allow create: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'estudianteUid',
+          'tipoDestino',
+          'destinoDescripcion',
+          'asunto',
+          'contenido',
+          'prioridad',
+          'docente',
+          'docenteUid',
+          'enviadoEn',
+          'recibido',
+          'recibidoEn',
+          'leido',
+          'leidoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'estudianteUid',
+          'tipoDestino',
+          'destinoDescripcion',
+          'asunto',
+          'contenido',
+          'prioridad',
+          'docente',
+          'docenteUid',
+          'enviadoEn',
+          'recibido',
+          'recibidoEn',
+          'leido',
+          'leidoEn'
+        ]) &&
+        request.resource.data.id == mensajeId &&
+        request.resource.data.estudianteUid == uid &&
+        request.resource.data.tipoDestino in ['todos', 'grupo', 'individual'] &&
+        request.resource.data.destinoDescripcion is string &&
+        request.resource.data.destinoDescripcion.size() <= 200 &&
+        request.resource.data.asunto is string &&
+        request.resource.data.asunto.size() <= 120 &&
+        request.resource.data.contenido is string &&
+        request.resource.data.contenido.size() > 0 &&
+        request.resource.data.contenido.size() <= 1000 &&
+        request.resource.data.prioridad in ['normal', 'urgente'] &&
+        request.resource.data.docente ==
+          request.auth.token.get('email', '') &&
+        request.resource.data.docenteUid == request.auth.uid &&
+        request.resource.data.enviadoEn == request.time &&
+        request.resource.data.recibido == false &&
+        request.resource.data.recibidoEn == null &&
+        request.resource.data.leido == false &&
+        request.resource.data.leidoEn == null;
+
+      // El estudiante solo puede confirmar recepción y lectura.
+      allow update: if ownsDocument(uid) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['recibido', 'recibidoEn', 'leido', 'leidoEn']) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['recibido', 'recibidoEn']) ||
+          (
+            request.resource.data.recibido == true &&
+            request.resource.data.recibidoEn == request.time
+          )
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['leido', 'leidoEn']) ||
+          (
+            request.resource.data.leido == true &&
+            request.resource.data.leidoEn == request.time &&
+            request.resource.data.recibido == true
+          )
+        );
+
+      allow delete: if isTeacher();
+    }
+
+    // Comentarios docentes asociados a un estudiante.
+    // Son visibles para el estudiante propietario y para docentes autorizados.
+    match /estudiantes/{uid}/comentariosDocente/{comentarioId} {
+      allow get, list: if ownsDocument(uid) || isTeacher();
+      // El estudiante nunca puede crear, modificar ni borrar comentarios.
+      allow create: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'texto',
+          'autor',
+          'creadoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'texto',
+          'autor',
+          'creadoEn'
+        ]) &&
+        request.resource.data.texto is string &&
+        request.resource.data.texto.size() > 0 &&
+        request.resource.data.texto.size() <= 1200 &&
+        request.resource.data.autor == authenticatedEmail() &&
+        request.resource.data.creadoEn == request.time;
+      allow update: if false;
+      allow delete: if isTeacher();
+    }
+
+    // Versiones anteriores de la programación, inmutables.
+    match /estudiantes/{uid}/historialProgramacionDocente/{versionId} {
+      allow get, list: if isTeacher();
+      allow create: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'versionAnterior',
+          'guardadoEn',
+          'guardadoPor'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'versionAnterior',
+          'guardadoEn',
+          'guardadoPor'
+        ]) &&
+        request.resource.data.versionAnterior is map &&
+        request.resource.data.versionAnterior.keys().hasOnly([
+          'titulo',
+          'instrucciones',
+          'fechaEntrega',
+          'estado',
+          'actualizadoEn',
+          'actualizadoPor'
+        ]) &&
+        request.resource.data.versionAnterior.get('titulo', '') is string &&
+        request.resource.data.versionAnterior.get('titulo', '').size() <= 160 &&
+        request.resource.data.versionAnterior.get('instrucciones', '') is string &&
+        request.resource.data.versionAnterior.get('instrucciones', '').size() <= 4000 &&
+        request.resource.data.versionAnterior.get('fechaEntrega', '') is string &&
+        request.resource.data.versionAnterior.get('fechaEntrega', '').size() <= 40 &&
+        request.resource.data.versionAnterior.get('estado', 'pendiente') in [
+          'pendiente',
+          'en_curso',
+          'revisar',
+          'completada'
+        ] &&
+        request.resource.data.guardadoPor == authenticatedEmail() &&
+        request.resource.data.guardadoEn == request.time;
+      allow update, delete: if isTeacher();
+    }
+
+    // Documento CRDT independiente para cada estudiante y desafío.
+    match /estudiantes/{uid}/colaboracionCodigo/{sectionId} {
+      function validCollaborationDocument() {
+        return request.resource.data.keys().hasAll([
+            'uid',
+            'sectionId',
+            'semilla',
+            'creadoEn',
+            'creadoPor',
+            'actualizadoEn'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'uid',
+            'sectionId',
+            'semilla',
+            'creadoEn',
+            'creadoPor',
+            'actualizadoEn',
+             'actualizadoPor',
+             'modoCooperacionActiva',
+             'edicionCooperativaPausada',
+             'estadoConsentimiento',
+             'objetivoCooperacion',
+             'solicitadoPor',
+             'solicitudEn',
+             'respondidoEn',
+             'respondidoPor',
+             'motivoRechazo',
+             'respuestaEstudianteEn'
+          ]) &&
+          request.resource.data.uid == uid &&
+          request.resource.data.sectionId == sectionId &&
+          request.resource.data.semilla is string &&
+          request.resource.data.semilla.size() > 0 &&
+          request.resource.data.semilla.size() <= 250000 &&
+          request.resource.data.creadoEn is timestamp &&
+          request.resource.data.creadoPor is string &&
+          request.resource.data.creadoPor.size() <= 254 &&
+          request.resource.data.actualizadoEn == request.time &&
+          request.resource.data.get('actualizadoPor', '') is string &&
+           request.resource.data.get('actualizadoPor', '').size() <= 254 &&
+           request.resource.data.get('modoCooperacionActiva', false) is bool &&
+           request.resource.data.get('edicionCooperativaPausada', false) is bool &&
+           request.resource.data.get('estadoConsentimiento', 'sin_solicitud') in [
+             'sin_solicitud',
+             'pendiente',
+             'aceptado',
+             'rechazado',
+             'finalizado'
+           ] &&
+           request.resource.data.get('objetivoCooperacion', '') is string &&
+           request.resource.data.get('objetivoCooperacion', '').size() <= 500 &&
+           request.resource.data.get('solicitadoPor', '') is string &&
+           request.resource.data.get('solicitadoPor', '').size() <= 254 &&
+           request.resource.data.get('solicitudEn', request.time) is timestamp &&
+           (
+             request.resource.data.get('respondidoEn', null) == null ||
+             request.resource.data.get('respondidoEn', null) is timestamp
+           ) &&
+           request.resource.data.get('respondidoPor', '') is string &&
+           request.resource.data.get('respondidoPor', '').size() <= 254 &&
+           request.resource.data.get('motivoRechazo', '') is string &&
+           request.resource.data.get('motivoRechazo', '').size() <= 300 &&
+           (
+             !request.resource.data.keys().hasAny(['respuestaEstudianteEn']) ||
+             request.resource.data.get('respuestaEstudianteEn', null) == null ||
+             request.resource.data.get('respuestaEstudianteEn', null) is timestamp
+           );
+      }
+
+      allow get, list: if ownsDocument(uid) || isTeacher();
+      allow create: if (isActiveStudent(uid) || isTeacher()) &&
+        validCollaborationDocument() &&
+        request.resource.data.get('modoCooperacionActiva', false) == false &&
+        request.resource.data.get('edicionCooperativaPausada', false) == false &&
+        request.resource.data.get('estadoConsentimiento', 'sin_solicitud') ==
+          'sin_solicitud';
+      allow update: if (isActiveStudent(uid) || isTeacher()) &&
+        validCollaborationDocument() &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.sectionId == resource.data.sectionId &&
+        request.resource.data.semilla == resource.data.semilla &&
+        request.resource.data.creadoEn == resource.data.creadoEn &&
+        request.resource.data.creadoPor == resource.data.creadoPor &&
+        (
+          (
+            isTeacher() &&
+            (
+              (
+                resource.data.get('estadoConsentimiento', 'sin_solicitud') in [
+                  'sin_solicitud',
+                  'rechazado',
+                  'finalizado'
+                ] &&
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                  'actualizadoEn',
+                  'actualizadoPor',
+                  'modoCooperacionActiva',
+                  'edicionCooperativaPausada',
+                  'estadoConsentimiento',
+                  'objetivoCooperacion',
+                  'solicitadoPor',
+                  'solicitudEn',
+                  'respondidoEn',
+                  'respondidoPor',
+                  'motivoRechazo'
+                ]) &&
+                request.resource.data.estadoConsentimiento == 'aceptado' &&
+                request.resource.data.modoCooperacionActiva == true &&
+                request.resource.data.edicionCooperativaPausada == false &&
+                request.resource.data.objetivoCooperacion is string &&
+                request.resource.data.objetivoCooperacion.size() > 0 &&
+                request.resource.data.respondidoEn == request.time &&
+                request.resource.data.respondidoPor == authenticatedEmail() &&
+                request.resource.data.motivoRechazo == ''
+              ) ||
+              (
+                resource.data.get('estadoConsentimiento', 'sin_solicitud') in [
+                  'sin_solicitud',
+                  'rechazado',
+                  'finalizado'
+                ] &&
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                  'actualizadoEn',
+                  'actualizadoPor',
+                  'modoCooperacionActiva',
+                  'edicionCooperativaPausada',
+                  'estadoConsentimiento',
+                  'objetivoCooperacion',
+                  'solicitadoPor',
+                  'solicitudEn',
+                  'respondidoEn',
+                  'respondidoPor',
+                  'motivoRechazo'
+                ]) &&
+                request.resource.data.estadoConsentimiento == 'pendiente' &&
+                request.resource.data.modoCooperacionActiva == false &&
+                request.resource.data.edicionCooperativaPausada == true &&
+                request.resource.data.objetivoCooperacion.size() > 0 &&
+                request.resource.data.respondidoEn == null &&
+                request.resource.data.respondidoPor == '' &&
+                request.resource.data.motivoRechazo == ''
+              ) ||
+              (
+                resource.data.get('estadoConsentimiento', 'sin_solicitud') == 'aceptado' &&
+                request.resource.data.estadoConsentimiento == 'aceptado' &&
+                request.resource.data.modoCooperacionActiva == true &&
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                  'actualizadoEn',
+                  'actualizadoPor',
+                  'edicionCooperativaPausada'
+                ])
+              ) ||
+              (
+                request.resource.data.estadoConsentimiento == 'finalizado' &&
+                request.resource.data.modoCooperacionActiva == false &&
+                request.resource.data.edicionCooperativaPausada == true &&
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                  'actualizadoEn',
+                  'actualizadoPor',
+                  'modoCooperacionActiva',
+                  'edicionCooperativaPausada',
+                  'estadoConsentimiento'
+                ])
+              )
+            )
+          ) ||
+          (
+            isActiveStudent(uid) &&
+            resource.data.get('estadoConsentimiento', 'sin_solicitud') == 'pendiente' &&
+            request.resource.data.get('actualizadoPor', '') == authenticatedEmail() &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'actualizadoEn',
+              'actualizadoPor',
+              'modoCooperacionActiva',
+              'edicionCooperativaPausada',
+              'estadoConsentimiento',
+              'respondidoEn',
+              'respondidoPor',
+              'motivoRechazo'
+            ]) &&
+            request.resource.data.estadoConsentimiento in ['aceptado', 'rechazado'] &&
+            request.resource.data.respondidoEn == request.time &&
+            request.resource.data.respondidoPor == authenticatedEmail() &&
+            (
+              request.resource.data.estadoConsentimiento == 'aceptado'
+                ? request.resource.data.modoCooperacionActiva == true &&
+                  request.resource.data.edicionCooperativaPausada == false &&
+                  request.resource.data.motivoRechazo == ''
+                : request.resource.data.modoCooperacionActiva == false &&
+                  request.resource.data.edicionCooperativaPausada == true &&
+                  request.resource.data.motivoRechazo is string
+            )
+          ) ||
+          (
+             isActiveStudent(uid) &&
+             request.resource.data.get('actualizadoPor', '') ==
+               authenticatedEmail() &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'actualizadoEn',
+               'actualizadoPor'
+             ])
+           )
+        );
+      allow delete: if false;
+
+      // Las actualizaciones Yjs son inmutables y se pueden aplicar en cualquier orden.
+      match /actualizaciones/{actualizacionId} {
+        allow get, list: if ownsDocument(uid) || isTeacher();
+        allow create: if (isActiveStudent(uid) || isTeacher()) &&
+          request.resource.data.keys().hasAll([
+            'id',
+            'uid',
+            'sectionId',
+            'update',
+            'clienteId',
+            'rol',
+            'autorUid',
+            'autorEmail',
+            'creadoEn'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'id',
+            'uid',
+            'sectionId',
+            'update',
+            'clienteId',
+            'rol',
+            'autorUid',
+            'autorEmail',
+            'creadoEn'
+          ]) &&
+          request.resource.data.id == actualizacionId &&
+          request.resource.data.uid == uid &&
+          request.resource.data.sectionId == sectionId &&
+          request.resource.data.update is string &&
+          request.resource.data.update.size() > 0 &&
+          request.resource.data.update.size() <= 250000 &&
+          request.resource.data.clienteId is string &&
+          request.resource.data.clienteId.size() <= 300 &&
+          request.resource.data.rol in ['estudiante', 'docente'] &&
+          (
+            request.resource.data.rol == 'estudiante'
+              ? isActiveStudent(uid)
+              : isTeacher()
+          ) &&
+          request.resource.data.autorUid == request.auth.uid &&
+          request.resource.data.autorEmail ==
+            request.auth.token.get('email', '') &&
+          request.resource.data.creadoEn == request.time &&
+          exists(
+            /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+          ) &&
+          (
+            request.resource.data.rol == 'docente'
+              ? (
+                  get(
+                    /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                  ).data.get('estadoConsentimiento', 'sin_solicitud') == 'aceptado' &&
+                  get(
+                    /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                  ).data.get('modoCooperacionActiva', false) == true &&
+                  get(
+                    /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                  ).data.get('edicionCooperativaPausada', false) == false
+                )
+              : (
+                  get(
+                    /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                  ).data.get('modoCooperacionActiva', false) == false ||
+                  (
+                    get(
+                      /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                    ).data.get('estadoConsentimiento', 'sin_solicitud') == 'aceptado' &&
+                    get(
+                      /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                    ).data.get('edicionCooperativaPausada', false) == false
+                  )
+                )
+          );
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // Presencia y posición de selección de los participantes conectados.
+      match /presencia/{clienteId} {
+        function collaborationPresenceEnabled() {
+          return exists(
+              /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+            ) &&
+            get(
+              /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+            ).data.get('estadoConsentimiento', 'sin_solicitud') == 'aceptado' &&
+            get(
+              /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+            ).data.get('modoCooperacionActiva', false) == true;
+        }
+
+        function validCollaborationPresence() {
+          return request.resource.data.keys().hasAll([
+              'clienteId',
+              'uid',
+              'sectionId',
+              'rol',
+              'nombre',
+              'autorUid',
+              'cursorInicio',
+              'cursorFin',
+              'escribiendo',
+              'activoEn'
+            ]) &&
+            request.resource.data.keys().hasOnly([
+              'clienteId',
+              'uid',
+              'sectionId',
+              'rol',
+              'nombre',
+              'autorUid',
+              'cursorInicio',
+              'cursorFin',
+              'escribiendo',
+              'activoEn'
+            ]) &&
+            request.resource.data.clienteId == clienteId &&
+            request.resource.data.uid == uid &&
+            request.resource.data.sectionId == sectionId &&
+            request.resource.data.rol in ['estudiante', 'docente'] &&
+            (
+              request.resource.data.rol == 'estudiante'
+                ? isActiveStudent(uid)
+                : isTeacher()
+            ) &&
+            request.resource.data.nombre is string &&
+            request.resource.data.nombre.size() <= 254 &&
+            request.resource.data.autorUid == request.auth.uid &&
+            request.resource.data.cursorInicio is int &&
+            request.resource.data.cursorInicio >= 0 &&
+            request.resource.data.cursorFin is int &&
+            request.resource.data.cursorFin >= 0 &&
+            request.resource.data.escribiendo is bool &&
+            request.resource.data.activoEn == request.time;
+        }
+
+        allow get, list: if (ownsDocument(uid) || isTeacher()) &&
+          collaborationPresenceEnabled();
+        allow create: if (isActiveStudent(uid) || isTeacher()) &&
+          collaborationPresenceEnabled() &&
+          validCollaborationPresence();
+        allow update: if (isActiveStudent(uid) || isTeacher()) &&
+          collaborationPresenceEnabled() &&
+          resource.data.autorUid == request.auth.uid &&
+          validCollaborationPresence();
+        allow delete: if request.auth.uid == resource.data.autorUid ||
+          isTeacher();
+      }
+
+      // Conversación asociada a cada desafío colaborativo.
+      match /mensajes/{mensajeId} {
+        function validMessageCitation() {
+          return !request.resource.data.keys().hasAny(['cita']) ||
+            request.resource.data.cita == null ||
+            (
+              request.resource.data.cita is map &&
+              request.resource.data.cita.keys().hasAll([
+                'lineaInicio',
+                'lineaFin',
+                'texto'
+              ]) &&
+              request.resource.data.cita.keys().hasOnly([
+                'lineaInicio',
+                'lineaFin',
+                'texto'
+              ]) &&
+              request.resource.data.cita.lineaInicio is int &&
+              request.resource.data.cita.lineaInicio >= 1 &&
+              request.resource.data.cita.lineaFin is int &&
+              request.resource.data.cita.lineaFin >=
+                request.resource.data.cita.lineaInicio &&
+              request.resource.data.cita.lineaFin <=
+                request.resource.data.cita.lineaInicio + 500 &&
+              request.resource.data.cita.texto is string &&
+              request.resource.data.cita.texto.size() > 0 &&
+              request.resource.data.cita.texto.size() <= 1200
+            );
+        }
+
+        function validStudentMessageReceipt() {
+          return ownsDocument(uid) &&
+            resource.data.rol == 'docente' &&
+            resource.data.autorUid != request.auth.uid &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                'entregadoEstudianteEn',
+                'leidoEstudianteEn'
+              ]) &&
+            (
+              !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['entregadoEstudianteEn']) ||
+              (
+                resource.data.get('entregadoEstudianteEn', null) == null &&
+                request.resource.data.entregadoEstudianteEn == request.time
+              )
+            ) &&
+            (
+              !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['leidoEstudianteEn']) ||
+              (
+                resource.data.get('leidoEstudianteEn', null) == null &&
+                request.resource.data.leidoEstudianteEn == request.time &&
+                request.resource.data.get('entregadoEstudianteEn', null) != null
+              )
+            );
+        }
+
+        function validTeacherMessageReceipt() {
+          return isTeacher() &&
+            resource.data.rol == 'estudiante' &&
+            resource.data.autorUid != request.auth.uid &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                'entregadoDocenteEn',
+                'leidoDocenteEn'
+              ]) &&
+            (
+              !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['entregadoDocenteEn']) ||
+              (
+                resource.data.get('entregadoDocenteEn', null) == null &&
+                request.resource.data.entregadoDocenteEn == request.time
+              )
+            ) &&
+            (
+              !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['leidoDocenteEn']) ||
+              (
+                resource.data.get('leidoDocenteEn', null) == null &&
+                request.resource.data.leidoDocenteEn == request.time &&
+                request.resource.data.get('entregadoDocenteEn', null) != null
+              )
+            );
+        }
+
+        allow get, list: if ownsDocument(uid) || isTeacher();
+        allow create: if (isActiveStudent(uid) || isTeacher()) &&
+          request.resource.data.keys().hasAll([
+            'id',
+            'uid',
+            'sectionId',
+            'texto',
+            'rol',
+            'autorUid',
+            'autorNombre',
+            'creadoMs',
+            'creadoEn'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'id',
+            'uid',
+            'sectionId',
+            'texto',
+            'cita',
+            'rol',
+            'autorUid',
+            'autorNombre',
+            'creadoMs',
+            'creadoEn'
+          ]) &&
+          request.resource.data.id == mensajeId &&
+          request.resource.data.uid == uid &&
+          request.resource.data.sectionId == sectionId &&
+          request.resource.data.texto is string &&
+          request.resource.data.texto.size() > 0 &&
+          request.resource.data.texto.size() <= 1200 &&
+          request.resource.data.rol in ['estudiante', 'docente'] &&
+          (
+            request.resource.data.rol == 'estudiante'
+              ? isActiveStudent(uid)
+              : isTeacher()
+          ) &&
+          request.resource.data.autorUid == request.auth.uid &&
+          request.resource.data.autorNombre is string &&
+          request.resource.data.autorNombre.size() > 0 &&
+          request.resource.data.autorNombre.size() <= 254 &&
+          request.resource.data.creadoMs is int &&
+          request.resource.data.creadoMs > 0 &&
+          validMessageCitation() &&
+          request.resource.data.creadoEn == request.time;
+        allow update: if validStudentMessageReceipt() ||
+          validTeacherMessageReceipt();
+        allow delete: if false;
+      }
+
+      // Historial colaborativo retirado. Solo el administrador principal puede
+      // consultar y eliminar documentos antiguos durante la limpieza definitiva.
+      match /historialAportes/{aporteId} {
+        allow get, list: if isPrincipalTeacherAdmin();
+        allow create, update: if false;
+        allow delete: if isPrincipalTeacherAdmin();
+      }
+    }
+
+    match /estudiantes/{uid}/historialRevisionesPestanas/{eventoId} {
+      allow get, list: if isTeacher();
+      allow create: if isTeacher() &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'estudianteUid',
+          'salidaGrupoId',
+          'docente',
+          'docenteUid',
+          'estadoAnterior',
+          'estadoNuevo',
+          'motivoAnterior',
+          'motivoNuevo',
+          'observacionAnterior',
+          'observacionNueva',
+          'contabilizabaAntes',
+          'contabilizaAhora',
+          'etiquetasAnteriores',
+          'etiquetasNuevas',
+          'cambiadoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'estudianteUid',
+          'salidaGrupoId',
+          'docente',
+          'docenteUid',
+          'estadoAnterior',
+          'estadoNuevo',
+          'motivoAnterior',
+          'motivoNuevo',
+          'observacionAnterior',
+          'observacionNueva',
+          'contabilizabaAntes',
+          'contabilizaAhora',
+          'etiquetasAnteriores',
+          'etiquetasNuevas',
+          'cambiadoEn'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.estudianteUid == uid &&
+        request.resource.data.salidaGrupoId is string &&
+        request.resource.data.salidaGrupoId.size() > 0 &&
+        request.resource.data.salidaGrupoId.size() <= 160 &&
+        request.resource.data.docente ==
+          request.auth.token.get('email', '') &&
+        request.resource.data.docenteUid == request.auth.uid &&
+        request.resource.data.estadoAnterior is string &&
+        request.resource.data.estadoNuevo is string &&
+        request.resource.data.motivoAnterior is string &&
+        request.resource.data.motivoAnterior.size() <= 120 &&
+        request.resource.data.motivoNuevo is string &&
+        request.resource.data.motivoNuevo.size() <= 120 &&
+        request.resource.data.observacionAnterior is string &&
+        request.resource.data.observacionAnterior.size() <= 1000 &&
+        request.resource.data.observacionNueva is string &&
+        request.resource.data.observacionNueva.size() <= 1000 &&
+        request.resource.data.contabilizabaAntes is bool &&
+        request.resource.data.contabilizaAhora is bool &&
+        request.resource.data.etiquetasAnteriores is list &&
+        request.resource.data.etiquetasAnteriores.size() <= 10 &&
+        request.resource.data.etiquetasNuevas is list &&
+        request.resource.data.etiquetasNuevas.size() <= 10 &&
+        request.resource.data.cambiadoEn == request.time;
+      allow update: if false;
+      allow delete: if isTeacher();
+    }
+
+    match /docentesAutorizados/{docenteId} {
+      allow get, list: if isTeacher();
+      allow create, update: if isPrincipalTeacherAdmin() &&
+        validTeacherRecord(docenteId);
+      allow delete: if false;
+    }
+
+    match /historialDocentes/{eventoId} {
+      allow get, list: if isTeacher();
+      allow create: if isPrincipalTeacherAdmin() &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'tipo',
+          'docenteEmailAnterior',
+          'docenteEmailNuevo',
+          'anterior',
+          'nuevo',
+          'administradorEmail',
+          'administradorUid',
+          'cambiadoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'tipo',
+          'docenteEmailAnterior',
+          'docenteEmailNuevo',
+          'anterior',
+          'nuevo',
+          'administradorEmail',
+          'administradorUid',
+          'cambiadoEn'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.tipo in [
+          'migracion_inicial',
+          'alta',
+          'modificacion',
+          'cambio_email',
+          'baja',
+          'reactivacion'
+        ] &&
+        request.resource.data.docenteEmailAnterior is string &&
+        request.resource.data.docenteEmailNuevo is string &&
+        request.resource.data.anterior is map &&
+        request.resource.data.nuevo is map &&
+        request.resource.data.administradorEmail == authenticatedEmail() &&
+        request.resource.data.administradorUid == request.auth.uid &&
+        request.resource.data.cambiadoEn == request.time;
+      allow update, delete: if false;
+    }
+
+    match /controlClase/{controlId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isTeacher();
+
+      match /historialConfiguracion/{eventoId} {
+        allow get, list: if isTeacher();
+        allow create: if isTeacher() &&
+          request.resource.data.keys().hasAll([
+            'id',
+            'claseId',
+            'docenteUid',
+            'docente',
+            'configuracion',
+            'cambiadoEn'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'id',
+            'claseId',
+            'docenteUid',
+            'docente',
+            'configuracion',
+            'cambiadoEn'
+          ]) &&
+          request.resource.data.id == eventoId &&
+          request.resource.data.claseId == controlId &&
+          request.resource.data.docenteUid == request.auth.uid &&
+          request.resource.data.docente ==
+            request.auth.token.get('email', '') &&
+          request.resource.data.configuracion is map &&
+          request.resource.data.cambiadoEn == request.time;
+        allow update, delete: if false;
+      }
+
+      match /configuracion/{configId} {
+        allow read: if signedIn();
+        allow create, update: if isTeacher() &&
+          configId == 'jitsi' &&
+          request.resource.data.keys().hasAll([
+            'individual',
+            'grupal',
+            'actualizadoPor',
+            'actualizadoPorUid',
+            'actualizadoEn'
+          ]) &&
+          request.resource.data.keys().hasOnly([
+            'individual',
+            'grupal',
+            'actualizadoPor',
+            'actualizadoPorUid',
+            'actualizadoEn'
+          ]) &&
+          request.resource.data.individual is number &&
+          request.resource.data.individual >= 1 &&
+          request.resource.data.individual <= 120 &&
+          request.resource.data.grupal is number &&
+          request.resource.data.grupal >= 1 &&
+          request.resource.data.grupal <= 120 &&
+          request.resource.data.actualizadoPor == authenticatedEmail() &&
+          request.resource.data.actualizadoPorUid == request.auth.uid &&
+          request.resource.data.actualizadoEn == request.time;
+        allow delete: if false;
+      }
+
+      match /historialJitsi/{llamadaId} {
+        allow get, list: if isTeacher();
+        // No se admiten registros nuevos: la función de historial fue retirada.
+        allow create, update: if false &&
+          request.resource.data.keys().hasAll([
+            'id',
+            'tipo',
+            'sala',
+            'curso',
+            'division',
+            'turno',
+            'estudianteUid',
+            'estudianteEmail',
+            'estudianteNombre',
+            'duracionMinutos',
+            'expiraEn',
+            'estado',
+            'motivoFinalizacion',
+            'participantes',
+            'invitados',
+            'notificados',
+            'unidos',
+            'rechazados',
+            'salieron',
+            'docente',
+            'docenteUid',
+            'actualizadoEn'
+          ]) &&
+          request.resource.data.id == llamadaId &&
+          request.resource.data.tipo in ['individual', 'grupal'] &&
+          request.resource.data.sala is string &&
+          request.resource.data.sala.size() <= 180 &&
+          request.resource.data.curso is string &&
+          request.resource.data.curso.size() <= 80 &&
+          request.resource.data.division is string &&
+          request.resource.data.division.size() <= 40 &&
+          request.resource.data.turno is string &&
+          request.resource.data.turno.size() <= 40 &&
+          request.resource.data.estudianteUid is string &&
+          request.resource.data.estudianteUid.size() <= 180 &&
+          request.resource.data.estudianteEmail is string &&
+          request.resource.data.estudianteEmail.size() <= 254 &&
+          request.resource.data.estudianteNombre is string &&
+          request.resource.data.estudianteNombre.size() <= 160 &&
+          request.resource.data.duracionMinutos is number &&
+          request.resource.data.duracionMinutos >= 0 &&
+          request.resource.data.duracionMinutos <= 120 &&
+          request.resource.data.expiraEn is string &&
+          request.resource.data.expiraEn.size() <= 40 &&
+          request.resource.data.estado in [
+            'activa',
+            'finalizada',
+            'cancelada'
+          ] &&
+          request.resource.data.motivoFinalizacion is string &&
+          request.resource.data.motivoFinalizacion.size() <= 300 &&
+          request.resource.data.participantes is list &&
+          request.resource.data.participantes.size() <= 350 &&
+          request.resource.data.invitados is number &&
+          request.resource.data.invitados >= 0 &&
+          request.resource.data.notificados is number &&
+          request.resource.data.notificados >= 0 &&
+          request.resource.data.unidos is number &&
+          request.resource.data.unidos >= 0 &&
+          request.resource.data.rechazados is number &&
+          request.resource.data.rechazados >= 0 &&
+          request.resource.data.salieron is number &&
+          request.resource.data.salieron >= 0 &&
+          request.resource.data.docente == authenticatedEmail() &&
+          request.resource.data.docenteUid == request.auth.uid &&
+          request.resource.data.actualizadoEn == request.time;
+        // El historial Jitsi está retirado de la aplicación. Solo la cuenta
+        // administradora principal puede eliminar definitivamente datos antiguos.
+        allow delete: if isPrincipalTeacherAdmin();
+      }
+    }
+
+    match /historialAdministracion/{eventoId} {
+      allow get, list: if isPrincipalTeacherAdmin();
+      allow create: if isPrincipalTeacherAdmin() &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'tipo',
+          'claseId',
+          'documentosEliminados',
+          'administradorEmail',
+          'administradorUid',
+          'ejecutadoEn'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'tipo',
+          'claseId',
+          'documentosEliminados',
+          'administradorEmail',
+          'administradorUid',
+          'ejecutadoEn'
+        ]) &&
+        request.resource.data.id == eventoId &&
+        request.resource.data.tipo == 'eliminacion_historial_jitsi' &&
+        request.resource.data.claseId is string &&
+        request.resource.data.claseId.size() > 0 &&
+        request.resource.data.claseId.size() <= 160 &&
+        request.resource.data.documentosEliminados is int &&
+        request.resource.data.documentosEliminados >= 0 &&
+        request.resource.data.administradorEmail == authenticatedEmail() &&
+        request.resource.data.administradorUid == request.auth.uid &&
+        request.resource.data.ejecutadoEn == request.time;
+      allow update, delete: if false;
+    }
+
+    match /desafios/{desafioId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isTeacher();
+    }
+
+    // Todo lo no declarado queda denegado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

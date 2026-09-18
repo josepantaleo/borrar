@@ -1,0 +1,1309 @@
+﻿<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Práctica interactiva de JavaScript | IPEM 146</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="actividad-base.css?v=20260918-7" />
+    <link rel="stylesheet" href="actividad-mobile.css?v=20260918-7" />
+    <link rel="stylesheet" href="mejoras-seguimiento.css?v=20260918-7" />
+    <style>
+      .skip-link {
+        position: fixed;
+        left: .75rem;
+        top: .75rem;
+        z-index: 100001;
+        transform: translateY(-180%);
+        padding: .6rem .85rem;
+        border-radius: 6px;
+        background: #f8fafc;
+        color: #0f172a;
+        font-weight: 700;
+        box-shadow: 0 8px 24px rgba(0,0,0,.3);
+        transition: transform .15s ease;
+      }
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+      :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+        outline: 3px solid #38bdf8;
+        outline-offset: 2px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: .01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: .01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+      @media (max-width: 600px) {
+        .mensaje-recibido-toast,
+        #mensajeRecibidoToast {
+          right: .6rem !important;
+          left: .6rem !important;
+          bottom: max(.6rem, env(safe-area-inset-bottom)) !important;
+          max-width: none !important;
+        }
+        .btn, button {
+          min-height: 42px;
+        }
+      }
+      /* Ajustes visuales del panel docente y uso móvil. */
+      .teacher-panel-box {
+        width: min(1480px, calc(100vw - 1.5rem));
+        max-height: calc(100vh - 1.5rem);
+        overflow: hidden;
+        padding: 0;
+      }
+      /* Las herramientas docentes no deben aparecer en la vista del estudiante. */
+      .teacher-only[aria-hidden="true"],
+      body:not(.teacher-authorized) .teacher-only {
+        display: none !important;
+      }
+      body.teacher-authorized.teacher-temporary .teacher-only[aria-hidden="false"] {
+        display: inline-flex !important;
+      }
+      .teacher-panel-header {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        padding: 1rem 1.1rem .85rem;
+        background: linear-gradient(180deg, #111c31 0%, #0f172a 100%);
+        border-bottom: 1px solid rgba(148, 163, 184, .18);
+      }
+      .teacher-panel-heading {
+        min-width: 220px;
+      }
+      .teacher-panel-heading h3 {
+        margin: 0;
+        font-size: 1.18rem;
+        letter-spacing: 0;
+      }
+      .teacher-panel-heading p {
+        margin: .25rem 0 0;
+        color: #94a3b8;
+        font-size: .78rem;
+      }
+      .teacher-panel-toolbar {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        flex-wrap: wrap;
+        margin-top: .8rem;
+      }
+      .teacher-panel-toolbar .btn {
+        min-height: 2.15rem;
+        white-space: nowrap;
+      }
+      .teacher-panel-content {
+        overflow: auto;
+        min-height: 0;
+        padding: 1rem 1.1rem 1.25rem;
+      }
+      .teacher-section-title {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        margin: 1rem 0 .55rem;
+        color: #e2e8f0;
+        font-size: .92rem;
+        font-weight: 700;
+      }
+      .teacher-filter-workspace {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .65rem;
+        padding: .75rem;
+        border: 1px solid rgba(148, 163, 184, .18);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, .72);
+      }
+      .teacher-filter-group {
+        min-width: 0;
+        padding: .65rem;
+        border: 1px solid rgba(148, 163, 184, .12);
+        border-radius: 7px;
+        background: rgba(30, 41, 59, .34);
+      }
+      .teacher-filter-group h4 {
+        margin: 0 0 .45rem;
+        color: #bae6fd;
+        font-size: .76rem;
+      }
+      .teacher-filter-group > div {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .45rem;
+      }
+      .teacher-filter-group label {
+        min-width: 0;
+        color: #cbd5e1;
+        font-size: .72rem;
+      }
+      .teacher-filter-group input,
+      .teacher-filter-group select {
+        width: 100%;
+        min-height: 2rem;
+        margin-top: .22rem;
+        padding: .35rem .5rem;
+        border: 1px solid rgba(148, 163, 184, .28);
+        border-radius: 5px;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      .teacher-filter-search,
+      .teacher-filter-actions {
+        grid-column: span 2;
+      }
+      #resumenProfesor {
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)) !important;
+        gap: .55rem !important;
+      }
+      #resumenProfesor .teacher-summary-card {
+        min-height: 74px;
+        padding: .7rem .75rem !important;
+        border-radius: 7px;
+        background: rgba(15, 23, 42, .78);
+      }
+      .teacher-table-scroll {
+        overflow-x: auto;
+        border: 1px solid rgba(148, 163, 184, .18);
+        border-radius: 7px;
+        background: rgba(15, 23, 42, .5);
+      }
+      .teacher-table-scroll table {
+        min-width: 980px;
+      }
+      .teacher-table-scroll th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #172238;
+        color: #bae6fd;
+        font-size: .72rem;
+        white-space: nowrap;
+      }
+      .teacher-table-scroll td {
+        font-size: .76rem;
+        vertical-align: top;
+      }
+      @media (max-width: 1050px) {
+        .teacher-filter-workspace {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .teacher-filter-search,
+        .teacher-filter-actions {
+          grid-column: span 1;
+        }
+      }
+      @media (max-width: 680px) {
+        .teacher-panel-box {
+          width: calc(100vw - .6rem);
+          max-height: calc(100vh - .6rem);
+        }
+        .teacher-panel-header,
+        .teacher-panel-content {
+          padding-left: .7rem;
+          padding-right: .7rem;
+        }
+        .teacher-panel-toolbar .btn {
+          flex: 1 1 auto;
+          min-width: 0;
+          font-size: .72rem;
+        }
+        .teacher-filter-workspace {
+          grid-template-columns: 1fr;
+          padding: .5rem;
+        }
+        .teacher-filter-search,
+        .teacher-filter-actions {
+          grid-column: span 1;
+        }
+        .teacher-filter-group > div {
+          grid-template-columns: 1fr;
+        }
+        #resumenProfesor {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+      }
+    </style>
+    <!-- Firebase Authentication + Firestore (modular browser SDK) -->
+    <script type="module" src="actividad-firebase.js?v=20260918-7"></script>
+  </head>
+  <body onload="initApp()">
+    <a class="skip-link" href="#contenidoPrincipal">Saltar al contenido principal</a>
+    <div id="firebaseAuthOverlay" role="dialog" aria-modal="true" aria-labelledby="firebaseAuthTitle">
+      <div class="firebase-auth-card">
+        <div style="font-size:3rem; margin-bottom:.5rem;">🔐</div>
+        <h2 id="firebaseAuthTitle">Elegí cómo ingresar</h2>
+        <p id="firebaseAuthMessage"><strong>Alumnos:</strong> ingresen con su propia cuenta de Google para guardar y recuperar el avance.</p>
+        <div id="localFileNotice" style="display:none;margin:.8rem 0;padding:.7rem;border:1px solid #f59e0b;border-radius:6px;background:rgba(245,158,11,.12);color:#fde68a;font-size:.82rem;line-height:1.45;">
+          Para usar Google, abrí esta página desde <strong>http://localhost:5500/actividad.html</strong>. Firebase no permite iniciar sesión desde un archivo local.
+        </div>
+        <button class="btn btn-google" style="width:100%; justify-content:center; font-size:1rem; padding:.8rem 1rem;" onclick="iniciarSesionGoogle()">
+          <i class="fa-brands fa-google"></i> Ingresar como alumno
+        </button>
+        <div style="display:flex;align-items:center;gap:.7rem;margin:1rem 0;color:var(--text-muted);font-size:.8rem;">
+          <span style="height:1px;background:var(--border);flex:1;"></span>
+          <span>DOCENTES</span>
+          <span style="height:1px;background:var(--border);flex:1;"></span>
+        </div>
+        <button class="btn btn-warning" style="width:100%;justify-content:center;font-size:1rem;padding:.8rem 1rem;" onclick="ingresarComoDocente(this)">
+          <i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente
+        </button>
+        <button class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:.75rem;" onclick="cerrarSesionGoogle()">
+          <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión / cambiar cuenta
+        </button>
+        <div id="firebaseConfigWarning" style="display:none; margin-top:1rem; color:#fca5a5; font-size:.8rem;">Firebase no está configurado todavía.</div>
+      </div>
+    </div>
+    <div id="screenLockOverlay" role="alertdialog" aria-modal="true" aria-labelledby="screenLockTitle">
+      <div class="screen-lock-card">
+        <div style="font-size:2.6rem;color:#f87171;margin-bottom:.5rem;"><i class="fa-solid fa-lock"></i></div>
+        <h2 id="screenLockTitle">Pantalla bloqueada</h2>
+        <p>La actividad detectó que la página dejó de estar visible. El evento fue registrado para revisión docente. Para continuar, un docente debe autorizar el desbloqueo.</p>
+        <button class="btn btn-danger" type="button" onclick="solicitarAccionProfesor('unlock_screen')">
+          <i class="fa-solid fa-key"></i> Solicitar desbloqueo docente
+        </button>
+      </div>
+    </div>
+
+    <!-- Sidebar Navegación -->
+    <aside>
+      <div class="brand">
+        <h2><i class="fa-solid fa-code"></i> <span>IPEM 146</span></h2>
+        <span>JavaScript + cronómetro + seguimiento</span>
+      </div>
+      <ul class="nav-list" id="navList"></ul>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main id="contenidoPrincipal" tabindex="-1">
+      <header class="top-header">
+        <div class="header-title">
+          <h1 id="currentTitle">Cargando Módulo...</h1>
+          <p>
+            Profesor J. Pantaleo — Control Estricto con Cronómetro de 40 Minutos
+          </p>
+        </div>
+
+        <div
+          style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap"
+        >
+          <span class="code-version-badge" id="versionCodigoEstudiante" title="Versión del código subido">
+            <i class="fa-solid fa-code-branch"></i> Código subido · v1.0
+          </span>
+          <div class="antifraud-badge" id="blurBadge" title="Registro de cambios de pestaña para revisión docente">
+            <i class="fa-solid fa-eye"></i> Cambios de pestaña:
+            <span id="blurCount">0</span>
+          </div>
+          <button class="btn btn-secondary student-tabs-summary-trigger" id="btnAbrirResumenPestanas" type="button" onclick="abrirResumenPestanasEstudiante()" aria-haspopup="dialog" aria-controls="resumenPestanasEstudianteModal">
+            <i class="fa-solid fa-window-restore"></i><span>Mi resumen de pestañas</span>
+          </button>
+          <button class="btn btn-secondary" id="btnJustificarSalida" style="display:none;font-size:.75rem;padding:.4rem .8rem" onclick="abrirJustificacionUltimaSalida()">
+            <i class="fa-solid fa-comment"></i> Justificar última
+          </button>
+
+          <!-- Botones protegidos del profesor -->
+          <button
+            class="btn btn-warning teacher-only"
+            style="font-size: 0.75rem; padding: 0.4rem 0.8rem"
+            onclick="solicitarAccionProfesor('pausar_global')"
+          >
+            <i class="fa-solid fa-pause"></i> Pausa Global Profe
+          </button>
+          <button
+            class="btn btn-danger teacher-only"
+            style="font-size: 0.75rem; padding: 0.4rem 0.8rem"
+            onclick="solicitarAccionProfesor('reset_contador_salidas')"
+          >
+            <i class="fa-solid fa-rotate-right"></i> Reiniciar contador
+          </button>
+          <button
+            class="btn student-progress-trigger"
+            id="btnAbrirProgresoEstudiante"
+            type="button"
+            onclick="abrirProgresoEstudiante()"
+            aria-haspopup="dialog"
+            aria-controls="progresoEstudianteModal"
+          >
+            <span class="student-progress-trigger-icon" aria-hidden="true"><i class="fa-solid fa-chart-column"></i></span>
+            <span class="student-progress-trigger-copy">
+              <strong>Mi progreso y calificaciones</strong>
+              <small id="resumenBotonProgreso">Ver avance, notas y recomendaciones</small>
+            </span>
+            <i class="fa-solid fa-chevron-right student-progress-trigger-arrow" aria-hidden="true"></i>
+          </button>
+          <button class="btn learning-path-trigger"
+            id="btnAbrirRutaAprendizaje"
+            type="button"
+            onclick="abrirRutaAprendizaje()"
+            aria-haspopup="dialog"
+            aria-controls="rutaAprendizajeModal">
+            <span class="learning-path-trigger-icon" aria-hidden="true"><i class="fa-solid fa-route"></i></span>
+            <span>
+              <strong>Ruta de aprendizaje</strong>
+              <small id="resumenBotonRuta">Ver desafío actual y próximos pasos</small>
+            </span>
+            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+          </button>
+          <div class="progress-wrapper">
+            <span class="progress-label" id="progressText">Progreso: 0%</span>
+            <div class="progress-bar-bg" id="progressBarContainer" role="progressbar" aria-label="Progreso de actividades" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Datos del Alumno y Gestión de Avance -->
+      <div class="student-inputs">
+        <div id="firebaseAccountBox" style="width:100%; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:.25rem;">
+          <div class="firebase-account">
+            <img id="firebaseUserPhoto" src="" alt="Google" style="display:none;">
+            <div><strong id="firebaseUserName">Sin sesión</strong><div class="email" id="firebaseUserEmail"></div></div>
+            <span id="firebaseSaveStatus" class="firebase-status online" role="status" aria-live="polite">● Guardado local</span>
+            <small id="firebaseLastSync" class="firebase-last-sync" aria-live="polite">Última sincronización: todavía no confirmada</small>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-success" onclick="guardarAhoraFirebase()"><i class="fa-solid fa-cloud-arrow-up"></i> Guardar ahora</button>
+            <button class="btn btn-warning" id="btnIngresoDocente" onclick="ingresarComoDocente(this)"><i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente</button>
+            <button class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('editor_desafios')"><i class="fa-solid fa-puzzle-piece"></i> Editor de desafíos</button>
+            <button class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('panel_profesor')"><i class="fa-solid fa-chalkboard-user"></i> Panel Profesor</button>
+            <button class="btn btn-warning teacher-only teacher-session-only" onclick="cerrarAccesoDocenteTemporal()"><i class="fa-solid fa-user-lock"></i> Cerrar acceso docente</button>
+            <button class="btn btn-danger" onclick="cerrarSesionGoogle()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="studentName">Nombre y apellido del estudiante</label>
+          <input
+            type="text"
+            id="studentName"
+            placeholder="Ej: Lucas González"
+          />
+        </div>
+        <div class="input-group">
+          <label for="studentCourse">Curso</label>
+          <select id="studentCourse" required><option value="">Seleccionar curso</option><option>1° Año</option><option>2° Año</option><option>3° Año</option><option>4° Año</option><option>5° Año</option><option>6° Año</option><option>7° Año</option></select>
+        </div>
+        <div class="input-group">
+          <label for="studentDivision">División</label>
+          <select id="studentDivision" required><option value="">Seleccionar división</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+        </div>
+        <div class="input-group">
+          <label for="studentTurno">Turno</label>
+          <select id="studentTurno" required><option value="">Seleccionar turno</option><option>Mañana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select>
+        </div>
+        <button class="btn btn-danger" onclick="reiniciarSesionEstudiante()">
+          <i class="fa-solid fa-user-xmark"></i> Nuevo Estudiante
+        </button>
+      </div>
+
+      <div id="sectionsContainer"></div>
+      <div style="height: 80px"></div>
+    </main>
+
+    <div class="modal-overlay student-tabs-summary-modal" id="resumenPestanasEstudianteModal" role="dialog" aria-modal="true" aria-labelledby="resumenPestanasEstudianteTitle">
+      <div class="modal-box student-tabs-summary-box" tabindex="-1">
+        <header class="student-progress-modal-header">
+          <div class="student-progress-modal-heading">
+            <span class="student-progress-report-icon" aria-hidden="true"><i class="fa-solid fa-window-restore"></i></span>
+            <div><span class="student-progress-eyebrow">Seguimiento personal</span><h2 id="resumenPestanasEstudianteTitle">Mi resumen de pestañas</h2><p>Revisá tus cambios de pestaña y el tiempo fuera de la actividad.</p></div>
+          </div>
+          <button class="btn student-progress-modal-close" type="button" onclick="cerrarResumenPestanasEstudiante()" aria-label="Cerrar resumen de pestañas"><span aria-hidden="true">×</span></button>
+        </header>
+        <section id="resumenPestanasEstudianteContenido" class="student-tabs-summary-content" aria-live="polite"></section>
+      </div>
+    </div>
+
+    <!-- Panel docente en tiempo real -->
+    <div class="modal-overlay" id="panelProfesorModal" role="dialog" aria-modal="true" aria-labelledby="panelProfesorTitle">
+      <div class="modal-box teacher-panel-box">
+        <div class="teacher-panel-header">
+          <div class="teacher-panel-heading">
+            <span class="teacher-panel-heading-icon" aria-hidden="true"><i class="fa-solid fa-chalkboard-user"></i></span>
+            <div><h3 id="panelProfesorTitle">Panel del Profesor</h3><p>Estudiantes y progreso sincronizados en tiempo real.</p></div>
+          </div>
+          <span class="code-version-badge" id="versionCodigoDocente" title="Versión del código subido que se está revisando">
+            <i class="fa-solid fa-code-branch"></i> Código subido · v1.0
+          </span>
+          <div class="teacher-panel-toolbar">
+            <button class="btn btn-success" onclick="iniciarClaseDesdeInterfaz(this)"><i class="fa-solid fa-play"></i> Iniciar clase</button>
+            <button class="btn btn-danger" onclick="finalizarClaseDesdeInterfaz(this)"><i class="fa-solid fa-stop"></i> Finalizar clase</button>
+            <button class="btn btn-success" id="btnIniciarJitsiGrupal" type="button" onclick="abrirSelectorJitsiGrupal()" title="Seleccionar curso, división y turno para iniciar una videollamada grupal">
+              <i class="fa-solid fa-users-viewfinder"></i> Iniciar Jitsi grupal
+            </button>
+            <button class="btn btn-secondary" id="btnConfigurarDuracionJitsiGrupal" type="button" onclick="abrirConfiguracionDuracionJitsi('grupal')" title="Configurar la duración de las llamadas Jitsi grupales">
+              <i class="fa-solid fa-users-clock"></i> Jitsi grupal: <strong id="duracionJitsiGrupalProfesorValor">60</strong> min
+            </button>
+            <button class="btn btn-secondary" id="btnConfigurarDuracionJitsi" type="button" onclick="abrirConfiguracionDuracionJitsi('individual')" title="Configurar la duración de las llamadas Jitsi individuales">
+              <i class="fa-solid fa-hourglass-half"></i> Jitsi individual: <strong id="duracionJitsiProfesorValor">5</strong> min
+            </button>
+            <span class="jitsi-live-summary" id="resumenJitsiProfesor" title="Estado de la llamada Jitsi activa">
+              <i class="fa-solid fa-video"></i><strong>0</strong><span>conectados</span>
+            </span>
+            <button class="btn btn-warning" id="btnPausarCronometrosTodosProfesor" type="button" onclick="controlarCronometrosTodosDesdeInterfaz('pausar', this)" title="Pausar los cronómetros y la edición de todos los estudiantes" aria-label="Pausar cronómetros a todos">
+              <i class="fa-solid fa-pause"></i> Pausar a todos
+            </button>
+            <button class="btn btn-success" id="btnContinuarCronometrosTodosProfesor" type="button" onclick="controlarCronometrosTodosDesdeInterfaz('reanudar', this)" title="Continuar los cronómetros y la edición de todos los estudiantes" aria-label="Continuar cronómetros a todos">
+              <i class="fa-solid fa-play"></i> Continuar a todos
+            </button>
+            <button class="btn btn-secondary" id="btnReiniciarCronometrosTodosProfesor" type="button" onclick="controlarCronometrosTodosDesdeInterfaz('reiniciar', this)" title="Reiniciar a 40 minutos los módulos activos de todos los estudiantes" aria-label="Reiniciar cronómetros a todos">
+              <i class="fa-solid fa-clock-rotate-left"></i> Reiniciar a todos
+            </button>
+            <button class="btn btn-secondary" id="btnConfigurarLimiteBloqueo" type="button" onclick="abrirConfiguracionLimiteBloqueo()" title="Modificar cuántas salidas producen el bloqueo">
+              <i class="fa-solid fa-arrow-up-9-1"></i> Bloqueo: <strong id="limiteBloqueoProfesorValor">5</strong> salidas
+            </button>
+            <button class="btn btn-primary" id="btnMensajeDocente" type="button" onclick="abrirMensajeriaDocente()" title="Enviar un aviso en pantalla a todos, a un grupo o a un estudiante">
+              <i class="fa-solid fa-bullhorn"></i> Enviar mensaje
+            </button>
+            <button class="btn btn-primary" onclick="abrirEditorDesafiosFirebase()"><i class="fa-solid fa-puzzle-piece"></i> Editar desafíos</button>
+            <button class="btn btn-secondary teacher-panel-close" onclick="cerrarPanelProfesor()" aria-label="Cerrar panel" title="Cerrar panel"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div class="teacher-panel-content">
+        <div id="estadoClaseProfesor" style="margin-top:1rem;padding:.75rem;border:1px solid rgba(56,189,248,.3);border-radius:8px;background:rgba(56,189,248,.06);color:#bae6fd;font-size:.85rem;">
+          <i class="fa-solid fa-circle-info"></i> Usá “Iniciar clase” para habilitar las actividades de todos los alumnos conectados.
+        </div>
+        <details class="teacher-rubric-settings">
+          <summary><i class="fa-solid fa-list-check"></i> Configuración de la rúbrica socrática</summary>
+          <div class="teacher-rubric-settings-body">
+            <p>Definí los puntajes y las evidencias exigidas. Los cambios se aplican a las respuestas entregadas después de guardar.</p>
+            <div class="teacher-rubric-score-grid">
+              <label>Completa<input id="rubricaPuntosCompleta" type="number" min="0" max="1" step="0.05"></label>
+              <label>Correcta incompleta<input id="rubricaPuntosIncompleta" type="number" min="0" max="1" step="0.05"></label>
+              <label>Parcial<input id="rubricaPuntosParcial" type="number" min="0" max="1" step="0.05"></label>
+              <label>Incorrecta<input id="rubricaPuntosIncorrecta" type="number" min="0" max="1" step="0.05"></label>
+              <label>Palabras mínimas<input id="rubricaPalabrasMinimas" type="number" min="6" max="100" step="1"></label>
+            </div>
+            <div class="teacher-rubric-criteria-grid">
+              <label><input id="rubricaCriterioDesarrollo" type="checkbox"> <span><strong>Desarrollo suficiente</strong><small>Exige alcanzar la cantidad mínima de palabras.</small></span></label>
+              <label><input id="rubricaCriterioJustificacion" type="checkbox"> <span><strong>Justificación causal</strong><small>Busca relaciones como “porque”, “permite”, “evita” o “provoca”.</small></span></label>
+              <label><input id="rubricaCriterioEvidencia" type="checkbox"> <span><strong>Evidencia concreta</strong><small>Exige referencias al código, sus identificadores o un caso de prueba.</small></span></label>
+              <label><input id="rubricaCriterioConsecuencia" type="checkbox"> <span><strong>Consecuencia o mejora</strong><small>Busca límites, riesgos, cambios, comprobaciones o mejoras.</small></span></label>
+            </div>
+            <h4 class="teacher-settings-subtitle"><i class="fa-solid fa-triangle-exclamation"></i> Umbrales de alerta</h4>
+            <div class="teacher-alert-threshold-grid">
+              <label>Riesgo mínimo (%)
+                <input id="rubricaAlertaRiesgoMinimo" type="number" min="0" max="100" step="1">
+                <small>Suma de respuestas parciales e incorrectas.</small>
+              </label>
+              <label>Aumento mínimo (p.p.)
+                <input id="rubricaAlertaAumentoMinimo" type="number" min="0" max="100" step="1">
+                <small>Cambio respecto de la actividad anterior respondida.</small>
+              </label>
+              <label>Respuestas mínimas
+                <input id="rubricaAlertaMuestraMinima" type="number" min="1" max="500" step="1">
+                <small>Evita alertas basadas en muestras insuficientes.</small>
+              </label>
+              <label>Severidad alta (%)
+                <input id="rubricaAlertaSeveridadAlta" type="number" min="0" max="100" step="1">
+                <small>Riesgo que marca una intervención prioritaria.</small>
+              </label>
+            </div>
+            <div class="teacher-rubric-actions">
+              <button class="btn btn-primary" type="button" onclick="guardarRubricaSocraticaProfesor(this)"><i class="fa-solid fa-floppy-disk"></i> Guardar rúbrica</button>
+              <button class="btn btn-secondary" type="button" onclick="restaurarRubricaSocraticaProfesor()"><i class="fa-solid fa-arrow-rotate-left"></i> Restaurar valores</button>
+              <span id="estadoRubricaSocraticaProfesor" role="status"></span>
+            </div>
+          </div>
+        </details>
+        <details class="teacher-group-report" open>
+          <summary><i class="fa-solid fa-chart-column"></i> Informe grupal de respuestas</summary>
+          <div class="teacher-group-report-controls">
+            <label>Actividad
+              <select id="filtroInformeSocraticoModulo" onchange="renderInformeGrupalSocratico()">
+                <option value="">Todas las actividades</option>
+              </select>
+            </label>
+            <label>Orden
+              <select id="ordenInformeSocratico" onchange="renderInformeGrupalSocratico()">
+                <option value="nombre">Nombre</option>
+                <option value="completas">Más completas</option>
+                <option value="revision">Más respuestas a revisar</option>
+              </select>
+            </label>
+            <label>Comparar grupos por
+              <select id="agrupacionInformeSocratico" onchange="renderInformeGrupalSocratico()">
+                <option value="grupo">Curso, división y turno</option>
+                <option value="curso">Curso</option>
+                <option value="division">División</option>
+                <option value="turno">Turno</option>
+              </select>
+            </label>
+            <div class="teacher-group-report-actions">
+              <button class="btn btn-success" type="button" onclick="exportarInformeGrupalSocraticoPDF()"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>
+              <button class="btn btn-secondary" type="button" onclick="exportarInformeGrupalSocraticoCSV()"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
+            </div>
+          </div>
+          <div id="informeGrupalSocratico"></div>
+          <section class="teacher-reinforcement-planner">
+            <header>
+              <div><i class="fa-solid fa-person-chalkboard"></i><strong>Plan de refuerzo asignable</strong></div>
+              <small>Usa el alcance activo de curso, división y turno.</small>
+            </header>
+            <div class="teacher-reinforcement-form">
+              <label>Actividad de origen<select id="refuerzoActividadOrigen"></select></label>
+              <label>Actividad de comprobación<select id="refuerzoActividadObjetivo"></select></label>
+              <label>Destinatarios
+                <select id="refuerzoDestinatarios">
+                  <option value="riesgo">Estudiantes con respuestas parciales o incorrectas</option>
+                  <option value="todos">Todos los estudiantes filtrados</option>
+                </select>
+              </label>
+              <label>Fecha límite<input id="refuerzoFechaLimite" type="date"></label>
+              <label class="is-wide">Contenido a reforzar<input id="refuerzoContenido" maxlength="180" placeholder="Ej.: evidencia concreta y casos de prueba"></label>
+              <label class="is-wide">Indicaciones<textarea id="refuerzoIndicaciones" rows="3" maxlength="800" placeholder="Describe la práctica, evidencia esperada y forma de comprobación."></textarea></label>
+            </div>
+            <div class="teacher-reinforcement-actions">
+              <button class="btn btn-primary" type="button" onclick="asignarPlanRefuerzoSocratico(this)"><i class="fa-solid fa-paper-plane"></i> Asignar plan</button>
+              <span id="estadoPlanRefuerzoSocratico" role="status"></span>
+            </div>
+            <div id="listaPlanesRefuerzoSocratico"></div>
+          </section>
+        </details>
+        <div id="alertaNuevaSolicitud" class="new-request-alert" role="alert" aria-live="assertive">
+          <div><i class="fa-solid fa-bell"></i> <strong id="textoAlertaNuevaSolicitud">Nueva solicitud de estudiante.</strong></div>
+          <button class="btn btn-secondary" type="button" onclick="ocultarAlertaNuevaSolicitud()" aria-label="Cerrar alerta"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <section id="solicitudesPendientesProfesor" class="pending-requests-panel" aria-labelledby="solicitudesPendientesTitulo">
+          <div class="pending-requests-header">
+            <div class="pending-requests-title">
+              <i class="fa-solid fa-user-clock"></i>
+              <h3 id="solicitudesPendientesTitulo" style="margin:0;color:inherit">Solicitudes pendientes</h3>
+              <span id="contadorSolicitudesPendientes" class="pending-count">0</span>
+            </div>
+            <label class="pending-sound-control" for="sonidoSolicitudesProfesor">
+              <input id="sonidoSolicitudesProfesor" type="checkbox" onchange="cambiarSonidoSolicitudes(this.checked)">
+              <i class="fa-solid fa-volume-high"></i> Aviso sonoro
+            </label>
+          </div>
+          <div id="accionesSolicitudesMasivas" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.8rem">
+            <label class="pending-sound-control" for="seleccionarTodasSolicitudes">
+              <input id="seleccionarTodasSolicitudes" type="checkbox" onchange="seleccionarTodasLasSolicitudes(this.checked)">
+              Seleccionar todas
+            </label>
+            <button id="btnAceptarSolicitudesSeleccionadas" class="btn btn-success" type="button" onclick="aceptarSolicitudesSeleccionadas()" disabled>
+              <i class="fa-solid fa-users"></i> Aceptar seleccionadas
+            </button>
+            <span id="resumenSeleccionSolicitudes" style="color:var(--text-muted);font-size:.78rem">0 seleccionadas</span>
+          </div>
+          <div id="listaSolicitudesPendientes" class="pending-requests-grid">
+            <p style="color:var(--text-muted);margin:0">No hay solicitudes pendientes.</p>
+          </div>
+        </section>
+        <details open style="margin-top:1rem;padding:.8rem;border:1px solid rgba(16,185,129,.32);border-radius:8px;background:rgba(16,185,129,.06)">
+          <summary style="cursor:pointer;color:#a7f3d0;font-weight:700">
+            <i class="fa-solid fa-user-shield"></i> Docentes autorizados
+            <span id="cantidadDocentesAutorizados" style="margin-left:.35rem;color:var(--text-muted);font-size:.78rem"></span>
+          </summary>
+          <div id="listaDocentesAutorizados" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.55rem;margin-top:.75rem"></div>
+        </details>
+        <section id="mantenimientoJitsiAdministrador" class="teacher-admin-maintenance" hidden>
+          <div>
+            <h3><i class="fa-solid fa-database"></i> Mantenimiento administrativo</h3>
+            <p>Los historiales Jitsi y de aportes colaborativos ya no se generan. Estas operaciones eliminan definitivamente los documentos antiguos que todavía existan en Firestore.</p>
+          </div>
+          <button class="btn btn-danger" id="btnEliminarHistorialJitsiFirestore" type="button" onclick="abrirEliminacionHistorialJitsiAdministrador()">
+            <i class="fa-solid fa-trash-can"></i> Eliminar historial Jitsi
+          </button>
+          <button class="btn btn-danger" id="btnEliminarHistorialAportesFirestore" type="button" onclick="eliminarHistorialAportesAdministrador()">
+            <i class="fa-solid fa-code-commit"></i> Eliminar aportes antiguos
+          </button>
+        </section>
+        <div class="teacher-icon-legend" role="note" aria-label="Leyenda de iconos del panel docente">
+          <strong>Leyenda del panel:</strong>
+          <span><i class="fa-solid fa-sliders" aria-hidden="true"></i> Abrir acciones</span>
+          <span><i class="fa-solid fa-signal" aria-hidden="true"></i> En línea</span>
+          <span><i class="fa-solid fa-lock" aria-hidden="true"></i> Pantalla bloqueada</span>
+          <span><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Alerta IA</span>
+          <span><i class="fa-solid fa-circle-minus" aria-hidden="true"></i> Descuento aplicado</span>
+          <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Nota confirmada</span>
+        </div>
+        <div class="teacher-section-title"><i class="fa-solid fa-filter"></i> Filtros y orden</div>
+        <div id="filtrosPanelProfesor" class="teacher-filter-workspace">
+          <section class="teacher-filter-group teacher-filter-search">
+            <h4><i class="fa-solid fa-magnifying-glass"></i> Búsqueda</h4>
+            <div>
+              <label>Estudiante<input id="filtroProfesor" placeholder="Nombre y apellido" aria-label="Filtrar por estudiante"></label>
+              <label>Email<input id="filtroEmailProfesor" placeholder="Correo electrónico" aria-label="Filtrar por email"></label>
+            </div>
+          </section>
+          <section class="teacher-filter-group">
+            <h4><i class="fa-solid fa-users-rectangle"></i> Curso y grupo</h4>
+            <div>
+              <label>Curso<select id="filtroCursoProfesor"><option value="">Todos los cursos</option></select></label>
+              <label>División<select id="filtroDivisionProfesor" aria-label="Filtrar por división"><option value="">Todas las divisiones</option></select></label>
+              <label>Turno<select id="filtroTurnoProfesor"><option value="">Todos los turnos</option><option>Mañana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select></label>
+            </div>
+          </section>
+          <section class="teacher-filter-group teacher-filter-academic">
+            <h4><i class="fa-solid fa-chart-line"></i> Estado y seguimiento</h4>
+            <div>
+              <label>Estado<select id="filtroEstadoProfesor" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option value="activa">Cuenta activa</option>
+            <option value="solicitudes">Solicitudes pendientes</option>
+            <option value="rechazadas">Solicitudes rechazadas</option>
+            <option value="inactiva">Cuenta inactiva</option>
+            <option value="conectados">En línea (últimos 2 minutos)</option>
+            <option value="desconectados">Desconectados (más de 2 minutos)</option>
+            <option value="trabajando">Trabajando ahora</option>
+            <option value="pausados">Cronómetro pausado</option>
+            <option value="finalizados">Actividades finalizadas</option>
+            <option value="pendientes">Actividades pendientes</option>
+            <option value="alertas">Con alertas IA</option>
+            <option value="cambios">Con cambios de pestaña</option>
+              </select></label>
+              <label>Pantalla<select id="filtroBloqueoProfesor" aria-label="Filtrar por bloqueo de pantalla">
+            <option value="">Todos los bloqueos</option>
+            <option value="bloqueados">Solo estudiantes bloqueados</option>
+            <option value="activos">Solo estudiantes activos</option>
+              </select></label>
+              <label>Progreso<select id="filtroProgresoProfesor" aria-label="Filtrar por rango de progreso">
+            <option value="">Todo el progreso</option>
+            <option value="0">0%</option>
+            <option value="1-25">1–25%</option>
+            <option value="26-50">26–50%</option>
+            <option value="51-75">51–75%</option>
+            <option value="76-99">76–99%</option>
+            <option value="100">100%</option>
+              </select></label>
+              <label>Cambios de pestaña<select id="filtroSalidasProfesor" aria-label="Filtrar por cambios de pestaña">
+            <option value="">Todos los cambios</option>
+            <option value="0">Sin cambios</option>
+            <option value="1">1 o más</option>
+            <option value="3">3 o más</option>
+            <option value="5">5 o más</option>
+            <option value="10">10 o más</option>
+              </select></label>
+              <label>Portapapeles<select id="filtroPortapapelesProfesor" aria-label="Filtrar por intentos de copiar, cortar o pegar">
+            <option value="">Todos los estudiantes</option>
+            <option value="con-intentos">Con intentos</option>
+            <option value="sin-intentos">Sin intentos</option>
+            <option value="copiar">Intentaron copiar</option>
+            <option value="cortar">Intentaron cortar</option>
+            <option value="pegar">Intentaron pegar</option>
+            <option value="riesgo-alto">Riesgo alto</option>
+            <option value="riesgo-medio">Riesgo medio</option>
+            <option value="riesgo-bajo">Riesgo bajo</option>
+              </select></label>
+              <label>Nota definitiva<select id="filtroNotaProfesor" aria-label="Filtrar por nota definitiva confirmada"><option value="">Todas las notas</option><option value="sin-nota">Pendientes de confirmación</option><option value="0-3.9">0–3,9</option><option value="4-5.9">4–5,9</option><option value="6-6.9">6–6,9</option><option value="7-8.9">7–8,9</option><option value="9-10">9–10</option></select></label>
+              <label>Descuento<select id="filtroDescuentoProfesor" aria-label="Filtrar por descuento de puntos">
+            <option value="">Todos los descuentos</option>
+            <option value="con-descuento">Con descuento</option>
+            <option value="sin-descuento">Sin descuento</option>
+            <option value="1">Descuento de 1 punto o más</option>
+            <option value="2">Descuento de 2 puntos o más</option>
+            <option value="3">Descuento de 3 puntos o más</option>
+              </select></label>
+              <label>Última actualización<select id="filtroActualizacionProfesor" aria-label="Filtrar por última actualización"><option value="">Cualquier actualización</option><option value="5m">Últimos 5 minutos</option><option value="15m">Últimos 15 minutos</option><option value="1h">Última hora</option><option value="hoy">Hoy</option><option value="7d">Últimos 7 días</option><option value="sin-fecha">Sin fecha</option></select></label>
+            </div>
+          </section>
+          <section class="teacher-filter-group teacher-filter-actions">
+            <h4><i class="fa-solid fa-arrow-down-wide-short"></i> Orden y acciones</h4>
+            <div>
+              <label>Ordenar resultados<select id="ordenProfesor" aria-label="Ordenar tabla">
+            <option value="actualizacion-desc">Última actualización: reciente</option>
+            <option value="actualizacion-asc">Última actualización: antigua</option>
+            <option value="nombre-asc">Estudiante: A–Z</option>
+            <option value="nombre-desc">Estudiante: Z–A</option>
+            <option value="email-asc">Email: A–Z</option>
+            <option value="email-desc">Email: Z–A</option>
+            <option value="curso-asc">Curso: ascendente</option>
+            <option value="curso-desc">Curso: descendente</option>
+            <option value="division-asc">División: A–Z</option>
+            <option value="division-desc">División: Z–A</option>
+            <option value="turno-asc">Turno: A–Z</option>
+            <option value="turno-desc">Turno: Z–A</option>
+            <option value="estado-asc">Estado: activas primero</option>
+            <option value="estado-desc">Estado: inactivas primero</option>
+            <option value="progreso-asc">Progreso: menor primero</option>
+            <option value="progreso-desc">Progreso: mayor primero</option>
+            <option value="nota-asc">Nota: menor primero</option>
+            <option value="nota-desc">Nota: mayor primero</option>
+            <option value="salidas-asc">Pestanas: menor primero</option>
+            <option value="salidas-desc">Pestanas: mayor primero</option>
+            <option value="portapapeles-asc">Portapapeles: menor primero</option>
+            <option value="portapapeles-desc">Portapapeles: mayor primero</option>
+            <option value="alertas-desc">Alertas primero</option>
+              </select></label>
+              <button class="btn btn-secondary teacher-online-filter" id="btnSoloEnLineaProfesor" type="button" onclick="alternarFiltroSoloEnLineaProfesor()" aria-pressed="false" title="Mostrar solamente estudiantes con actividad en los últimos 2 minutos"><i class="fa-solid fa-signal"></i> Solo en línea</button>
+              <button class="btn btn-success" type="button" onclick="exportarCursoProfesorPDF()" title="Exportar el informe completo del curso, división y turno seleccionados"><i class="fa-solid fa-file-pdf"></i> PDF completo del grupo</button>
+              <button class="btn btn-secondary" id="btnLimpiarFiltrosProfesor" type="button" onclick="limpiarFiltrosProfesor()" title="Restablecer todos los filtros y el orden"><i class="fa-solid fa-filter-circle-xmark"></i> Limpiar filtros</button>
+            </div>
+          </section>
+        </div>
+        <div style="padding:.75rem;border:1px solid rgba(56,189,248,.3);border-radius:8px;background:rgba(56,189,248,.06);margin-bottom:1rem;font-size:.82rem;line-height:1.5;">
+          <strong>Cómo se calcula:</strong> cada actividad obtiene una calificación automática mediante
+          <strong>nota del código × 70% + nota de las preguntas × 30%</strong>.
+          El promedio académico usa la nota vigente de cada actividad evaluada. Si el docente corrigió un desafío, esa nota reemplaza a la automática.
+          Las actividades pendientes no se incluyen. El descuento genera una nota calculada; el docente puede modificarla y la nota definitiva solo se publica cuando la confirma.
+        </div>
+        <div id="resumenProfesor" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-bottom:1rem;"></div>
+        <section id="tableroCursoProfesor" class="course-dashboard" aria-labelledby="tableroCursoProfesorTitulo">
+          <div class="course-dashboard-heading">
+            <div><h3 id="tableroCursoProfesorTitulo"><i class="fa-solid fa-table-columns"></i> Tablero general del curso</h3><p id="tableroCursoProfesorEstado">Esperando datos autorizados del curso...</p></div>
+            <div class="course-dashboard-actions"><button id="btnExportarTableroCurso" class="btn btn-secondary" type="button" title="Exportar estudiantes visibles en CSV"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button></div>
+          </div>
+          <div id="tableroCursoResumen" class="course-dashboard-summary" aria-live="polite"></div>
+          <div id="tableroCursoFiltros" class="course-dashboard-filters"></div>
+          <div id="tableroCursoTabla" class="course-dashboard-table-wrap"></div>
+          <div id="tableroCursoDetalle" class="course-dashboard-detail" hidden></div>
+        </section>
+        <div id="resumenConsultasIAProfesor" style="margin-bottom:1rem;"></div>
+        <div class="teacher-table-scroll"><table style="width:100%;border-collapse:collapse;"><thead><tr><th data-actions-column="true">Acciones</th><th>Descuento</th><th>Estudiante</th><th>Email</th><th>Curso</th><th>Div.</th><th>Turno</th><th>Estado</th><th>Progreso</th><th>Nota definitiva</th><th>Cambios de pestaña</th><th>Desbloqueos</th></tr></thead><tbody id="tablaProfesorBody"></tbody></table></div>
+        <p id="estadoPanelProfesor" style="margin-top:1rem;color:var(--text-muted);font-size:.8rem;"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="jitsi-incoming-alert" id="jitsiLlamadaAlerta" role="alertdialog" aria-modal="false" aria-labelledby="jitsiLlamadaTitulo" hidden>
+      <div class="jitsi-incoming-pulse" aria-hidden="true"><i class="fa-solid fa-video"></i></div>
+      <div class="jitsi-incoming-content">
+        <strong id="jitsiLlamadaTitulo">El docente inició una videollamada</strong>
+        <span id="jitsiLlamadaMensaje">Podés ingresar ahora a la sala Jitsi.</span>
+      </div>
+      <div class="jitsi-incoming-actions">
+        <button class="btn btn-success" id="jitsiLlamadaAceptar" type="button"><i class="fa-solid fa-video"></i> Unirse ahora</button>
+        <button class="btn btn-secondary" id="jitsiLlamadaDescartar" type="button"><i class="fa-solid fa-xmark"></i> Ahora no</button>
+      </div>
+    </div>
+
+    <div class="jitsi-ending-alert" id="jitsiFinAlerta" role="alert" aria-live="assertive" hidden>
+      <span class="jitsi-ending-icon" aria-hidden="true"><i class="fa-solid fa-hourglass-end"></i></span>
+      <div>
+        <strong id="jitsiFinTitulo">Quedan 30 segundos</strong>
+        <p id="jitsiFinMensaje">La videollamada finalizará automáticamente.</p>
+      </div>
+    </div>
+
+    <div class="jitsi-finished-toast" id="jitsiFinalizadaAviso" role="status" aria-live="polite" hidden>
+      <i class="fa-solid fa-circle-check"></i>
+      <span>La videollamada finalizó.</span>
+    </div>
+
+    <div class="modal-overlay" id="configuracionDuracionJitsiModal" role="dialog" aria-modal="true" aria-labelledby="configuracionDuracionJitsiTitulo" style="display:none">
+      <div class="modal-box jitsi-duration-box" tabindex="-1">
+        <div class="jitsi-duration-header">
+          <span aria-hidden="true"><i class="fa-solid fa-hourglass-half"></i></span>
+          <div><h3 id="configuracionDuracionJitsiTitulo">Duración de llamada Jitsi</h3><p id="configuracionDuracionJitsiDescripcion">Elegí el límite de tiempo para esta modalidad.</p></div>
+        </div>
+        <label class="jitsi-duration-field" for="duracionJitsiMinutos">
+          <span>Duración máxima</span>
+          <div><input id="duracionJitsiMinutos" type="number" min="1" max="120" step="1" inputmode="numeric"><strong>minutos</strong></div>
+        </label>
+        <div class="jitsi-duration-presets" aria-label="Duraciones rápidas">
+          <button type="button" data-jitsi-minutos="5">5 min</button>
+          <button type="button" data-jitsi-minutos="10">10 min</button>
+          <button type="button" data-jitsi-minutos="15">15 min</button>
+          <button type="button" data-jitsi-minutos="30">30 min</button>
+          <button type="button" data-jitsi-minutos="60">60 min</button>
+        </div>
+        <p class="jitsi-duration-error" id="duracionJitsiError" role="alert"></p>
+        <div class="jitsi-duration-actions">
+          <button class="btn btn-secondary" id="cancelarDuracionJitsi" type="button"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+          <button class="btn btn-success" id="guardarDuracionJitsi" type="button"><i class="fa-solid fa-floppy-disk"></i> Guardar duración</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-overlay" id="selectorJitsiGrupalModal" role="dialog" aria-modal="true" aria-labelledby="selectorJitsiGrupalTitulo" style="display:none">
+      <div class="modal-box jitsi-group-selector" tabindex="-1">
+        <div class="jitsi-group-selector-header">
+          <div>
+            <span class="jitsi-group-selector-icon" aria-hidden="true"><i class="fa-solid fa-users-viewfinder"></i></span>
+            <div>
+              <h3 id="selectorJitsiGrupalTitulo">Iniciar llamada Jitsi grupal</h3>
+              <p>Elegí el grupo que recibirá la invitación.</p>
+            </div>
+          </div>
+          <button class="btn btn-secondary jitsi-close" id="cerrarSelectorJitsiGrupal" type="button" aria-label="Cerrar selección" title="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="jitsi-group-selector-grid">
+          <label>
+            <span><i class="fa-solid fa-graduation-cap"></i> Curso <strong>*</strong></span>
+            <select id="selectorJitsiCurso" aria-label="Curso para la llamada Jitsi grupal">
+              <option value="">Seleccionar curso</option>
+            </select>
+          </label>
+          <label>
+            <span><i class="fa-solid fa-layer-group"></i> División</span>
+            <select id="selectorJitsiDivision" aria-label="División para la llamada Jitsi grupal">
+              <option value="">Todas las divisiones</option>
+            </select>
+          </label>
+          <label>
+            <span><i class="fa-solid fa-clock"></i> Turno</span>
+            <select id="selectorJitsiTurno" aria-label="Turno para la llamada Jitsi grupal">
+              <option value="">Todos los turnos</option>
+            </select>
+          </label>
+        </div>
+        <div class="jitsi-group-selector-summary" id="selectorJitsiResumen" role="status" aria-live="polite">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>Seleccioná un curso para consultar los estudiantes disponibles.</span>
+        </div>
+        <div class="jitsi-group-selector-preview" id="selectorJitsiVistaPrevia" hidden></div>
+        <div class="jitsi-group-selector-actions">
+          <button class="btn btn-secondary" id="cancelarSelectorJitsiGrupal" type="button"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+          <button class="btn btn-success" id="confirmarSelectorJitsiGrupal" type="button" disabled><i class="fa-solid fa-video"></i> Continuar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-overlay" id="jitsiModal" role="dialog" aria-modal="true" aria-labelledby="jitsiTitle" style="display:none">
+      <div class="modal-box jitsi-box" tabindex="-1">
+        <div class="jitsi-header">
+          <div>
+            <h3 id="jitsiTitle"><i class="fa-solid fa-video"></i> Videollamada Jitsi Meet</h3>
+            <p id="jitsiEstado">Preparando sala...</p>
+          </div>
+          <div class="jitsi-window-actions">
+            <span class="jitsi-countdown" id="jitsiTiempoRestante" title="Tiempo restante"><i class="fa-solid fa-hourglass-half"></i><strong>--:--</strong></span>
+            <button class="btn btn-success jitsi-extend-time" id="sumarTiempoJitsi" type="button" hidden aria-label="Sumar cinco minutos" title="Sumar 5 minutos">
+              <i class="fa-solid fa-plus"></i><span>5 min</span>
+            </button>
+            <button class="btn btn-secondary jitsi-fullscreen" id="pantallaCompletaJitsi" type="button" aria-label="Ver Jitsi en pantalla completa" title="Pantalla completa">
+              <i class="fa-solid fa-expand"></i>
+            </button>
+            <button class="btn btn-secondary jitsi-close" id="cerrarJitsi" type="button" aria-label="Cerrar videollamada" title="Cerrar">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+        <div class="jitsi-minute-alert" id="jitsiAlertaUltimoMinuto" role="alert" aria-live="assertive" hidden>
+          <span aria-hidden="true"><i class="fa-solid fa-bell"></i></span>
+          <div><strong>Quedan 30 segundos</strong><p>La videollamada finalizará automáticamente.</p></div>
+        </div>        <div class="jitsi-participant-card">
+          <span class="jitsi-participant-icon" aria-hidden="true"><i class="fa-solid fa-user-graduate"></i></span>
+          <div class="jitsi-participant-data">
+            <strong id="jitsiEstudianteNombre">Estudiante</strong>
+            <span id="jitsiEstudianteEmail">Sin correo</span>
+          </div>
+          <button class="btn btn-secondary jitsi-copy-link" id="copiarEnlaceJitsi" type="button" title="Copiar enlace de la sala">
+            <i class="fa-solid fa-link"></i>
+            <span>Copiar enlace</span>
+          </button>
+        </div>
+        <p class="jitsi-copy-status" id="jitsiCopiarEstado" role="status" aria-live="polite"></p>
+        <div id="jitsiFrame" class="jitsi-frame-container jitsi-external-container" role="region" aria-label="Acceso a videollamada Jitsi Meet">
+          <div class="jitsi-external-panel">
+            <span class="jitsi-external-icon" aria-hidden="true"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+            <div class="jitsi-external-copy">
+              <h4>La videollamada se abre en una pestaña nueva</h4>
+              <p id="jitsiExternalMensaje">Usá el botón para abrir la sala Jitsi sin el límite del modo embebido.</p>
+            </div>
+            <div class="jitsi-external-actions">
+              <button class="btn btn-success" id="abrirJitsiNuevaPestana" type="button"><i class="fa-solid fa-video"></i> Abrir sala Jitsi</button>
+              <button class="btn btn-primary" id="confirmarAnfitrionJitsi" type="button" hidden><i class="fa-solid fa-user-shield"></i> Confirmar docente anfitrión</button>
+            </div>
+            <p class="jitsi-external-note" id="jitsiExternalEstado" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="classStartOverlay" role="status" aria-live="polite" aria-labelledby="classStartTitle">
+      <div class="class-waiting-card">
+        <div style="font-size:3rem;margin-bottom:.6rem;"><i class="fa-solid fa-hourglass-start"></i></div>
+        <h2 id="classStartTitle">Esperando el inicio de la clase</h2>
+        <p id="classStartMessage">El docente habilitará las actividades. Mantené esta pestaña abierta.</p>
+        <button class="btn btn-warning" style="margin-top:1rem;" onclick="ingresarComoDocente(this)">
+          <i class="fa-solid fa-chalkboard-user"></i> Soy docente
+        </button>
+        <div style="margin-top:1rem;color:#fbbf24;font-size:.85rem;">
+          <i class="fa-solid fa-wifi"></i> Conectado al control de clase
+        </div>
+      </div>
+    </div>
+
+    <!-- Detalle integral de un estudiante para el profesor -->
+    <div class="modal-overlay" id="detalleEstudianteProfesorModal" role="dialog" aria-modal="true" aria-labelledby="detalleEstudianteProfesorTitle">
+      <div class="modal-box" style="max-width:1200px;width:96vw;max-height:92vh;overflow:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+          <div>
+            <h3 id="detalleEstudianteProfesorTitle"><i class="fa-solid fa-user-graduate"></i> Detalle del estudiante</h3>
+            <p id="detalleEstudianteProfesorSubtitulo">Información completa de actividades y respuestas.</p>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" id="btnDetalleEstudianteAnterior" type="button" onclick="navegarDetalleEstudianteProfesor(-1)" title="Estudiante anterior">
+              <i class="fa-solid fa-arrow-left"></i> Anterior
+            </button>
+            <button class="btn btn-secondary" id="btnDetalleEstudianteSiguiente" type="button" onclick="navegarDetalleEstudianteProfesor(1)" title="Estudiante siguiente">
+              Siguiente <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <button class="btn btn-success" type="button" onclick="exportarDetalleEstudianteProfesorPDF()">
+              <i class="fa-solid fa-file-pdf"></i> Exportar detalle
+            </button>
+            <button class="btn btn-primary" id="btnActualizarDetalleEstudianteProfesor" type="button" onclick="actualizarDetalleEstudianteProfesor()" title="Consultar nuevamente este estudiante en Firebase">
+              <i class="fa-solid fa-rotate"></i> Actualizar datos
+            </button>
+            <button class="btn btn-secondary" onclick="cerrarDetalleEstudianteProfesor()">Cerrar</button>
+          </div>
+        </div>
+        <div id="detalleEstudianteProfesorContenido"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="eliminarHistorialJitsiAdminModal" role="alertdialog" aria-modal="true" aria-labelledby="eliminarHistorialJitsiAdminTitulo">
+      <div class="modal-box teacher-danger-operation-box" tabindex="-1">
+        <div class="teacher-danger-operation-header">
+          <span aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span>
+          <div>
+            <h3 id="eliminarHistorialJitsiAdminTitulo">Eliminar historial Jitsi de Firestore</h3>
+            <p>La eliminación es definitiva y no se puede deshacer.</p>
+          </div>
+        </div>
+        <div id="resumenEliminacionHistorialJitsi" class="teacher-danger-operation-summary" role="status" aria-live="polite">
+          Presioná “Revisar documentos” para contar el historial existente.
+        </div>
+        <div class="teacher-danger-operation-scope">
+          <strong>Alcance</strong>
+          <span id="alcanceEliminacionHistorialJitsi">Todas las clases y fechas</span>
+          <small>Las salas y llamadas Jitsi activas no se eliminan. Solo se borra la subcolección histórica.</small>
+        </div>
+        <label class="teacher-danger-operation-confirm" for="confirmacionEliminarHistorialJitsi">
+          Escribí <strong>BORRAR JITSI</strong> para habilitar la eliminación
+          <input id="confirmacionEliminarHistorialJitsi" type="text" autocomplete="off" spellcheck="false" placeholder="BORRAR JITSI" oninput="actualizarConfirmacionEliminarHistorialJitsi()">
+        </label>
+        <div class="teacher-danger-operation-actions">
+          <button class="btn btn-secondary" type="button" onclick="cerrarEliminacionHistorialJitsiAdministrador()">
+            <i class="fa-solid fa-xmark"></i> Cancelar
+          </button>
+          <button class="btn btn-secondary" id="btnRevisarHistorialJitsiFirestore" type="button" onclick="revisarHistorialJitsiAdministrador()">
+            <i class="fa-solid fa-magnifying-glass"></i> Revisar documentos
+          </button>
+          <button class="btn btn-danger" id="btnConfirmarEliminarHistorialJitsi" type="button" onclick="eliminarHistorialJitsiAdministrador()" disabled>
+            <i class="fa-solid fa-trash-can"></i> Eliminar definitivamente
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="historialDesbloqueosModal" role="dialog" aria-modal="true" aria-labelledby="historialDesbloqueosTitle">
+      <div class="modal-box history-modal-box">
+        <div class="history-modal-header">
+          <div>
+            <h3 id="historialDesbloqueosTitle"><i class="fa-solid fa-clock-rotate-left"></i> Historial de desbloqueos</h3>
+            <p id="historialDesbloqueosSubtitulo">Auditoría completa del estudiante.</p>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="cerrarHistorialDesbloqueos()">Cerrar</button>
+        </div>
+        <div id="historialDesbloqueosContenido"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="historialDescuentosModal" role="dialog" aria-modal="true" aria-labelledby="historialDescuentosTitle">
+      <div class="modal-box history-modal-box">
+        <div class="history-modal-header">
+          <div>
+            <h3 id="historialDescuentosTitle"><i class="fa-solid fa-file-invoice-dollar"></i> Historial de descuentos</h3>
+            <p id="historialDescuentosSubtitulo">Auditoría completa de cambios de puntos.</p>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="cerrarHistorialDescuentos()"><i class="fa-solid fa-xmark"></i> Cerrar</button>
+        </div>
+        <div id="historialDescuentosFiltros" class="discount-history-filters" hidden>
+          <div class="discount-history-quick-filters" aria-label="Filtros rápidos por fecha">
+            <span><i class="fa-solid fa-bolt"></i> Períodos rápidos</span>
+            <button class="btn discount-history-quick-filter" type="button" data-dias="1" onclick="aplicarFiltroRapidoHistorialDescuentos(1)" title="Mostrar solamente los cambios de hoy">Hoy</button>
+            <button class="btn discount-history-quick-filter" type="button" data-dias="7" onclick="aplicarFiltroRapidoHistorialDescuentos(7)" title="Mostrar los cambios de hoy y los seis días anteriores">7 días</button>
+            <button class="btn discount-history-quick-filter" type="button" data-dias="30" onclick="aplicarFiltroRapidoHistorialDescuentos(30)" title="Mostrar los cambios de hoy y los veintinueve días anteriores">30 días</button>
+          </div>
+          <div class="discount-history-filter">
+            <label for="historialDescuentosDesde">Desde</label>
+            <input id="historialDescuentosDesde" type="date" onchange="aplicarFiltrosHistorialDescuentos()">
+          </div>
+          <div class="discount-history-filter">
+            <label for="historialDescuentosHasta">Hasta</label>
+            <input id="historialDescuentosHasta" type="date" onchange="aplicarFiltrosHistorialDescuentos()">
+          </div>
+          <div class="discount-history-filter teacher">
+            <label for="historialDescuentosDocente">Docente</label>
+            <select id="historialDescuentosDocente" onchange="aplicarFiltrosHistorialDescuentos()">
+              <option value="">Todos los docentes</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary discount-history-filter-clear" type="button" onclick="limpiarFiltrosHistorialDescuentos()"><i class="fa-solid fa-filter-circle-xmark"></i> Limpiar</button>
+        </div>
+        <div id="historialDescuentosContenido"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="historialPestanasModal" role="dialog" aria-modal="true" aria-labelledby="historialPestanasTitle">
+      <div class="modal-box history-modal-box">
+        <div class="history-modal-header">
+          <div>
+            <h3 id="historialPestanasTitle"><i class="fa-solid fa-window-restore"></i> Historial de pestañas</h3>
+            <p id="historialPestanasSubtitulo">Títulos, dominios y duración registrados por la extensión.</p>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="cerrarHistorialPestanas()"><i class="fa-solid fa-xmark"></i> Cerrar</button>
+        </div>
+        <div id="historialPestanasContenido"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="accionesEstudianteModal" role="dialog" aria-modal="true" aria-labelledby="accionesEstudianteTitle">
+      <div class="modal-box student-actions-modal-box" tabindex="-1">
+        <div class="student-actions-header">
+          <div class="student-actions-heading">
+            <span class="student-actions-heading-icon" aria-hidden="true"><i class="fa-solid fa-sliders"></i></span>
+            <div>
+              <h3 id="accionesEstudianteTitle">Acciones del estudiante</h3>
+              <p id="accionesEstudianteSubtitulo">Seleccioná una acción.</p>
+            </div>
+          </div>
+          <button class="btn student-actions-close" type="button" onclick="cerrarAccionesEstudiante()" aria-label="Cerrar acciones" title="Cerrar">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div class="student-actions-status" aria-live="polite">
+          <strong id="accionesEstudianteEstado"><i class="fa-solid fa-circle-check"></i> Pantalla habilitada</strong>
+          <span class="student-actions-count" id="accionesEstudianteCantidad">Acciones disponibles</span>
+        </div>
+        <p class="student-actions-help">Solo se muestran las acciones disponibles para el estado actual del estudiante.</p>
+        <div id="accionesEstudianteContenido" class="student-actions-grid"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="editarDescuentoEstudianteModal" role="dialog" aria-modal="true" aria-labelledby="editarDescuentoTitulo">
+      <div class="modal-box teacher-discount-edit-box" tabindex="-1">
+        <div class="teacher-discount-edit-header">
+          <span class="teacher-discount-edit-icon" aria-hidden="true"><i class="fa-solid fa-circle-minus"></i></span>
+          <div>
+            <h3 id="editarDescuentoTitulo">Editar descuento de puntos</h3>
+            <p id="editarDescuentoSubtitulo">Actualizá la penalización y su motivo.</p>
+          </div>
+        </div>
+        <div class="teacher-discount-edit-summary">
+          <span>Nota calculada actual</span>
+          <strong id="editarDescuentoNotaActual">Pendiente</strong>
+        </div>
+        <div class="teacher-discount-edit-field">
+          <label for="editarDescuentoPuntos">Puntos a descontar</label>
+          <input id="editarDescuentoPuntos" type="number" min="0" max="10" step="0.1" value="0">
+          <div class="teacher-discount-edit-help">Usá 0 para quitar el descuento.</div>
+        </div>
+        <div class="teacher-discount-edit-field">
+          <label for="editarDescuentoMotivo">Motivo</label>
+          <textarea id="editarDescuentoMotivo" maxlength="500" placeholder="Explicá el motivo del descuento."></textarea>
+        </div>
+        <p id="editarDescuentoError" class="teacher-discount-edit-error" role="alert"></p>
+        <div class="teacher-discount-edit-actions">
+          <button class="btn btn-secondary" type="button" onclick="cerrarEditorDescuentoEstudiante()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+          <button class="btn btn-warning" id="btnGuardarDescuentoEstudiante" type="button" onclick="guardarEditorDescuentoEstudiante()"><i class="fa-solid fa-floppy-disk"></i> Guardar descuento</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmacionDocenteModal" role="dialog" aria-modal="true" aria-labelledby="confirmacionDocenteTitulo">
+      <div class="modal-box teacher-confirm-box" tabindex="-1">
+        <div class="teacher-confirm-header">
+          <span class="teacher-confirm-icon" aria-hidden="true"><i id="confirmacionDocenteIcono" class="fa-solid fa-circle-question"></i></span>
+          <div class="teacher-confirm-heading">
+            <h3 id="confirmacionDocenteTitulo">Confirmar acción</h3>
+            <p id="confirmacionDocenteMensaje"></p>
+          </div>
+        </div>
+        <div id="confirmacionDocenteDetalles" class="teacher-confirm-details"></div>
+        <div id="confirmacionDocenteCampo" class="teacher-confirm-field" hidden>
+          <label id="confirmacionDocenteCampoLabel" for="confirmacionDocenteEntrada">Motivo</label>
+          <textarea id="confirmacionDocenteEntrada"></textarea>
+        </div>
+        <label id="confirmacionDocenteCheckContenedor" class="teacher-confirm-check" hidden>
+          <input id="confirmacionDocenteCheck" type="checkbox">
+          <span id="confirmacionDocenteCheckTexto">Comprendo el alcance de esta acción.</span>
+        </label>
+        <p id="confirmacionDocenteError" class="teacher-confirm-error" role="alert"></p>
+        <div class="teacher-confirm-actions">
+          <button id="confirmacionDocenteCancelar" class="btn btn-secondary" type="button"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+          <button id="confirmacionDocenteAceptar" class="btn btn-primary" type="button"><i class="fa-solid fa-check"></i> Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="justificarSalidaModal" role="dialog" aria-modal="true" aria-labelledby="justificarSalidaTitle">
+      <div class="modal-box">
+        <h3 id="justificarSalidaTitle"><i class="fa-solid fa-comment-dots"></i> Justificar cambio de pestaña</h3>
+        <p id="justificarSalidaDescripcion">Indicá brevemente por qué la página dejó de estar visible.</p>
+        <div class="input-group">
+          <label for="motivoJustificacionSalida">Motivo</label>
+          <select id="motivoJustificacionSalida">
+            <option value="">Seleccionar motivo</option>
+            <option>Problema técnico</option>
+            <option>Llamada o notificación</option>
+            <option>Autorización docente</option>
+            <option>Necesidad de accesibilidad</option>
+            <option>Otro motivo</option>
+          </select>
+        </div>
+        <div class="input-group" style="margin-top:.7rem">
+          <label for="detalleJustificacionSalida">Explicación</label>
+          <textarea id="detalleJustificacionSalida" style="min-height:100px;padding:.7rem;border-radius:6px;background:var(--bg-dark);color:white;border:1px solid var(--border)"></textarea>
+        </div>
+        <div class="modal-actions" style="margin-top:1rem">
+          <button class="btn btn-secondary" onclick="cerrarJustificacionSalida()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarJustificacionSalida()">Guardar justificación</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="sitioApoyoModal" role="dialog" aria-modal="true" aria-labelledby="sitioApoyoTitle">
+      <div class="modal-box support-site-box">
+        <div class="support-site-header">
+          <div>
+            <h3 id="sitioApoyoTitle"><i class="fa-solid fa-book-open-reader"></i> Material de apoyo</h3>
+            <small id="sitioApoyoSeccion" style="color:var(--text-muted)">Consulta dentro de la actividad</small>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="cerrarSitioApoyo()" aria-label="Cerrar material de apoyo">
+            <i class="fa-solid fa-xmark"></i> Cerrar
+          </button>
+        </div>
+        <p class="support-site-note">
+          <i class="fa-solid fa-shield-halved"></i>
+          Esta consulta se abre dentro de la misma pantalla y no suma una salida de pestaña.
+        </p>
+        <iframe
+          id="sitioApoyoFrame"
+          src="about:blank"
+          title="Sitio de Formación Profesional"
+          loading="lazy"
+          sandbox="allow-scripts allow-forms allow-same-origin allow-downloads"
+          referrerpolicy="strict-origin-when-cross-origin"
+        ></iframe>
+      </div>
+    </div>
+
+    <!-- Editor de desafíos del profesor, persistido en Firestore -->
+    <div class="modal-overlay" id="editorDesafiosFirebaseModal">
+      <div class="modal-box" style="max-width:1250px;width:96vw;max-height:92vh;overflow:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <div><h3>🧩 Editor de los 19 Desafíos en Firebase</h3><p style="color:var(--text-muted);margin:.3rem 0;">Editá contenido, rúbrica y reglas de IA sin modificar el HTML.</p></div>
+          <button class="btn btn-secondary" onclick="cerrarEditorDesafiosFirebase()">Cerrar</button>
+        </div>
+        <div class="editor-desafios-layout">
+          <div class="editor-desafios-sidebar">
+            <input id="buscarDesafioFirebase" placeholder="Buscar..." style="width:100%;padding:.7rem;border-radius:8px;">
+            <div id="listaDesafiosFirebase" style="margin-top:.6rem;max-height:65vh;overflow:auto;"></div>
+          </div>
+          <div id="formDesafioFirebase"></div>
+        </div>
+        <div class="editor-save-status" style="margin-top:1rem;"><i class="fa-solid fa-circle-info"></i><span id="estadoEditorDesafiosFirebase">Cambios sin guardar</span></div>
+      </div>
+    </div>
+
+    <!-- Autorización docente mediante atajo y sesión Firebase verificada -->
+    <div class="modal-overlay" id="passwordModal" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+      <div class="modal-box">
+        <h3 id="passwordModalTitle"><i class="fa-solid fa-lock"></i> Panel de Control Docente</h3>
+        <p id="modalDescription">
+          Usá la combinación de teclas docente para autorizar la acción:
+        </p>
+        <div id="teacherShortcutHint" style="padding:.8rem;border:1px solid rgba(245,158,11,.35);border-radius:8px;background:rgba(245,158,11,.08);font-family:'Fira Code',monospace;text-align:center;font-size:1.05rem;">
+          Ctrl + Alt + Shift + P
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick="cerrarModalPassword()">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay student-progress-modal" id="progresoEstudianteModal" role="dialog" aria-modal="true" aria-labelledby="informeVisualEstudianteTitulo">
+      <div class="modal-box student-progress-modal-box" tabindex="-1">
+        <header class="student-progress-modal-header">
+          <div class="student-progress-modal-heading">
+            <span class="student-progress-report-icon" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span>
+            <div>
+              <span class="student-progress-eyebrow">Panel personal</span>
+              <h2 id="informeVisualEstudianteTitulo">Mi progreso y calificaciones</h2>
+              <p>Avance general, notas por desafío y recomendaciones personales.</p>
+            </div>
+          </div>
+          <div class="student-progress-modal-actions">
+            <button class="btn btn-secondary student-progress-refresh" type="button" onclick="renderInformeVisualEstudiante()" title="Actualizar informe" aria-label="Actualizar informe">
+              <i class="fa-solid fa-rotate"></i><span>Actualizar</span>
+            </button>
+            <button class="btn btn-success student-progress-pdf" type="button" onclick="exportarResultadosPDF()" title="Descargar reporte PDF" aria-label="Descargar reporte PDF">
+              <i class="fa-solid fa-file-arrow-down"></i><span>PDF</span>
+            </button>
+            <button class="btn student-progress-modal-close" type="button" onclick="cerrarProgresoEstudiante()" aria-label="Cerrar progreso y calificaciones" title="Cerrar">
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+        </header>
+        <section id="informeVisualEstudiante" class="student-progress-report" aria-labelledby="informeVisualEstudianteTitulo">
+          <div id="informeVisualEstudianteContenido" aria-live="polite"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="modal-overlay learning-path-modal" id="rutaAprendizajeModal" role="dialog" aria-modal="true" aria-labelledby="rutaAprendizajeTitulo">
+      <div class="modal-box learning-path-modal-box" tabindex="-1">
+        <header class="learning-path-modal-header">
+          <div class="learning-path-modal-heading">
+            <span class="learning-path-heading-icon" aria-hidden="true"><i class="fa-solid fa-route"></i></span>
+            <div>
+              <span class="student-progress-eyebrow">Trayecto personal</span>
+              <h2 id="rutaAprendizajeTitulo">Mi ruta de aprendizaje</h2>
+              <p>Consultá tu avance, los prerrequisitos y las recomendaciones sin interrumpir el desafío actual.</p>
+            </div>
+          </div>
+          <button class="btn student-progress-modal-close" type="button" onclick="cerrarRutaAprendizaje()" aria-label="Cerrar ruta de aprendizaje" title="Cerrar">
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+        <section id="rutaAprendizajeContenido" class="learning-path-content" aria-live="polite">
+          <div class="learning-path-empty">Preparando tu ruta de aprendizaje...</div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Barra Inferior Global para Exportar PDF -->
+    <div class="export-bar">
+      <div class="export-info">
+        <i class="fa-solid fa-file-pdf" style="color: var(--primary)"></i>
+        <span
+          >Incluye mapa de calor, recomendaciones personalizadas, gráficos de avance y notas, tabla por desafío, código y resultados.
+          La protección del archivo puede variar según el navegador.</span
+        >
+      </div>
+      <button class="btn btn-success" onclick="exportarResultadosPDF()">
+        <i class="fa-solid fa-file-arrow-down"></i> Descargar reporte (.PDF)
+      </button>
+    </div>
+
+    <script src="actividad-network-status.js?v=20260918-7"></script>
+    <script src="actividad-utils.js?v=20260918-7"></script>
+    <script src="actividad-pdf-loader.js?v=20260918-7"></script>
+    <script src="actividad-app.js?v=20260918-7"></script>
+    <script src="panel-profesor.js?v=20260918-7"></script>
+    <script src="actividad-cooperacion.js?v=20260918-7"></script>
+    <script src="mejoras-seguimiento.js?v=20260918-7"></script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,75 @@
+// EJERCICIO 1
+for (let i = 1; i <= 20; i++) {
+    console.log(i);
+}
+
+// DESAFÍO: PARES
+for (let i = 1; i <= 20; i++) {
+    if (i % 2 === 0) {
+        console.log(i);
+    }
+}
+
+
+// EJERCICIO 2
+for (let i = 1; i <= 20; i++) {
+    if (i % 2 !== 0) {
+        console.log(i);
+    }
+}
+
+
+// EJERCICIO 3
+for (let i = 10; i >= 1; i--) {
+    console.log(i);
+}
+
+console.log("¡Despegue!");
+
+
+// EJERCICIO 4
+let suma = 0;
+
+for (let i = 1; i <= 100; i++) {
+    suma += i;
+}
+
+console.log(suma);
+
+
+// EJERCICIO 5
+let numero = 7;
+
+for (let i = 1; i <= 10; i++) {
+    console.log(numero + " x " + i + " = " + numero * i);
+}
+
+
+// EJERCICIO 6
+let nombres = ["Ana", "Juan", "Pedro", "María", "Lucas"];
+
+for (let nombre of nombres) {
+    console.log(nombre);
+}
+
+
+// EJERCICIO 7
+let numeros = [3, 7, 4, 8, 10, 15, 20];
+
+for (let numero of numeros) {
+    console.log(numero);
+
+    if (numero === 10) {
+        break;
+    }
+}
+
+
+// EJERCICIO 8
+for (let i = 1; i <= 10; i++) {
+    if (i === 5) {
+        continue;
+    }
+
+    console.log(i);
+}

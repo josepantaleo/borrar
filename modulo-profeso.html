@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel del Profesor — JS Escuela</title>
+<style>
+:root{--bg:#08111f;--card:#111c2e;--card2:#16243a;--text:#eef4ff;--muted:#9fb0c7;--accent:#37b7ff;--ok:#35d07f;--warn:#ffc857;--danger:#ff6577;--border:#263957}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#050a12,#0b1526);color:var(--text)}
+header{position:sticky;top:0;z-index:10;background:#0a1322ee;backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;gap:16px;align-items:center;justify-content:space-between}.brand{font-size:20px;font-weight:800}.brand span{color:var(--accent)}
+button,input,select{font:inherit}button{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700}button.primary{background:var(--accent);color:#03111c}button.secondary{background:var(--card2);color:var(--text);border:1px solid var(--border)}button.danger{background:var(--danger);color:#21050a}
+main{max-width:1400px;margin:0 auto;padding:24px}.hidden{display:none!important}.auth{min-height:100vh;display:grid;place-items:center;padding:20px}.auth-card{width:min(440px,100%);background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;text-align:center;box-shadow:0 20px 70px #0007}.auth-card h1{margin:0 0 8px}.muted{color:var(--muted)}
+.top{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}.stat{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:18px}.stat b{display:block;font-size:30px;margin-top:4px}.stat small{color:var(--muted)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}.toolbar input{flex:1;min-width:220px;background:var(--card);border:1px solid var(--border);color:var(--text);padding:11px 13px;border-radius:10px}.toolbar select{background:var(--card);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:10px}
+.table-wrap{overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:15px}.table{width:100%;border-collapse:collapse;min-width:900px}.table th,.table td{padding:13px 12px;border-bottom:1px solid var(--border);text-align:left}.table th{color:var(--muted);font-size:13px}.table tr:hover{background:#ffffff05}.pill{display:inline-block;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}.pill.ok{background:#123b28;color:#70f0a5}.pill.warn{background:#423511;color:#ffd66c}.pill.danger{background:#421a22;color:#ff91a0}.progress{height:8px;background:#24334b;border-radius:999px;overflow:hidden;min-width:100px}.progress i{display:block;height:100%;background:var(--accent)}
+.drawer{position:fixed;inset:0;background:#0009;z-index:20;display:flex;justify-content:flex-end}.drawer-panel{width:min(850px,100%);height:100%;overflow:auto;background:#0b1526;border-left:1px solid var(--border);padding:24px}.drawer-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.profile{display:flex;gap:14px;align-items:center}.avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;background:#22334e;display:grid;place-items:center;font-size:22px}.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:20px 0}.box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px}.box h3{margin:0 0 10px;font-size:15px}.box p{margin:4px 0;color:var(--muted)}.activity-list{display:grid;gap:8px}.activity{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px}.dot{width:10px;height:10px;border-radius:50%;background:#687a92}.dot.ok{background:var(--ok)}
+pre{white-space:pre-wrap;background:#07101d;border:1px solid var(--border);padding:12px;border-radius:10px;max-height:250px;overflow:auto;color:#dbe7f8}.notice{background:#241e0d;border:1px solid #594a1d;color:#ffe39a;padding:12px;border-radius:10px;margin-bottom:15px}
+@media(max-width:850px){.top{grid-template-columns:repeat(2,1fr)}.detail-grid{grid-template-columns:1fr}}
+@media(max-width:500px){.top{grid-template-columns:1fr}.main{padding:12px}}
+
+.editor-modal{position:fixed;inset:0;background:#000b;z-index:50;display:none;padding:20px}
+.editor-modal.active{display:flex;align-items:center;justify-content:center}
+.editor-box{width:min(1250px,98vw);height:min(94vh,900px);overflow:auto;background:#0b1526;border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:0 25px 100px #000}
+.editor-layout{display:grid;grid-template-columns:250px 1fr;gap:16px}
+.challenge-list{display:grid;gap:7px;max-height:68vh;overflow:auto}
+.challenge-list button{text-align:left}
+.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.editor-field{display:flex;flex-direction:column;gap:5px}
+.editor-field.full{grid-column:1/-1}
+.editor-field label{font-size:12px;color:var(--muted);font-weight:800}
+.editor-field input,.editor-field textarea{width:100%;background:#07101d;color:var(--text);border:1px solid var(--border);border-radius:9px;padding:10px}
+.editor-field textarea{min-height:95px;resize:vertical}
+.rubrica{width:100%;border-collapse:collapse;margin-top:8px}
+.rubrica th,.rubrica td{border-bottom:1px solid var(--border);padding:7px;text-align:left}
+.rubrica input{width:100%;background:#07101d;color:var(--text);border:1px solid var(--border);border-radius:7px;padding:7px}
+.editor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.firebase-status{margin-top:10px;padding:10px;border-radius:9px;background:#07101d;border:1px solid var(--border);color:var(--muted)}
+@media(max-width:800px){.editor-layout{grid-template-columns:1fr}.editor-grid{grid-template-columns:1fr}}
+
+/* =========================================================
+   MODULO PROFESOR — REDISEÑO VISUAL
+   ========================================================= */
+:root{
+  --mp-bg:#07111f;
+  --mp-bg2:#0b1729;
+  --mp-card:rgba(15,29,49,.82);
+  --mp-card2:rgba(20,38,63,.72);
+  --mp-border:rgba(148,163,184,.16);
+  --mp-border2:rgba(96,165,250,.28);
+  --mp-text:#eef6ff;
+  --mp-muted:#94a9c2;
+  --mp-primary:#38bdf8;
+  --mp-primary2:#2563eb;
+  --mp-success:#34d399;
+  --mp-warning:#fbbf24;
+  --mp-danger:#fb7185;
+  --mp-shadow:0 18px 55px rgba(0,0,0,.28);
+}
+
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--mp-text);
+  background:
+    radial-gradient(circle at 10% 0%,rgba(56,189,248,.12),transparent 30%),
+    radial-gradient(circle at 90% 10%,rgba(37,99,235,.12),transparent 30%),
+    linear-gradient(135deg,var(--mp-bg),#0a1424 55%,#07101d);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+/* Barras / cabecera */
+header,.header,.topbar,.navbar{
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  background:rgba(7,17,31,.78)!important;
+  border-bottom:1px solid var(--mp-border)!important;
+}
+h1,h2,h3,h4{letter-spacing:-.025em}
+h1{font-size:clamp(1.6rem,3vw,2.25rem)}
+h2{font-size:clamp(1.25rem,2vw,1.65rem)}
+
+/* Contenedores */
+.container,.main,.content,.page{
+  position:relative;
+}
+.card,.panel,.stat-card,.student-card,.table-card,.section-card{
+  background:linear-gradient(145deg,rgba(17,34,56,.86),rgba(8,20,36,.9))!important;
+  border:1px solid var(--mp-border)!important;
+  border-radius:18px!important;
+  box-shadow:var(--mp-shadow)!important;
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+.card:hover,.stat-card:hover,.student-card:hover{
+  transform:translateY(-2px);
+  border-color:var(--mp-border2)!important;
+}
+
+/* Tarjetas de estadísticas */
+.stats,.summary,.metrics{
+  gap:14px!important;
+}
+.stat-card{
+  padding:18px!important;
+  position:relative;
+  overflow:hidden;
+}
+.stat-card::after{
+  content:"";
+  position:absolute;
+  inset:auto -20px -35px auto;
+  width:100px;height:100px;
+  background:radial-gradient(circle,rgba(56,189,248,.16),transparent 68%);
+  pointer-events:none;
+}
+.stat-card .value,.stat-card strong{
+  font-size:1.8rem;
+  font-weight:800;
+  color:#fff;
+}
+.stat-card .label,.muted{
+  color:var(--mp-muted)!important;
+}
+
+/* Botones */
+button,.btn{
+  border:1px solid transparent;
+  border-radius:10px!important;
+  padding:9px 14px;
+  font-weight:750;
+  cursor:pointer;
+  transition:transform .16s ease,filter .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+button:hover,.btn:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.08);
+}
+button:active,.btn:active{transform:translateY(0)}
+.primary,.btn.primary,.btn-primary{
+  color:#fff!important;
+  background:linear-gradient(135deg,var(--mp-primary2),#0284c7)!important;
+  box-shadow:0 8px 22px rgba(37,99,235,.2);
+}
+.secondary,.btn.secondary,.btn-secondary{
+  color:#dbeafe!important;
+  background:rgba(30,49,75,.72)!important;
+  border-color:var(--mp-border)!important;
+}
+.danger,.btn-danger{
+  color:#ffe4e6!important;
+  background:rgba(190,24,93,.18)!important;
+  border-color:rgba(251,113,133,.28)!important;
+}
+#editChallenges{
+  background:linear-gradient(135deg,#7c3aed,#2563eb)!important;
+  box-shadow:0 9px 28px rgba(124,58,237,.25);
+}
+
+/* Formularios */
+input,select,textarea{
+  color:var(--mp-text)!important;
+  background:rgba(5,15,28,.82)!important;
+  border:1px solid var(--mp-border)!important;
+  border-radius:10px!important;
+  outline:none;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:rgba(56,189,248,.65)!important;
+  box-shadow:0 0 0 3px rgba(56,189,248,.10)!important;
+  background:rgba(7,20,36,.96)!important;
+}
+input::placeholder,textarea::placeholder{color:#71859d!important}
+
+/* Toolbar */
+.toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px!important;
+  padding:14px!important;
+  margin:14px 0!important;
+  background:rgba(9,23,40,.7);
+  border:1px solid var(--mp-border);
+  border-radius:16px;
+  box-shadow:0 10px 35px rgba(0,0,0,.14);
+}
+.toolbar input{flex:1 1 260px}
+.toolbar select{min-width:170px}
+
+/* Tabla */
+table{
+  border-collapse:separate!important;
+  border-spacing:0;
+}
+thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  color:#cbdcf0!important;
+  background:#0c1b2f!important;
+  border-bottom:1px solid var(--mp-border)!important;
+  font-size:.78rem;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+tbody tr{
+  transition:background .15s ease;
+}
+tbody tr:hover{
+  background:rgba(56,189,248,.045)!important;
+}
+td,th{
+  border-color:var(--mp-border)!important;
+}
+.badge,.tag,.pill{
+  border:1px solid var(--mp-border);
+  border-radius:999px!important;
+  padding:4px 9px!important;
+  background:rgba(30,58,88,.5);
+}
+
+/* Modal editor */
+.editor-modal{
+  background:rgba(2,8,18,.78)!important;
+  backdrop-filter:blur(12px);
+}
+.editor-box{
+  background:
+    linear-gradient(145deg,rgba(14,31,52,.98),rgba(6,17,30,.99))!important;
+  border:1px solid rgba(96,165,250,.25)!important;
+  border-radius:22px!important;
+  box-shadow:0 35px 100px rgba(0,0,0,.6)!important;
+}
+.editor-box>div:first-child{
+  position:sticky;
+  top:-20px;
+  z-index:5;
+  padding:4px 0 15px;
+  background:linear-gradient(180deg,rgba(14,31,52,.99),rgba(14,31,52,.9),transparent);
+}
+.challenge-list{
+  padding-right:5px;
+}
+.challenge-list button{
+  width:100%;
+  min-height:42px;
+  text-align:left;
+  border-radius:10px!important;
+}
+.challenge-list::-webkit-scrollbar,
+.editor-box::-webkit-scrollbar{width:8px}
+.challenge-list::-webkit-scrollbar-thumb,
+.editor-box::-webkit-scrollbar-thumb{
+  background:#29435f;
+  border-radius:99px;
+}
+.editor-field label{
+  color:#b8cbe0!important;
+  font-weight:800!important;
+}
+.editor-field textarea{
+  line-height:1.5;
+}
+.rubrica{
+  overflow:hidden;
+  border:1px solid var(--mp-border);
+  border-radius:12px;
+}
+.rubrica th,.rubrica td{
+  background:rgba(7,18,32,.58);
+}
+.firebase-status{
+  border:1px solid var(--mp-border)!important;
+  background:rgba(3,12,23,.72)!important;
+  border-radius:11px!important;
+}
+
+/* Scrollbars generales */
+*{scrollbar-width:thin;scrollbar-color:#29435f transparent}
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-thumb{background:#29435f;border-radius:99px}
+
+/* Login */
+.login,.login-card,.auth-card{
+  background:linear-gradient(145deg,rgba(15,31,52,.94),rgba(7,18,32,.96))!important;
+  border:1px solid var(--mp-border)!important;
+  border-radius:22px!important;
+  box-shadow:var(--mp-shadow)!important;
+}
+
+/* Estados */
+.success,.ok{color:var(--mp-success)!important}
+.warning,.pending{color:var(--mp-warning)!important}
+.error,.danger-text{color:var(--mp-danger)!important}
+
+/* Responsive */
+@media(max-width:900px){
+  .toolbar{align-items:stretch}
+  .toolbar button,.toolbar select{flex:1 1 160px}
+}
+@media(max-width:650px){
+  body{font-size:14px}
+  .card,.panel,.stat-card{border-radius:14px!important}
+  .toolbar{padding:10px!important}
+  .editor-modal{padding:8px}
+  .editor-box{padding:14px;border-radius:16px!important}
+  .editor-box>div:first-child{top:-14px}
+}
+</style>
+</head>
+<body>
+<div id="auth" class="auth"><div class="auth-card"><div style="font-size:48px">👨‍🏫</div><h1>Panel del Profesor</h1><p class="muted">Ingresá con la cuenta autorizada para consultar los avances de los estudiantes.</p><button id="login" class="primary">Continuar con Google</button><p id="authMsg" class="muted"></p></div></div>
+<div id="app" class="hidden">
+<header><div class="brand">JS Escuela <span>· Panel docente</span></div><div><span id="teacherName" class="muted" style="margin-right:10px"></span><button id="logout" class="secondary">Cerrar sesión</button></div></header>
+<main>
+<div id="warning" class="notice hidden"></div>
+<section class="top"><div class="stat"><small>Estudiantes</small><b id="nStudents">0</b></div><div class="stat"><small>Promedio</small><b id="avg">—</b></div><div class="stat"><small>Completaron 100%</small><b id="complete">0</b></div><div class="stat"><small>Con actividad</small><b id="active">0</b></div></section>
+<div class="toolbar"><input id="search" placeholder="Buscar por nombre, correo o curso…"><select id="course"><option value="">Todos los cursos</option></select><button id="refresh" class="secondary">↻ Actualizar</button><button id="csv" class="secondary">⬇ Exportar CSV</button><button id="editChallenges" class="primary">🧩 Editar desafíos</button></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Estudiante</th><th>Curso</th><th>Progreso</th><th>Nota</th><th>Salidas</th><th>Último guardado</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div>
+</main></div>
+<div id="challengeEditor" class="editor-modal">
+  <div class="editor-box">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div><h2 style="margin:0">🧩 Editor de los 19 Desafíos</h2><p class="muted" style="margin:6px 0 0">Editá desde el Panel Profesor y guardá directamente en Firebase.</p></div>
+      <button id="closeChallengeEditor" class="secondary">✕ Cerrar</button>
+    </div>
+    <div class="editor-layout" style="margin-top:16px">
+      <div><input id="challengeSearch" placeholder="Buscar desafío..." style="width:100%;background:#07101d;color:var(--text);border:1px solid var(--border);border-radius:9px;padding:10px">
+        <div id="challengeList" class="challenge-list" style="margin-top:8px"></div></div>
+      <div id="challengeForm"></div>
+    </div>
+    <div id="challengeStatus" class="firebase-status"></div>
+  </div>
+</div>
+<div id="drawer" class="drawer hidden"><aside class="drawer-panel"><div class="drawer-head"><div id="profile"></div><button id="closeDrawer" class="secondary">✕</button></div><div id="detail"></div></aside></div>
+<script src="desafios_ia.js"></script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js';
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
+
+// ============================================================
+// PEGÁ AQUÍ EXACTAMENTE EL MISMO firebaseConfig QUE YA FUNCIONA
+// EN TU actividad.html
+// ============================================================
+const firebaseConfig={
+  apiKey:'REEMPLAZAR_API_KEY',
+  authDomain:'REEMPLAZAR_PROJECT.firebaseapp.com',
+  projectId:'REEMPLAZAR_PROJECT_ID',
+  storageBucket:'REEMPLAZAR_PROJECT.appspot.com',
+  messagingSenderId:'REEMPLAZAR_SENDER_ID',
+  appId:'REEMPLAZAR_APP_ID'
+};
+
+// Opcional: agrega aquí el/los correos de docentes como segunda barrera visual.
+// La seguridad REAL debe estar en firestore.rules.
+const TEACHER_EMAILS=[];
+
+const configured=!Object.values(firebaseConfig).some(v=>String(v).startsWith('REEMPLAZAR_'));
+const authBox=document.getElementById('auth'),appBox=document.getElementById('app'),msg=document.getElementById('authMsg');
+let auth,db,currentUser=null,students=[];
+if(configured){const app=initializeApp(firebaseConfig);auth=getAuth(app);db=getFirestore(app)}else{msg.textContent='Falta pegar la configuración de Firebase.'}
+
+document.getElementById('login').onclick=async()=>{if(!configured)return;try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){msg.textContent='No se pudo iniciar sesión: '+e.code}};
+document.getElementById('logout').onclick=()=>{if(desafiosUnsubscribe)desafiosUnsubscribe();signOut(auth);};
+document.getElementById('refresh').onclick=loadStudents;
+document.getElementById('closeDrawer').onclick=()=>document.getElementById('drawer').classList.add('hidden');
+
+auth&&onAuthStateChanged(auth,async user=>{currentUser=user;if(!user){authBox.classList.remove('hidden');appBox.classList.add('hidden');return}
+  // La regla de Firestore es la que autoriza realmente. Esta lista solo evita mostrar el panel si se configuró.
+  if(TEACHER_EMAILS.length && !TEACHER_EMAILS.map(x=>x.toLowerCase()).includes((user.email||'').toLowerCase())){await signOut(auth);msg.textContent='Esta cuenta no está autorizada como docente.';return}
+  authBox.classList.add('hidden');appBox.classList.remove('hidden');document.getElementById('teacherName').textContent=user.displayName||user.email||'';await loadStudents();
+});
+
+
+// ============================================================
+// EDITOR DE LOS 19 DESAFÍOS — FIREBASE
+// ============================================================
+let desafiosFirebase=[];
+let desafioActual=0;
+let desafiosUnsubscribe=null;
+
+const editorEl=document.getElementById('challengeEditor');
+const challengeListEl=document.getElementById('challengeList');
+const challengeFormEl=document.getElementById('challengeForm');
+const challengeStatusEl=document.getElementById('challengeStatus');
+
+document.getElementById('editChallenges').onclick=abrirEditorDesafios;
+document.getElementById('closeChallengeEditor').onclick=cerrarEditorDesafios;
+document.getElementById('challengeSearch').oninput=renderListaDesafios;
+
+function baseDesafios(){return Array.isArray(window.DESAFIOS_DATA)?JSON.parse(JSON.stringify(window.DESAFIOS_DATA)):[]}
+function abrirEditorDesafios(){
+  desafiosFirebase=baseDesafios();desafioActual=0;editorEl.classList.add('active');
+  renderListaDesafios();renderFormularioDesafio();iniciarSincronizacionDesafios();
+}
+function cerrarEditorDesafios(){editorEl.classList.remove('active');if(desafiosUnsubscribe){desafiosUnsubscribe();desafiosUnsubscribe=null}}
+function renderListaDesafios(){
+  const q=(document.getElementById('challengeSearch').value||'').toLowerCase().trim();
+  challengeListEl.innerHTML='';
+  desafiosFirebase.forEach((d,i)=>{
+    if(q&&!JSON.stringify(d).toLowerCase().includes(q))return;
+    const b=document.createElement('button');b.className=i===desafioActual?'primary':'secondary';
+    b.textContent=(d.id||('sec-'+(i+1)))+' — '+(d.title||'Sin título');
+    b.onclick=()=>{guardarFormularioLocal(false);desafioActual=i;renderListaDesafios();renderFormularioDesafio()};
+    challengeListEl.appendChild(b);
+  });
+}
+function lines(id){return String(document.getElementById(id)?.value||'').split(/\n+/).map(x=>x.trim()).filter(Boolean)}
+function arrayText(v){return Array.isArray(v)?v.join('\n'):String(v||'')}
+function renderFormularioDesafio(){
+  const d=desafiosFirebase[desafioActual];if(!d)return;
+  const criterios=Array.isArray(d.criteriosEvaluacion)?d.criteriosEvaluacion:[];
+  challengeFormEl.innerHTML=`
+  <div class="editor-grid">
+    <div class="editor-field"><label>ID</label><input id="ed_id" value="${escapeHtml(d.id||'')}" readonly></div>
+    <div class="editor-field"><label>Ícono</label><input id="ed_icon" value="${escapeHtml(d.icon||'')}"></div>
+    <div class="editor-field"><label>Título</label><input id="ed_title" value="${escapeHtml(d.title||'')}"></div>
+    <div class="editor-field"><label>Título del desafío</label><input id="ed_exerciseTitle" value="${escapeHtml(d.exerciseTitle||'')}"></div>
+    <div class="editor-field full"><label>📚 Teoría</label><textarea id="ed_theory">${escapeHtml(d.theory||'')}</textarea></div>
+    <div class="editor-field full"><label>📌 Consigna</label><textarea id="ed_exerciseDesc">${escapeHtml(d.exerciseDesc||'')}</textarea></div>
+    <div class="editor-field full"><label>💻 Código inicial</label><textarea id="ed_initialCode" style="min-height:150px">${escapeHtml(d.initialCode||'')}</textarea></div>
+    <div class="editor-field full"><label>🤖 Solución de referencia para evaluación IA</label><textarea id="ed_aiSolution" style="min-height:180px">${escapeHtml(d.aiSolution||'')}</textarea></div>
+    <div class="editor-field full"><label>🎯 Objetivos pedagógicos — uno por línea</label><textarea id="ed_objetivos">${escapeHtml(arrayText(d.objetivosPedagogicos))}</textarea></div>
+    <div class="editor-field full"><label>🧠 Conceptos que debe detectar la IA — uno por línea</label><textarea id="ed_conceptos">${escapeHtml(arrayText(d.conceptosDetectar))}</textarea></div>
+    <div class="editor-field full"><label>❓ Preguntas socráticas — una por línea</label><textarea id="ed_preguntas">${escapeHtml(arrayText(d.preguntasSocraticas))}</textarea></div>
+    <div class="editor-field full"><label>⚠️ Errores frecuentes — uno por línea</label><textarea id="ed_errores">${escapeHtml(arrayText(d.erroresFrecuentes))}</textarea></div>
+    <div class="editor-field full"><label>🚫 Qué NO debe revelar la IA — una regla por línea</label><textarea id="ed_noRevelar">${escapeHtml(arrayText(d.noRevelarIA))}</textarea></div>
+  </div>
+  <h3>📊 Criterios de evaluación</h3><p class="muted" style="font-size:12px">Los pesos deben sumar exactamente 100%.</p>
+  <div style="overflow:auto"><table class="rubrica"><thead><tr><th>Criterio</th><th>Peso</th><th>Indicador</th><th></th></tr></thead><tbody id="ed_rubrica"></tbody></table></div>
+  <div class="editor-actions">
+    <button class="secondary" onclick="agregarCriterio()">➕ Criterio</button>
+    <button class="secondary" onclick="normalizarCriterios()">⚖️ Normalizar</button>
+    <button class="primary" onclick="guardarDesafioActual()">☁️ Guardar desafío</button>
+    <button class="secondary" onclick="guardarTodosLosDesafios()">☁️ Guardar los 19</button>
+  </div>`;
+  criterios.forEach(agregarFilaCriterio);
+}
+function agregarFilaCriterio(c={criterio:'',peso:0,indicador:''}){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input data-k="criterio" value="${escapeHtml(c.criterio||'')}"></td><td><input data-k="peso" type="number" min="0" max="100" value="${Number(c.peso)||0}"></td><td><input data-k="indicador" value="${escapeHtml(c.indicador||'')}"></td><td><button class="danger" type="button" onclick="this.closest('tr').remove()">🗑</button></td>`;
+  document.getElementById('ed_rubrica').appendChild(tr);
+}
+function agregarCriterio(){agregarFilaCriterio()}
+function leerCriterios(){return [...document.querySelectorAll('#ed_rubrica tr')].map(tr=>{const o={};tr.querySelectorAll('[data-k]').forEach(x=>o[x.dataset.k]=x.dataset.k==='peso'?(Number(x.value)||0):x.value.trim());return o}).filter(x=>x.criterio||x.indicador)}
+function normalizarCriterios(){
+  const rows=[...document.querySelectorAll('#ed_rubrica tr')],vals=rows.map(r=>Number(r.querySelector('[data-k="peso"]').value)||0),total=vals.reduce((a,b)=>a+b,0);
+  if(!total){alert('Asigná los pesos primero.');return}rows.forEach((r,i)=>r.querySelector('[data-k="peso"]').value=Math.round(vals[i]*100/total));
+}
+function guardarFormularioLocal(mostrar=true){
+  const d=desafiosFirebase[desafioActual];if(!d)return null;
+  const map={icon:'ed_icon',title:'ed_title',exerciseTitle:'ed_exerciseTitle',theory:'ed_theory',exerciseDesc:'ed_exerciseDesc',initialCode:'ed_initialCode',aiSolution:'ed_aiSolution'};
+  Object.entries(map).forEach(([k,id])=>d[k]=document.getElementById(id)?.value||'');
+  d.objetivosPedagogicos=lines('ed_objetivos');d.conceptosDetectar=lines('ed_conceptos');d.preguntasSocraticas=lines('ed_preguntas');d.erroresFrecuentes=lines('ed_errores');d.noRevelarIA=lines('ed_noRevelar');d.criteriosEvaluacion=leerCriterios();
+  if(mostrar)challengeStatusEl.textContent='Cambios preparados. Guardá para enviarlos a Firebase.';
+  return d;
+}
+async function guardarDesafioActual(){
+  const d=guardarFormularioLocal(false);if(!d)return;
+  const suma=(d.criteriosEvaluacion||[]).reduce((a,c)=>a+(Number(c.peso)||0),0);
+  if(Math.round(suma)!==100){alert('La rúbrica de '+d.id+' suma '+suma+'%. Debe sumar 100%.');return}
+  try{await setDoc(doc(db,'desafios',d.id),{...d,id:d.id,actualizadoEn:serverTimestamp(),actualizadoPor:currentUser?.email||''},{merge:true});challengeStatusEl.textContent='✅ '+d.id+' guardado correctamente en Firebase.'}
+  catch(e){challengeStatusEl.textContent='❌ Error al guardar: '+e.message}
+}
+async function guardarTodosLosDesafios(){
+  guardarFormularioLocal(false);
+  const invalid=desafiosFirebase.find(d=>Math.round((d.criteriosEvaluacion||[]).reduce((a,c)=>a+(Number(c.peso)||0),0))!==100);
+  if(invalid){alert('La rúbrica de '+invalid.id+' no suma 100%.');return}
+  try{for(const d of desafiosFirebase)await setDoc(doc(db,'desafios',d.id),{...d,id:d.id,actualizadoEn:serverTimestamp(),actualizadoPor:currentUser?.email||''},{merge:true});challengeStatusEl.textContent='✅ Los 19 desafíos fueron guardados en Firebase.'}
+  catch(e){challengeStatusEl.textContent='❌ Error al guardar: '+e.message}
+}
+async function iniciarSincronizacionDesafios(){
+  if(!db)return;if(desafiosUnsubscribe)desafiosUnsubscribe();
+  desafiosUnsubscribe=onSnapshot(collection(db,'desafios'),snap=>{
+    if(snap.empty)return;const remotos=snap.docs.map(d=>({id:d.id,...d.data()}));if(remotos.length!==19)return;
+    desafiosFirebase=desafiosFirebase.map(local=>({...local,...(remotos.find(r=>r.id===local.id)||{})}));
+    renderListaDesafios();renderFormularioDesafio();challengeStatusEl.textContent='✓ Desafíos sincronizados con Firebase.';
+  },e=>challengeStatusEl.textContent='⚠️ No se pudo sincronizar: '+e.message);
+}
+
+async function loadStudents(){
+  const tbody=document.getElementById('tbody');tbody.innerHTML='<tr><td colspan="7">Cargando estudiantes…</td></tr>';
+  try{const snap=await getDocs(collection(db,'estudiantes'));students=snap.docs.map(d=>normalizeStudent(d.id,d.data()));render();}
+  catch(e){tbody.innerHTML='<tr><td colspan="7">Error al consultar Firestore: '+escapeHtml(e.message)+'</td></tr>'}
+}
+function normalizeStudent(uid,d){
+  const finalizadas=d.finalizadas||{};const resultados=d.historialResultados||{};const total=Object.keys(finalizadas).length;const done=Object.values(finalizadas).filter(Boolean).length;
+  // La app tiene 19 módulos; si en el futuro cambia, se puede ajustar aquí.
+  const totalModules=19;const completed=Math.min(done,totalModules);const progress=Math.round(completed/totalModules*100);
+  const notas=Object.values(resultados).map(x=>Number(x?.notaIA)).filter(Number.isFinite);const avg=notas.length?notas.reduce((a,b)=>a+b,0)/notas.length:null;
+  return {...d,uid,finalizadas,resultados,progress,avg,completed,totalModules};
+}
+function render(){
+ const q=document.getElementById('search').value.toLowerCase().trim(),course=document.getElementById('course').value;
+ const courses=[...new Set(students.map(s=>s.estudiante?.curso).filter(Boolean))].sort();const sel=document.getElementById('course');const old=sel.value;sel.innerHTML='<option value="">Todos los cursos</option>'+courses.map(c=>`<option>${escapeHtml(c)}</option>`).join('');if(courses.includes(old))sel.value=old;
+ const list=students.filter(s=>{const text=[s.nombreGoogle,s.email,s.estudiante?.nombre,s.estudiante?.curso].join(' ').toLowerCase();return(!q||text.includes(q))&&(!course||s.estudiante?.curso===course)});
+ document.getElementById('nStudents').textContent=students.length;const avgs=students.map(s=>s.avg).filter(x=>x!=null);document.getElementById('avg').textContent=avgs.length?(avgs.reduce((a,b)=>a+b,0)/avgs.length).toFixed(1):'—';document.getElementById('complete').textContent=students.filter(s=>s.progress>=100).length;document.getElementById('active').textContent=students.filter(s=>Object.keys(s.finalizadas).length>0).length;
+ document.getElementById('tbody').innerHTML=list.length?list.map(rowHtml).join(''):'<tr><td colspan="7">No hay estudiantes que coincidan.</td></tr>';
+ document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openStudent(b.dataset.open));
+}
+function rowHtml(s){const nota=s.avg==null?'—':s.avg.toFixed(1);const sal=Number(s.salidasPestaña||0);const date=formatDate(s.actualizadoEn);const pill=sal>7?'danger':sal>0?'warn':'ok';return `<tr><td><b>${escapeHtml(s.nombreGoogle||s.estudiante?.nombre||'Sin nombre')}</b><br><small class="muted">${escapeHtml(s.email||'')}</small></td><td>${escapeHtml(s.estudiante?.curso||'—')}</td><td><div style="display:flex;gap:9px;align-items:center"><div class="progress"><i style="width:${s.progress}%"></i></div><b>${s.progress}%</b></div></td><td>${nota}</td><td><span class="pill ${pill}">${sal}</span></td><td>${date}</td><td><button class="secondary" data-open="${escapeAttr(s.uid)}">Ver</button></td></tr>`}
+
+document.getElementById('search').oninput=render;document.getElementById('course').onchange=render;
+function openStudent(uid){const s=students.find(x=>x.uid===uid);if(!s)return;const name=s.nombreGoogle||s.estudiante?.nombre||'Sin nombre';document.getElementById('profile').innerHTML=`<div class="profile"><img class="avatar" src="${escapeAttr(s.fotoGoogle||'')}" onerror="this.style.display='none'" alt=""><div><h2 style="margin:0">${escapeHtml(name)}</h2><div class="muted">${escapeHtml(s.email||'')}</div><div class="muted">${escapeHtml(s.estudiante?.curso||'Curso no indicado')}</div></div></div>`;
+ let acts='';for(let i=1;i<=s.totalModules;i++){const id='sec-'+i,done=!!s.finalizadas[id];const r=s.resultados[id]||{};const nota=Number.isFinite(Number(r.notaIA))?Number(r.notaIA).toFixed(1):'—';acts+=`<div class="activity"><span class="dot ${done?'ok':''}"></span><div><b>Actividad ${i}</b><div class="muted">${done?'Finalizada':'Pendiente'} · Nota: ${nota}</div></div><span>${done?'✓':'○'}</span></div>`}
+ document.getElementById('detail').innerHTML=`<div class="detail-grid"><div class="box"><h3>Progreso</h3><p><b>${s.progress}%</b> (${s.completed}/${s.totalModules})</p><div class="progress"><i style="width:${s.progress}%"></i></div></div><div class="box"><h3>Rendimiento</h3><p>Promedio: <b>${s.avg==null?'—':s.avg.toFixed(1)}/10</b></p><p>Salidas de pestaña: <b>${Number(s.salidasPestaña||0)}</b></p></div><div class="box"><h3>Cuenta</h3><p>UID: ${escapeHtml(s.uid)}</p><p>Último guardado: ${formatDate(s.actualizadoEn)}</p></div><div class="box"><h3>Sección activa</h3><p>${escapeHtml(s.seccionActiva||'—')}</p></div></div><div class="box"><h3>Actividades</h3><div class="activity-list">${acts}</div></div><div class="box" style="margin-top:12px"><h3>Código guardado</h3>${Object.keys(s.codigos||{}).length?Object.entries(s.codigos).map(([id,code])=>`<details><summary>${escapeHtml(id)}</summary><pre>${escapeHtml(code||'')}</pre></details>`).join(''):'<p>No hay código guardado.</p>'}</div>`;
+ document.getElementById('drawer').classList.remove('hidden')}
+
+document.getElementById('csv').onclick=()=>{const rows=[['uid','nombre','email','curso','progreso','promedio','salidas','actualizado'],...students.map(s=>[s.uid,s.nombreGoogle||'',s.email||'',s.estudiante?.curso||'',s.progress,s.avg==null?'':s.avg.toFixed(2),s.salidasPestaña||0,formatDate(s.actualizadoEn)])];const csv=rows.map(r=>r.map(csvCell).join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='reporte_estudiantes.csv';a.click();URL.revokeObjectURL(a.href)};
+function csvCell(v){return '"'+String(v??'').replaceAll('"','""')+'"'}function formatDate(v){if(!v)return '—';if(v.seconds)return new Date(v.seconds*1000).toLocaleString('es-AR');const d=new Date(v);return isNaN(d)?'—':d.toLocaleString('es-AR')}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function escapeAttr(v){return escapeHtml(v)}
+</script>
+</body></html>

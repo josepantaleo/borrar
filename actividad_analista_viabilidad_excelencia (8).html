@@ -1,0 +1,2622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Escolar Interactivo con IA y Anti-Fraude v6.4 | IPEM 146</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Librería jsPDF para generación de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Librería pdf-lib para cifrar y proteger el PDF generado -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-editor: #0d1117;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #38bdf8;
+            --primary-hover: #0284c7;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --ai-color: #8b5cf6;
+            --border: #334155;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar */
+        aside {
+            width: var(--sidebar-width);
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .brand {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .brand h2 {
+            font-size: 1.25rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 0.25rem;
+        }
+
+        .nav-list {
+            list-style: none;
+            overflow-y: auto;
+            padding: 1rem 0;
+            flex: 1;
+        }
+
+        .nav-item {
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        .nav-item i.status-icon {
+            margin-left: auto;
+            color: var(--success);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        main {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 2.5rem;
+            max-width: 1200px;
+        }
+
+        header.top-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .header-title h1 {
+            font-size: 1.8rem;
+            color: #ffffff;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Alerta Antifraude Visual en Header */
+        .antifraud-badge {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--danger);
+            color: #fca5a5;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        /* Barra de Progreso */
+        .progress-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.3rem;
+        }
+
+        .progress-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .progress-bar-bg {
+            width: 180px;
+            background: var(--border);
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--success);
+            transition: width 0.4s ease;
+        }
+
+        .section-card {
+            display: none;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+            margin-bottom: 2rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .section-card.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Cartel Visual de Módulo Pausado */
+        .pause-banner {
+            display: none;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            align-items: center;
+            gap: 0.75rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .pause-banner.active {
+            display: flex;
+        }
+
+        /* Barra de Cronómetro por Módulo */
+        .module-timer-bar {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            font-size: 0.9rem;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .timer-display {
+            font-family: 'Fira Code', monospace;
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .theory-box {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 1.25rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .exercise-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .exercise-box h3 {
+            color: var(--accent);
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .exercise-box p {
+            font-size: 0.95rem;
+            color: var(--text-main);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .code-playground {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .editor-container {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .editor-header {
+            background: #1e1e1e;
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d2d2d;
+        }
+
+        textarea.code-editor {
+            width: 100%;
+            height: 180px;
+            background-color: var(--bg-editor);
+            color: #4ec9b0;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            padding: 1rem;
+            border: none;
+            outline: none;
+            resize: vertical;
+            line-height: 1.5;
+            tab-size: 4;
+        }
+
+        textarea.code-editor:disabled {
+            background-color: #090d16;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        .console-output {
+            background: #000;
+            color: #10b981;
+            font-family: 'Fira Code', monospace;
+            padding: 1rem;
+            border-radius: 8px;
+            min-height: 60px;
+            max-height: 130px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+        }
+
+        /* Estilos de la Caja de IA Comparativa */
+        .ai-feedback-box {
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px dashed var(--ai-color);
+            border-radius: 8px;
+            padding: 1.2rem;
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            display: none;
+            margin-top: 0.5rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .ai-feedback-box.active {
+            display: block;
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #c084fc;
+            font-weight: 700;
+            margin-bottom: 0.6rem;
+            font-size: 0.95rem;
+        }
+
+        .ai-comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 0.75rem;
+        }
+
+        @media (max-width: 900px) {
+            .ai-comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        .ai-column {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 6px;
+            padding: 0.75rem;
+        }
+
+        .ai-column h4 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #d8b4fe;
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .ai-column pre {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.78rem;
+            color: #38bdf8;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .ai-eval-summary {
+            margin-top: 0.8rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid rgba(139, 92, 246, 0.2);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        /* Analista de Viabilidad y Excelencia — RESPONDE AHORA */
+        .analyst-box {
+            display: none;
+            margin-top: 1rem;
+            padding: 1.2rem;
+            border: 1px solid #22c55e;
+            border-radius: 10px;
+            background: rgba(34, 197, 94, 0.06);
+        }
+        .analyst-box.active { display: block; }
+        .analyst-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #86efac;
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+        }
+        .analyst-score {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .analyst-badge {
+            padding: 0.45rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            font-size: 0.8rem;
+        }
+        .analyst-question {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.9rem;
+            margin-bottom: 0.8rem;
+        }
+        .analyst-question strong { color: #e2e8f0; }
+        .analyst-option {
+            display: block;
+            margin-top: 0.45rem;
+            padding: 0.55rem 0.65rem;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .analyst-option:hover { background: rgba(56,189,248,0.08); border-color: rgba(56,189,248,0.25); }
+        .analyst-result {
+            margin-top: 0.8rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px dashed rgba(139, 92, 246, 0.5);
+            line-height: 1.5;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        button.btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+
+        button.btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(40%);
+        }
+
+        .btn-primary { background: var(--primary); color: #0f172a; }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); color: white; }
+        .btn-ai { background: var(--ai-color); color: white; }
+        .btn-ai:hover:not(:disabled) { background: #7c3aed; }
+        .btn-preview { background: #d97706; color: white; }
+        .btn-preview:hover:not(:disabled) { background: #b45309; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn-secondary:hover:not(:disabled) { background: #334155; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: var(--accent); color: #0f172a; }
+        .btn-warning:hover:not(:disabled) { background: #d97706; color: white; }
+
+        /* Modal Personalizado para Contraseña enmascarada (****) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        .modal-box h3 {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .modal-box p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+        }
+        .modal-box input[type="password"] {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 6px;
+            outline: none;
+            font-size: 1rem;
+            margin-bottom: 1.25rem;
+            letter-spacing: 2px;
+        }
+        .modal-box input[type="password"]:focus {
+            border-color: var(--primary);
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        /* Export Bar */
+        .export-bar {
+            background: var(--bg-card);
+            padding: 1.25rem 2rem;
+            border-top: 1px solid var(--border);
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            left: var(--sidebar-width);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 90;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.3);
+        }
+
+        .export-info { font-size: 0.85rem; color: var(--text-muted); }
+
+        .student-inputs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background: rgba(15, 23, 42, 0.4);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .input-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .input-group input {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .input-group input:focus { border-color: var(--primary); }
+
+        @media (max-width: 768px) {
+            aside { width: 70px; }
+            aside .brand h2 span, aside .nav-item span { display: none; }
+            main { margin-left: 70px; padding: 1rem; }
+            .export-bar { left: 70px; }
+            .student-inputs { flex-direction: column; align-items: stretch; }
+            header.top-header { flex-direction: column; align-items: flex-start; }
+            .progress-wrapper { align-items: flex-start; }
+        }
+    
+        .analyst-option.analyst-selected-correct {
+            border: 2px solid #16a34a !important;
+            background: #dcfce7 !important;
+            color: #166534 !important;
+            font-weight: 700;
+        }
+        .analyst-option.analyst-wrong {
+            border: 2px solid #dc2626 !important;
+            background: #fee2e2 !important;
+            color: #991b1b !important;
+            font-weight: 700;
+        }
+        .analyst-option.analyst-correct {
+            border: 2px dashed #16a34a !important;
+            background: #f0fdf4 !important;
+            color: #166534 !important;
+            font-weight: 700;
+        }
+
+</style>
+</head>
+<body>
+
+    <!-- Sidebar Navegación -->
+    <aside>
+        <div class="brand">
+            <h2><i class="fa-solid fa-code"></i> <span>IPEM 146</span></h2>
+            <span>JS + Cronómetro + AntiFraude</span>
+        </div>
+        <ul class="nav-list" id="navList"></ul>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main>
+        <header class="top-header">
+            <div class="header-title">
+                <h1 id="currentTitle">Cargando Módulo...</h1>
+                <p>Profesor J. Pantaleo — Control Estricto con Cronómetro de 40 Minutos</p>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <div class="antifraud-badge" id="blurBadge">
+                    <i class="fa-solid fa-shield-halved"></i> Salidas de pestaña: <span id="blurCount">0</span>
+                </div>
+                
+                <!-- Botones protegidos del profesor -->
+                <button class="btn btn-warning" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('pausar_global')">
+                    <i class="fa-solid fa-pause"></i> Pausa Global Profe
+                </button>
+                <button class="btn btn-danger" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('reset_contador_salidas')">
+                    <i class="fa-solid fa-rotate-right"></i> Reiniciar Salidas
+                </button>
+
+                <div class="progress-wrapper">
+                    <span class="progress-label" id="progressText">Progreso: 0%</span>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressBar"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Datos del Alumno y Gestión de Avance -->
+        <div class="student-inputs">
+            <div class="input-group">
+                <label>Nombre y Apellido del Estudiante</label>
+                <input type="text" id="studentName" placeholder="Ej: Lucas González">
+            </div>
+            <div class="input-group">
+                <label>Curso y División</label>
+                <input type="text" id="studentCourse" placeholder="Ej: 5° Año 'A'">
+            </div>
+            
+            <button class="btn btn-secondary" onclick="exportarProgresoJSON()">
+                <i class="fa-solid fa-download"></i> Guardar Avance (.json)
+            </button>
+            <input type="file" id="importFile" style="display:none" onchange="importarProgresoJSON(event)">
+            <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
+                <i class="fa-solid fa-upload"></i> Cargar Avance
+            </button>
+            <button class="btn btn-danger" onclick="reiniciarSesionEstudiante()">
+                <i class="fa-solid fa-user-xmark"></i> Nuevo Estudiante
+            </button>
+        </div>
+
+        <div id="sectionsContainer"></div>
+        <div style="height: 80px;"></div>
+    </main>
+
+    <!-- Modal Oculto para Contraseña con asteriscos (****) y opciones flexibles de profesor -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-box">
+            <h3><i class="fa-solid fa-lock"></i> Panel de Control Docente</h3>
+            <p id="modalDescription">Ingrese la contraseña del profesor para autorizar la acción:</p>
+            <input type="password" id="modalPasswordInput" placeholder="••••••••" onkeydown="handleModalKeydown(event)">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="cerrarModalPassword()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarAccionProfesor()">Autorizar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra Inferior Global para Exportar PDF -->
+    <div class="export-bar">
+        <div class="export-info">
+            <i class="fa-solid fa-file-pdf" style="color: var(--primary);"></i>
+            <span>Incluye código, tiempos, penalizaciones antifraude y reporte profesional cifrado.</span>
+        </div>
+        <button class="btn btn-success" onclick="exportarResultadosPDF()">
+            <i class="fa-solid fa-file-arrow-down"></i> Descargar Resueltos Protegidos (.PDF)
+        </button>
+    </div>
+
+    <script>
+        // Estructura de Datos de las 19 Secciones con descripciones de desafíos ampliadas y detalladas
+        const seccionesData = [
+            {
+                id: "sec-1",
+                icon: "fa-terminal",
+                title: "1. Introducción a JS",
+                theory: "JavaScript es el lenguaje que le da vida a la web interactiva.",
+                exerciseTitle: "Desafío Escolar: Cartelera Digital del IPEM 146",
+                exerciseDesc: "Diseña un script interactivo para la pantalla de bienvenida del IPEM 146. Deberás declarar variables utilizando palabras clave adecuadas para almacenar tu nombre de alumno y una frase motivadora orientada al aprendizaje técnico. Luego, genera la fecha actual mediante el objeto Date() de JavaScript e imprime en la consola un encabezado oficial con formato llamativo mediante múltiples llamadas a console.log().",
+                initialCode: `// 1. Declarar variables para tu nombre y el mensaje motivador\n// 2. Usar console.log()`,
+                aiSolution: `const nombreEstudiante = "Lucas";\nconst frase = "¡El esfuerzo de hoy es el éxito de mañana!";\nconsole.log("=== CARTELERA IPEM 146 ===");\nconsole.log("Alumno: " + nombreEstudiante);\nconsole.log("Mensaje: " + frase);\nconsole.log("Fecha: " + new Date().toLocaleDateString());`
+            },
+            {
+                id: "sec-2",
+                icon: "fa-cube",
+                title: "2. Variables (let, const, var)",
+                theory: "Usa 'const' para valores fijos y 'let' para variables que cambian.",
+                exerciseTitle: "Desafío Escolar: Calculadora de Gastos del Recreo",
+                exerciseDesc: "Desarrolla el módulo de cobro e inventario para la cantina escolar. Debes definir constantes (const) para establecer los precios unitarios e inmutables de las empanadas y gaseosas, y variables modificables (let) para registrar la cantidad exacta de productos comprados en un recreo. Realiza la operación matemática correspondiente para hallar el costo total e imprime un recibo detallado en la consola.",
+                initialCode: `// 1. Define constantes y variables let\n// 2. Calcula el total gastado`,
+                aiSolution: `const PRECIO_EMPANADA = 350;\nconst PRECIO_GASEOSA = 400;\nlet empanadasCompradas = 3;\nlet gaseosasCompradas = 1;\nlet totalGastado = (PRECIO_EMPANADA * empanadasCompradas) + (PRECIO_GASEOSA * gaseosasCompradas);\nconsole.log("Total gastado en cantina: $" + totalGastado);`
+            },
+            {
+                id: "sec-3",
+                icon: "fa-font",
+                title: "3. Tipos de Datos",
+                theory: "String, Number, Boolean, Undefined y Null.",
+                exerciseTitle: "Desafío Escolar: Registro Ficha Médica Educación Física",
+                exerciseDesc: "Crea el sistema de fichas médicas para las clases de educación física. Declara 4 variables con distintos tipos de datos primitivos en JavaScript (un String para el nombre del alumno, un Number para la edad, un Boolean para el apto médico y un valor Null para las observaciones médicas pendientes). Luego, muestra en consola cada valor junto con la verificación explícita de su tipo utilizando el operador typeof.",
+                initialCode: `// 1. Crea las 4 variables\n// 2. Imprime valor y typeof`,
+                aiSolution: `let nombreAlumno = "Sofía";\nlet edad = 16;\nlet aptoMedico = true;\nlet observaciones = null;\nconsole.log(nombreAlumno, typeof nombreAlumno);\nconsole.log(edad, typeof edad);\nconsole.log(aptoMedico, typeof aptoMedico);\nconsole.log(observaciones, typeof observaciones);`
+            },
+            {
+                id: "sec-4",
+                icon: "fa-calculator",
+                title: "4. Operadores",
+                theory: "Aritméticos, comparación y lógicos.",
+                exerciseTitle: "Desafío Escolar: Sistema de Calificaciones y Asistencia",
+                exerciseDesc: "Escribe un algoritmo automatizado de acreditación académica. Declara variables numéricas para representar la calificación final obtenida por un alumno y el porcentaje total de asistencia registrado en el ciclo lectivo. Utiliza operadores de comparación y el operador lógico AND (&&) para evaluar si el estudiante cumple con ambas condiciones mínimas para aprobar (nota >= 6 y asistencia >= 75%), imprimiendo un booleano indicativo en la consola.",
+                initialCode: `// 1. Declara notas y asistencia\n// 2. Usa operador lógico &&`,
+                aiSolution: `let notaFinal = 8;\nlet porcentajeAsistencia = 80;\nlet apruebaMateria = (notaFinal >= 6) && (porcentajeAsistencia >= 75);\nconsole.log("¿Aprueba la materia?: " + apruebaMateria);`
+            },
+            {
+                id: "sec-5",
+                icon: "fa-code-branch",
+                title: "5. Condicionales",
+                theory: "Estructuras if, else if y else.",
+                exerciseTitle: "Desafío Escolar: Clasificador de Beca Estudiantil",
+                exerciseDesc: "Diseña la lógica institucional para la asignación de estímulos y becas educativas. Utilizando estructuras condicionales compuestas (if, else if, else), toma como entrada la variable del promedio académico general de un alumno y clasifícalo automáticamente en una de las cuatro categorías oficiales: 'Beca Excelencia Total' (>= 9), 'Beca Parcial' (>= 7), 'Mención de Honor sin beca' (>= 6) o 'Refuerzo Pedagógico requerido' (< 6).",
+                initialCode: `// 1. Declara promedio\n// 2. Usa if / else if`,
+                aiSolution: `let promedio = 8.5;\nif (promedio >= 9) {\n    console.log("Beca Excelencia Total");\n} else if (promedio >= 7) {\n    console.log("Beca Parcial");\n} else if (promedio >= 6) {\n    console.log("Mención de Honor sin beca");\n} else {\n    console.log("Refuerzo Pedagógico requerido");\n}`
+            },
+            {
+                id: "sec-6",
+                icon: "fa-gears",
+                title: "6. Funciones",
+                theory: "Bloques reutilizables con parámetros y retorno.",
+                exerciseTitle: "Desafío Escolar: Conversor de Moneda para Viaje de Egresados",
+                exerciseDesc: "Crea una función modular reutilizable llamada 'calcularAhorroEgresados' que reciba dos parámetros numéricos: la cantidad de pesos argentinos acumulados en el fondo común y la cotización vigente del dólar. La función debe retornar un mensaje especificando el valor equivalente en dólares y evaluar mediante un condicional interno si se alcanzó la meta requerida de USD 500, o de lo contrario, informar el monto faltante.",
+                initialCode: `// 1. Define la función\n// 2. Retorna dólares y meta`,
+                aiSolution: `function calcularAhorroEgresados(pesosAhorrados, cotizacionDolar) {\n    let dolares = pesosAhorrados / cotizacionDolar;\n    let meta = 500;\n    if (dolares >= meta) {\n        return "¡Meta alcanzada! Tienes USD " + dolares.toFixed(2);\n    } else {\n        return "Faltan USD " + (meta - dolares).toFixed(2) + " para la meta.";\n    }\n}\nconsole.log(calcularAhorroEgresados(600000, 1200));`
+            },
+            {
+                id: "sec-7",
+                icon: "fa-layer-group",
+                title: "7. Arrays",
+                theory: "Colección ordenada indexada desde 0.",
+                exerciseTitle: "Desafío Escolar: Gestión de Libros Prestados",
+                exerciseDesc: "Crea un sistema de control para la Biblioteca Escolar. Inicializa un arreglo (array) con tres títulos de libros disponibles. Utiliza el método .push() para incorporar un nuevo libro al final de la lista de préstamos y el método .shift() para simular la devolución y entrega del primer libro solicitado. Finalmente, imprime el nombre del libro prestado, la longitud del arreglo con .length y la lista actualizada en consola.",
+                initialCode: `// 1. Crea array\n// 2. Usa push y shift`,
+                aiSolution: `let libros = ["Matemática", "Historia", "Literatura"];\nlibros.push("Física");\nlet devuelto = libros.shift();\nconsole.log("Libro devuelto: " + devuelto);\nconsole.log("Total libros actuales: " + libros.length, libros);`
+            },
+            {
+                id: "sec-8",
+                icon: "fa-rotate",
+                title: "8. Bucles",
+                theory: "Bucles for y while.",
+                exerciseTitle: "Desafío Escolar: Generador de Fixture",
+                exerciseDesc: "Construye el organizador del fixture para el Torneo Intercolegial. Almacena en un arreglo los nombres de 4 equipos deportivos del IPEM 146. Utiliza bucles 'for' anidados para iterar sobre la estructura y generar todos los cruces posibles de partidos 'todos contra todos', incluyendo una validación que garantice que ningún equipo sea emparejado a jugar contra sí mismo.",
+                initialCode: `// 1. Crea array de 4 equipos\n// 2. Cruza con for anidado`,
+                aiSolution: `let equipos = ["Equipo A", "Equipo B", "Equipo C", "Equipo D"];\nfor (let i = 0; i < equipos.length; i++) {\n    for (let j = 0; j < equipos.length; j++) {\n        if (i !== j) {\n            console.log(equipos[i] + " vs " + equipos[j]);\n        }\n    }\n}`
+            },
+            {
+                id: "sec-9",
+                icon: "fa-id-card",
+                title: "9. Objetos Literales",
+                theory: "Propiedades clave-valor y métodos.",
+                exerciseTitle: "Desafío Escolar: Perfil de Estudiante",
+                exerciseDesc: "Modela la Ficha Digital del Alumno utilizando Objetos Literales en JavaScript. Define un objeto 'alumno' que contenga propiedades para su nombre completo, curso y un arreglo de calificaciones. Agrega un método interno llamado 'obtenerEstado()' que utilice la palabra clave 'this' para iterar/promediar las notas y devolver una cadena con el resumen académico, curso y estado de regularidad.",
+                initialCode: `// 1. Declara objeto y método`,
+                aiSolution: `let alumno = {\n    nombre: "Juan Pérez",\n    curso: "5to A",\n    notas: [8, 9, 7],\n    obtenerEstado: function() {\n        let suma = this.notas.reduce((a, b) => a + b, 0);\n        let prom = suma / this.notas.length;\n        return this.nombre + " (" + this.curso + ") - Promedio: " + prom.toFixed(1) + " [Regular]";\n    }\n};\nconsole.log(alumno.obtenerEstado());`
+            },
+            {
+                id: "sec-10",
+                icon: "fa-filter",
+                title: "10. Arrays Avanzados",
+                theory: ".map(), .filter(), .reduce()",
+                exerciseTitle: "Desafío Escolar: Auditoría de Inventario",
+                exerciseDesc: "Realiza una auditoría técnica del laboratorio de computación. Crea un arreglo con varios objetos que representen computadoras (con ID, memoria RAM en GB y estado). Utiliza el método de orden superior .filter() para obtener una lista exclusiva de las PC en estado 'mantenimiento', y combina los métodos .filter() y .reduce() para calcular la cantidad total de memoria RAM operativa en uso.",
+                initialCode: `// 1. Array de objetos\n// 2. filter y reduce`,
+                aiSolution: `let comps = [\n    { id: 1, ram: 8, estado: "operativa" },\n    { id: 2, ram: 16, estado: "mantenimiento" },\n    { id: 3, ram: 8, estado: "operativa" }\n];\nlet mantenimiento = comps.filter(c => c.estado === "mantenimiento");\nlet ramTotal = comps.filter(c => c.estado === "operativa").reduce((acc, c) => acc + c.ram, 0);\nconsole.log("En mantenimiento:", mantenimiento);\nconsole.log("RAM Operativa Total:", ramTotal + "GB");`
+            },
+            {
+                id: "sec-11",
+                icon: "fa-quote-left",
+                title: "11. Métodos de Strings",
+                theory: ".trim(), .toLowerCase(), .replace()",
+                exerciseTitle: "Desafío Escolar: Generador de Mails",
+                exerciseDesc: "Desarrolla el normalizador de correos institucionales de la escuela. Diseña la función 'generarCorreo' que reciba como parámetro una cadena de texto con el nombre y apellido del estudiante (la cual puede contener espacios vacíos indeseados o mayúsculas). Aplica la combinación de .trim(), .toLowerCase() y expresiones regulares con .replace() para formatear el texto en 'nombre.apellido' y concatenar el dominio '@ipem146.edu.ar'.",
+                initialCode: `// 1. Función mail institucional`,
+                aiSolution: `function generarCorreo(nombreCompleto) {\n    let limpio = nombreCompleto.trim().toLowerCase().replace(/\\s+/g, '.');\n    return limpio + "@ipem146.edu.ar";\n}\nconsole.log(generarCorreo("  Lucas Emanuel González  "));`
+            },
+            {
+                id: "sec-12",
+                icon: "fa-bullseye",
+                title: "12. Scope y Ámbito",
+                theory: "Global, función y bloque (let/const).",
+                exerciseTitle: "Desafío Escolar: Sistema de Contraseña",
+                exerciseDesc: "Crea una demostración práctica sobre la visibilidad de variables (Scope) en el sistema de seguridad directivo. Declara una variable de ámbito global para indicar el usuario activo y crea una función de validación que defina internamente variables de bloque (dentro de un bloque 'if/else') usando 'let'. Muestra en consola la diferencia entre acceder a variables globales y el comportamiento del scope restringido de bloque.",
+                initialCode: `// 1. Variable global y de bloque`,
+                aiSolution: `let usuarioActivo = "Profesor";\nfunction validarPin(pin) {\n    if (pin === 1234) {\n        let accesoConcedido = true;\n        console.log(usuarioActivo + ": Acceso Autorizado =", accesoConcedido);\n    } else {\n        let accesoConcedido = false;\n        console.log("Acceso Denegado");\n    }\n}\nvalidarPin(1234);`
+            },
+            {
+                id: "sec-13",
+                icon: "fa-laptop-code",
+                title: "13. DOM (Document Object Model)",
+                theory: "Árbol de objetos HTML.",
+                exerciseTitle: "Desafío Escolar: Dynamic DOM Banner",
+                exerciseDesc: "Simula la manipulación de la interfaz web institucional mediante el DOM. Crea una función 'actualizarAnuncio' que altere las propiedades de un objeto simulación 'mockElement' (modificando las propiedades 'innerText', 'style.color' y 'style.backgroundColor'). La función debe recibir el mensaje del anuncio y un booleano de urgencia para colorear el cartel dinámicamente según la prioridad del aviso.",
+                initialCode: `// Objeto DOM simulado\nconst mockElement = { innerText: "", style: { color: "", backgroundColor: "" } };\n// 1. Función actualizar`,
+                aiSolution: `const mockElement = { innerText: "", style: { color: "", backgroundColor: "" } };\nfunction actualizarAnuncio(mensaje, urgente) {\n    mockElement.innerText = mensaje;\n    if (urgente) {\n        mockElement.style.color = "white";\n        mockElement.style.backgroundColor = "red";\n    } else {\n        mockElement.style.color = "black";\n        mockElement.style.backgroundColor = "yellow";\n    }\n}\nactualizarAnuncio("Suspensión de clases por mantenimiento", true);\nconsole.log(mockElement);`
+            },
+            {
+                id: "sec-14",
+                icon: "fa-wpforms",
+                title: "14. Formularios y Eventos",
+                theory: "Captura de interacciones y validaciones.",
+                exerciseTitle: "Desafío Escolar: Validador de Inscripción",
+                exerciseDesc: "Desarrolla el motor de validación para los formularios de inscripción a los talleres extracurriculares. Escribe la función 'validarInscripcion(nombre, edad)' que verifique si el nombre ingresado tiene al menos 3 caracteres de longitud y si la edad es igual o mayor a 12 años. La función debe almacenar los mensajes de falla en un array de errores o devolver una confirmación exitosa si la información es válida.",
+                initialCode: `// 1. Validar nombre y edad`,
+                aiSolution: `function validarInscripcion(nombre, edad) {\n    let errores = [];\n    if (nombre.length < 3) errores.push("Nombre muy corto.");\n    if (edad < 12) errores.push("Debe ser mayor de 12 años.");\n    if (errores.length > 0) return "Errores: " + errores.join(" ");\n    return "¡Inscripción exitosa!";\n}\nconsole.log(validarInscripcion("Ana", 14));`
+            },
+            {
+                id: "sec-15",
+                icon: "fa-database",
+                title: "15. LocalStorage y Persistencia",
+                theory: "Almacenamiento clave-valor local.",
+                exerciseTitle: "Desafío Escolar: Guardado de Tema",
+                exerciseDesc: "Simula el sistema de almacenamiento persistente en el navegador para recordar las preferencias del estudiante. Implementa un objeto que simule el comportamiento de 'LocalStorage' junto a las funciones 'guardarPref(clave, valor)' y 'obtenerPref(clave)'. Guarda la configuración del tema de la interfaz (por ejemplo, 'tema': 'oscuro') y recupera la información posteriormente demostrando la persistenia de datos.",
+                initialCode: `const mockLocalStorage = {};\n// 1. Funciones de storage`,
+                aiSolution: `const mockLocalStorage = {};\nfunction guardarPref(clave, valor) {\n    mockLocalStorage[clave] = valor;\n}\nfunction obtenerPref(clave) {\n    return mockLocalStorage[clave];\n}\nguardarPref("tema", "oscuro");\nconsole.log("Tema recuperado:", obtenerPref("tema"));`
+            },
+            {
+                id: "sec-16",
+                icon: "fa-code",
+                title: "16. JSON y Fetch API",
+                theory: "JSON.parse y consumo de datos.",
+                exerciseTitle: "Desafío Escolar: Petición de Clima",
+                exerciseDesc: "Procesa la respuesta enviada por un servicio meteorológico remoto para planificar una salida de campo del IPEM 146. Convierte una cadena de texto en formato JSON simulada mediante el método 'JSON.parse()'. Examina el objeto de JavaScript resultante evaluando la probabilidad de lluvia y muestra un reporte determinando si la excursión educativa se confirma o se suspende.",
+                initialCode: `const jsonRespuestaServidor = '...';\n// 1. JSON.parse`,
+                aiSolution: `const jsonRespuestaServidor = '{"ciudad": "Córdoba", "temperatura": 24, "clima": "Soleado", "lluviaProbabilidad": 5}';\nlet datos = JSON.parse(jsonRespuestaServidor);\nif (datos.lluviaProbabilidad < 20) {\n    console.log("Clima " + datos.clima + ". ¡Excursión confirmada!");\n} else {\n    console.log("Se suspende por lluvia.");\n}`
+            },
+            {
+                id: "sec-17",
+                icon: "fa-triangle-exclamation",
+                title: "17. Manejo de Errores (try...catch)",
+                theory: "try, catch y throw new Error.",
+                exerciseTitle: "Desafío Escolar: Validador de Notas",
+                exerciseDesc: "Construye un sistema robusto de carga de calificaciones a prueba de fallos. Crea la función 'registrarNota(nota)' envuelta en un bloque 'try...catch...finally'. Si el usuario ingresa un número fuera del rango permitido de notas (1 al 10), genera un error intencional utilizando 'throw new Error()', captura la excepción para informar al usuario de manera segura y ejecuta la cláusula 'finally' indicando el fin del proceso.",
+                initialCode: `// 1. try...catch con throw`,
+                aiSolution: `function registrarNota(nota) {\n    try {\n        if (nota < 1 || nota > 10) {\n            throw new Error("Nota fuera de rango válido (1-10).");\n        }\n        console.log("Nota registrada correctamente: " + nota);\n    } catch (err) {\n        console.log("[ERROR CAPTURADO]: " + err.message);\n    } finally {\n        console.log("Proceso de registro finalizado.");\n    }\n}\nregistrarNota(12);`
+            },
+            {
+                id: "sec-18",
+                icon: "fa-bolt",
+                title: "18. Eventos de Avanzada",
+                theory: "Despachadores y gestión concurrente.",
+                exerciseTitle: "Desafío Escolar: Teclado de Turnos",
+                exerciseDesc: "Crea un administrador concurrente para la reserva de turnos en el laboratorio informático. Utiliza una clase orientada a objetos llamada 'SalaInformatica' que contenga un método 'reservarCompu(alumno, pc)'. Cada vez que un alumno reserve un equipo, captura la hora del sistema en tiempo real utilizando 'toLocaleTimeString()' y guarda la solicitud en un arreglo cronológico imprimiendo el detalle en la consola.",
+                initialCode: `// 1. Simulación de turnos con timestamp`,
+                aiSolution: `class SalaInformatica {\n    constructor() { this.reservas = []; }\n    reservarCompu(alumno, pc) {\n        let timestamp = new Date().toLocaleTimeString();\n        this.reservas.push({ alumno, pc, timestamp });\n        console.log("PC " + pc + " reservada por " + alumno + " a las " + timestamp);\n    }\n}\nlet sala = new SalaInformatica();\nsala.reservarCompu("Lucas", 5);`
+            },
+            {
+                id: "sec-19",
+                icon: "fa-flag-checkered",
+                title: "19. Proyecto Integrador Final",
+                theory: "Integración completa de conceptos.",
+                exerciseTitle: "PROYECTO FINAL: Centro de Estudiantes",
+                exerciseDesc: "Desarrolla el sistema de gestión integral para la administración del Centro de Estudiantes del IPEM 146. Construye un objeto 'centroEstudiantes' que contenga una colección de proyectos institucionales (cada uno con su nombre, presupuesto solicitado y estado de aprobación). Incorpora el método 'generarReporte()' que combine métodos modernos de arreglos (.filter() y .reduce()) para computar el presupuesto total requerido de las iniciativas aprobadas e imprimir la liquidación oficial.",
+                initialCode: `// PROYECTO FINAL\n// 1. centroEstudiantes`,
+                aiSolution: `let centroEstudiantes = {\n    proyectos: [\n        { nombre: "Torneo Ajedrez", presupuesto: 15000, aprobado: true },\n        { nombre: "Pintar mural", presupuesto: 25000, aprobado: true },\n        { nombre: "Comprar red voley", presupuesto: 40000, aprobado: false }\n    ],\n    generarReporte: function() {\n        let aprobados = this.proyectos.filter(p => p.aprobado);\n        let totalPresupuesto = aprobados.reduce((acc, p) => acc + p.presupuesto, 0);\n        console.log("Proyectos Aprobados:", aprobados.length);\n        console.log("Presupuesto Total Requerido: $" + totalPresupuesto);\n    }\n};\ncentroEstudiantes.generarReporte();`
+            }
+        ];
+
+        let historialResultados = {};
+        let actividadesFinalizadas = {};
+        let contadorPrevisualizaciones = {};
+        let totalSalidasPestaña = 0;
+        let seccionActivaActual = seccionesData[0].id;
+        
+        // Control de Cronómetros por Módulo (40 minutos = 2400 segundos)
+        const TIEMPO_MAXIMO_SEGUNDOS = 2400;
+        let tiemposRestantes = {};
+        let cronometrosActivos = {};
+        let modulosPausados = {};
+        let seccionPendientePausa = null;
+        let tipoAccionModal = ''; // 'global_reset', 'unlock_current', 'unlock_all', 'pausar_modulo', 'pausar_global' o 'reset_contador_salidas'
+
+        function initApp() {
+            const navList = document.getElementById('navList');
+            const sectionsContainer = document.getElementById('sectionsContainer');
+
+            document.getElementById('studentName').value = localStorage.getItem('app_student_name') || '';
+            document.getElementById('studentCourse').value = localStorage.getItem('app_student_course') || '';
+            totalSalidasPestaña = parseInt(localStorage.getItem('app_blur_count') || '0');
+            document.getElementById('blurCount').innerText = totalSalidasPestaña;
+
+            document.getElementById('studentName').addEventListener('input', (e) => localStorage.setItem('app_student_name', e.target.value));
+            document.getElementById('studentCourse').addEventListener('input', (e) => localStorage.setItem('app_student_course', e.target.value));
+
+            // Detectar salidas de pestaña con Page Visibility API
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    totalSalidasPestaña++;
+                    localStorage.setItem('app_blur_count', totalSalidasPestaña);
+                    document.getElementById('blurCount').innerText = totalSalidasPestaña;
+
+                    if (totalSalidasPestaña >= 3 && totalSalidasPestaña <= 7) {
+                        alert(`⚠️ ADVERTENCIA ANTI-FRAUDE (${totalSalidasPestaña} salidas): Has salido de la pestaña. Se aplicará un descuento de 2 puntos en tu nota final.`);
+                    } else if (totalSalidasPestaña > 7) {
+                        alert(`🚨 ¡ALERTA CRÍTICA DE FRAUDE! Has salido ${totalSalidasPestaña} veces de la pestaña. Todos los ejercicios activos han sido anulados.`);
+                        anularPorFraudeMasivo();
+                    }
+                }
+            });
+
+            // Atajo del profesor para panel general (Ctrl + Shift + U)
+            window.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.shiftKey && (e.key === 'U' || e.key === 'u')) {
+                    e.preventDefault();
+                    solicitarAccionProfesor('global_reset');
+                }
+            });
+
+            seccionesData.forEach((sec, idx) => {
+                const li = document.createElement('li');
+                li.className = `nav-item ${idx === 0 ? 'active' : ''}`;
+                li.onclick = () => switchSection(sec.id);
+                li.id = `nav-btn-${sec.id}`;
+                li.innerHTML = `<i class="fa-solid ${sec.icon}"></i> <span>${sec.title}</span>`;
+                navList.appendChild(li);
+
+                const savedCode = localStorage.getItem(`draft_editor-${sec.id}`) || sec.initialCode;
+                const isFinalized = localStorage.getItem(`finalized_${sec.id}`) === 'true';
+                if (isFinalized) actividadesFinalizadas[sec.id] = true;
+                contadorPrevisualizaciones[sec.id] = parseInt(localStorage.getItem(`preview_count_${sec.id}`) || '0');
+
+                let savedTime = localStorage.getItem(`timer_${sec.id}`);
+                tiemposRestantes[sec.id] = savedTime !== null ? parseInt(savedTime) : TIEMPO_MAXIMO_SEGUNDOS;
+                modulosPausados[sec.id] = false;
+
+                const card = document.createElement('div');
+                card.className = `section-card ${idx === 0 ? 'active' : ''}`;
+                card.id = sec.id;
+                card.innerHTML = `
+                    <h2 class="section-title"><i class="fa-solid ${sec.icon}"></i> ${sec.title}</h2>
+                    
+                    <div class="module-timer-bar">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted);">
+                            <i class="fa-solid fa-clock"></i> Tiempo disponible (Máx. 40 min):
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                            <span class="timer-display" id="timer-display-${sec.id}">40:00</span>
+                            <button class="btn btn-warning" id="btn-pause-${sec.id}" onclick="solicitarPausaModulo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                <i class="fa-solid fa-pause"></i> Pausar (Profe)
+                            </button>
+                            <button class="btn btn-danger" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_current')">
+                                <i class="fa-solid fa-unlock"></i> Desbloquear Este
+                            </button>
+                            <button class="btn btn-danger" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_all')">
+                                <i class="fa-solid fa-unlock-keyhole"></i> Desbloquear Todos
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pause-banner" id="pause-banner-${sec.id}">
+                        <i class="fa-solid fa-circle-pause" style="font-size: 1.2rem;"></i>
+                        <span><strong>MÓDULO PAUSADO POR EL PROFESOR:</strong> El cronómetro y la edición de código han sido suspendidos temporalmente.</span>
+                    </div>
+
+                    <div class="theory-box">
+                        <p>${sec.theory}</p>
+                    </div>
+                    
+                    <div class="exercise-box">
+                        <h3><i class="fa-solid fa-laptop-code"></i> ${sec.exerciseTitle}</h3>
+                        <p>${sec.exerciseDesc}</p>
+                        
+                        <div class="code-playground">
+                            <div class="editor-container">
+                                <div class="editor-header">
+                                    <span><i class="fa-solid fa-code"></i> Editor de Código JS (Tu Resolución)</span>
+                                    <span>JavaScript (ES6)</span>
+                                </div>
+                                <textarea id="editor-${sec.id}" class="code-editor" ${isFinalized ? 'disabled' : ''}>${savedCode}</textarea>
+                            </div>
+
+                            <div class="btn-group">
+                                <button class="btn btn-primary" id="btn-run-${sec.id}" onclick="ejecutarCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                    <i class="fa-solid fa-play"></i> Ejecutar y Probar
+                                </button>
+                                <button class="btn btn-preview" id="btn-preview-${sec.id}" onclick="previsualizarNotaIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                    <i class="fa-solid fa-star-half-stroke"></i> Consultar Nota Previa (${3 - contadorPrevisualizaciones[sec.id]} usos)
+                                </button>
+                                <button class="btn btn-ai" id="btn-ai-${sec.id}" onclick="resolverYCompararIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                    <i class="fa-solid fa-robot"></i> Resolución y Comparativa IA
+                                </button>
+                                <button class="btn btn-secondary" id="btn-reset-${sec.id}" onclick="restablecerCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                    <i class="fa-solid fa-rotate-left"></i> Restablecer
+                                </button>
+                            </div>
+
+                            <div class="console-output" id="console-${sec.id}">${isFinalized ? '// Actividad finalizada y bloqueada.' : '// Pulsa "Ejecutar y Probar" para ver la consola...'}</div>
+                            
+                            <div class="ai-feedback-box ${isFinalized ? 'active' : ''}" id="ai-feedback-${sec.id}">
+                                <div class="ai-header"><i class="fa-solid fa-wand-magic-sparkles"></i> Tutor IA — Análisis Estricto y Bloqueado</div>
+                                <div class="ai-comparison-grid">
+                                    <div class="ai-column">
+                                        <h4><i class="fa-solid fa-user-graduate"></i> Tu Código Entregado</h4>
+                                        <pre id="ai-student-code-${sec.id}">${savedCode}</pre>
+                                    </div>
+                                    <div class="ai-column">
+                                        <h4><i class="fa-solid fa-robot"></i> Solución Ideal de la IA</h4>
+                                        <pre id="ai-ideal-code-${sec.id}">${sec.aiSolution}</pre>
+                                    </div>
+                                </div>
+                                <div class="ai-eval-summary" id="ai-text-${sec.id}">${isFinalized ? 'Actividad previamente evaluada de forma estricta y cerrada.' : 'Generando comparativa...'}</div>
+
+                                <div class="analyst-box" id="analyst-${sec.id}">
+                                    <div class="analyst-header">
+                                        <i class="fa-solid fa-user-check"></i>
+                                        Analista de Viabilidad y Excelencia — RESPONDE AHORA
+                                    </div>
+                                    <div style="margin-bottom:0.8rem;color:#cbd5e1;line-height:1.45;">
+                                        🤖 Al pulsar <strong>IA</strong>, estas preguntas se habilitan para responder.
+                                        Están basadas en <strong>tu código</strong>, en la <strong>solución de la IA</strong>
+                                        y en la <strong>comparación entre ambos</strong>. Algunas tienen más de una respuesta correcta.
+                                    </div>
+                                    <div class="analyst-score" id="analyst-score-${sec.id}">
+                                        <span class="analyst-badge" id="viability-${sec.id}">Viabilidad: pendiente</span>
+                                        <span class="analyst-badge" id="excellence-${sec.id}">Excelencia: pendiente</span>
+                                    </div>
+                                    <div id="analyst-questions-${sec.id}"></div>
+                                    <button class="btn btn-success" id="analyst-submit-${sec.id}" onclick="evaluarAnalista('${sec.id}')">
+                                        <i class="fa-solid fa-check-double"></i> Entregar respuestas al analista
+                                    </button>
+                                    <div class="analyst-result" id="analyst-result-${sec.id}"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                sectionsContainer.appendChild(card);
+                actualizarDisplayTiempo(sec.id);
+
+                if (isFinalized) {
+                    actualizarIconoEstado(sec.id, true);
+                }
+            });
+
+            document.getElementById('currentTitle').innerText = seccionesData[0].title;
+            configurarEditores();
+            bloquearCopiaYPegado();
+            actualizarProgreso();
+
+            if (totalSalidasPestaña > 7) {
+                anularPorFraudeMasivo();
+            }
+        }
+
+        function anularPorFraudeMasivo() {
+            seccionesData.forEach(sec => {
+                actividadesFinalizadas[sec.id] = true;
+                localStorage.setItem(`finalized_${sec.id}`, 'true');
+                const editor = document.getElementById(`editor-${sec.id}`);
+                if (editor) editor.disabled = true;
+                
+                ['run', 'preview', 'ai', 'reset', 'pause'].forEach(btn => {
+                    const el = document.getElementById(`btn-${btn}-${sec.id}`);
+                    if (el) el.disabled = true;
+                });
+
+                if(!historialResultados[sec.id]) historialResultados[sec.id] = {};
+                historialResultados[sec.id].notaIA = 1;
+                historialResultados[sec.id].analisisIA = "EJERCICIO ANULADO: Exceso de salidas de pestaña (>7). Nota: 1/10.";
+                actualizarIconoEstado(sec.id, false);
+            });
+            actualizarProgreso();
+        }
+
+        function actualizarDisplayTiempo(sectionId) {
+            let segs = tiemposRestantes[sectionId];
+            let mins = Math.floor(segs / 60);
+            let sRestantes = segs % 60;
+            let displayStr = `${mins.toString().padStart(2, '0')}:${sRestantes.toString().padStart(2, '0')}`;
+            
+            const el = document.getElementById(`timer-display-${sectionId}`);
+            if (el) el.innerText = displayStr;
+        }
+
+        function iniciarCronometro(sectionId) {
+            if (cronometrosActivos[sectionId] || actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
+
+            cronometrosActivos[sectionId] = setInterval(() => {
+                if (modulosPausados[sectionId] || actividadesFinalizadas[sectionId]) {
+                    clearInterval(cronometrosActivos[sectionId]);
+                    cronometrosActivos[sectionId] = null;
+                    return;
+                }
+
+                if (tiemposRestantes[sectionId] > 0) {
+                    tiemposRestantes[sectionId]--;
+                    localStorage.setItem(`timer_${sectionId}`, tiemposRestantes[sectionId]);
+                    actualizarDisplayTiempo(sectionId);
+                } else {
+                    clearInterval(cronometrosActivos[sectionId]);
+                    cronometrosActivos[sectionId] = null;
+                    expirarTiempoModulo(sectionId);
+                }
+            }, 1000);
+        }
+
+        function expirarTiempoModulo(sectionId) {
+            if (actividadesFinalizadas[sectionId]) return;
+
+            alert(`⏰ ¡Tiempo agotado (40 minutos) para este módulo! Se registrará nota 1 por tiempo expirado.`);
+            
+            const editor = document.getElementById(`editor-${sectionId}`);
+            if (editor) editor.disabled = true;
+            document.getElementById(`btn-run-${sectionId}`).disabled = true;
+            document.getElementById(`btn-preview-${sectionId}`).disabled = true;
+            document.getElementById(`btn-ai-${sectionId}`).disabled = true;
+            document.getElementById(`btn-reset-${sectionId}`).disabled = true;
+            document.getElementById(`btn-pause-${sectionId}`).disabled = true;
+
+            actividadesFinalizadas[sectionId] = true;
+            localStorage.setItem(`finalized_${sectionId}`, 'true');
+
+            if(!historialResultados[sectionId]) historialResultados[sectionId] = {};
+            historialResultados[sectionId].codigo = editor ? editor.value : '';
+            historialResultados[sectionId].notaIA = 1;
+            historialResultados[sectionId].analisisIA = "Módulo expirado por límite de tiempo (40 minutos). Nota: 1/10.";
+            historialResultados[sectionId].exito = false;
+
+            const feedbackBox = document.getElementById(`ai-feedback-${sectionId}`);
+            const studentCodeDisplay = document.getElementById(`ai-student-code-${sectionId}`);
+            const sec = seccionesData.find(s => s.id === sectionId);
+            document.getElementById(`ai-ideal-code-${sectionId}`).innerText = sec.aiSolution;
+            const feedbackText = document.getElementById(`ai-text-${sectionId}`);
+
+            if (feedbackBox) feedbackBox.classList.add('active');
+            if (studentCodeDisplay && editor) studentCodeDisplay.innerText = editor.value;
+            if (feedbackText) feedbackText.innerHTML = "<strong>Calificación Estricta IA: 1/10</strong><br>❌ Tiempo agotado (40 min).";
+
+            actualizarIconoEstado(sectionId, false);
+            actualizarProgreso();
+        }
+
+        function solicitarPausaModulo(sectionId) {
+            seccionPendientePausa = sectionId;
+            solicitarAccionProfesor('pausar_modulo');
+        }
+
+        function solicitarAccionProfesor(accion) {
+            tipoAccionModal = accion;
+            const modal = document.getElementById('passwordModal');
+            const input = document.getElementById('modalPasswordInput');
+            const desc = document.getElementById('modalDescription');
+
+            if (accion === 'unlock_current') {
+                desc.innerHTML = `Autorizar desbloqueo del ejercicio actual <b>(${seccionActivaActual})</b>:`;
+            } else if (accion === 'unlock_all') {
+                desc.innerHTML = `Autorizar desbloqueo <b>global de todos los ejercicios</b> de la plataforma:`;
+            } else if (accion === 'reset_contador_salidas') {
+                desc.innerHTML = `Autorizar el reinicio del contador de salidas de pestaña:`;
+            } else if (accion === 'pausar_modulo') {
+                desc.innerHTML = `Autorizar pausa/reanudación del módulo <b>${seccionPendientePausa}</b>:`;
+            } else if (accion === 'pausar_global') {
+                desc.innerHTML = `Autorizar <b>pausa/reanudación GLOBAL</b> para todos los módulos de la clase:`;
+            } else {
+                desc.innerHTML = `Ingrese la contraseña de profesor para el reseteo completo:`;
+            }
+
+            input.value = '';
+            modal.classList.add('active');
+            input.focus();
+        }
+
+        function cerrarModalPassword() {
+            document.getElementById('passwordModal').classList.remove('active');
+            seccionPendientePausa = null;
+        }
+
+        function handleModalKeydown(e) {
+            if (e.key === 'Enter') confirmarAccionProfesor();
+            else if (e.key === 'Escape') cerrarModalPassword();
+        }
+
+        function confirmarAccionProfesor() {
+            const input = document.getElementById('modalPasswordInput');
+            if (input.value === "aRNET$") {
+                // Guardamos la acción y la sección ANTES de cerrar el modal.
+                // cerrarModalPassword() limpia seccionPendientePausa.
+                const accionConfirmada = tipoAccionModal;
+                const sectionIdConfirmada = seccionPendientePausa;
+
+                cerrarModalPassword();
+
+                if (accionConfirmada === 'global_reset') {
+                    resetearSistemaCompleto();
+                } else if (accionConfirmada === 'unlock_current') {
+                    desbloquearEjercicioActual();
+                } else if (accionConfirmada === 'unlock_all') {
+                    desbloquearTodosEjercicios();
+                } else if (accionConfirmada === 'pausar_modulo' && sectionIdConfirmada) {
+                    togglePausaModulo(sectionIdConfirmada);
+                } else if (accionConfirmada === 'pausar_global') {
+                    togglePausaGlobal();
+                } else if (accionConfirmada === 'reset_contador_salidas') {
+                    reiniciarContadorSalidasProfesor();
+                }
+            } else {
+                alert("❌ Contraseña incorrecta.");
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function reiniciarContadorSalidasProfesor() {
+            totalSalidasPestaña = 0;
+            localStorage.setItem('app_blur_count', totalSalidasPestaña);
+            document.getElementById('blurCount').innerText = totalSalidasPestaña;
+            alert("¡El contador de salidas de pestaña ha sido reiniciado a 0 con éxito!");
+        }
+
+        function desbloquearEjercicioActual() {
+            const sectionId = seccionActivaActual;
+            if (!actividadesFinalizadas[sectionId]) {
+                alert("ℹ️ Este ejercicio ya se encuentra desbloqueado y activo.");
+                return;
+            }
+
+            delete actividadesFinalizadas[sectionId];
+            localStorage.removeItem(`finalized_${sectionId}`);
+            localStorage.removeItem(`preview_count_${sectionId}`);
+            delete historialResultados[sectionId];
+            contadorPrevisualizaciones[sectionId] = 0;
+
+            const editor = document.getElementById(`editor-${sectionId}`);
+            if (editor) editor.disabled = false;
+
+            ['run', 'preview', 'ai', 'reset', 'pause'].forEach(btn => {
+                const el = document.getElementById(`btn-${btn}-${sectionId}`);
+                if (el) el.disabled = false;
+            });
+
+            const btnPreview = document.getElementById(`btn-preview-${sectionId}`);
+            if (btnPreview) btnPreview.innerText = `Consultar Nota Previa (3 usos)`;
+
+            const feedbackBox = document.getElementById(`ai-feedback-${sectionId}`);
+            if (feedbackBox) feedbackBox.classList.remove('active');
+
+            const navBtn = document.getElementById(`nav-btn-${sectionId}`);
+            if (navBtn) {
+                const statusIcon = navBtn.querySelector('.status-icon');
+                if (statusIcon) statusIcon.remove();
+            }
+
+            tiemposRestantes[sectionId] = TIEMPO_MAXIMO_SEGUNDOS;
+            localStorage.removeItem(`timer_${sectionId}`);
+            actualizarDisplayTiempo(sectionId);
+
+            actualizarProgreso();
+            alert(`🔓 ¡El ejercicio actual (${sectionId}) ha sido desbloqueado con éxito por el profesor!`);
+        }
+
+        function desbloquearTodosEjercicios() {
+            seccionesData.forEach(sec => {
+                delete actividadesFinalizadas[sec.id];
+                localStorage.removeItem(`finalized_${sec.id}`);
+                localStorage.removeItem(`preview_count_${sec.id}`);
+                delete historialResultados[sec.id];
+                contadorPrevisualizaciones[sec.id] = 0;
+
+                const editor = document.getElementById(`editor-${sec.id}`);
+                if (editor) editor.disabled = false;
+
+                ['run', 'preview', 'ai', 'reset', 'pause'].forEach(btn => {
+                    const el = document.getElementById(`btn-${btn}-${sec.id}`);
+                    if (el) el.disabled = false;
+                });
+
+                const btnPreview = document.getElementById(`btn-preview-${sec.id}`);
+                if (btnPreview) btnPreview.innerText = `Consultar Nota Previa (3 usos)`;
+
+                const feedbackBox = document.getElementById(`ai-feedback-${sec.id}`);
+                if (feedbackBox) feedbackBox.classList.remove('active');
+
+                const navBtn = document.getElementById(`nav-btn-${sec.id}`);
+                if (navBtn) {
+                    const statusIcon = navBtn.querySelector('.status-icon');
+                    if (statusIcon) statusIcon.remove();
+                }
+
+                tiemposRestantes[sec.id] = TIEMPO_MAXIMO_SEGUNDOS;
+                localStorage.removeItem(`timer_${sec.id}`);
+                actualizarDisplayTiempo(sec.id);
+            });
+
+            actualizarProgreso();
+            alert("🔓 ¡Todos los ejercicios de la plataforma han sido desbloqueados con éxito!");
+        }
+
+        // FUNCIÓN DE PAUSA INDIVIDUAL (Detiene cronómetro, bloquea/desbloquea editor y cambia visuales)
+        function togglePausaModulo(sectionId) {
+            const btnPause = document.getElementById(`btn-pause-${sectionId}`);
+            const banner = document.getElementById(`pause-banner-${sectionId}`);
+            const editor = document.getElementById(`editor-${sectionId}`);
+
+            modulosPausados[sectionId] = !modulosPausados[sectionId];
+
+            if (modulosPausados[sectionId]) {
+                if (cronometrosActivos[sectionId]) {
+                    clearInterval(cronometrosActivos[sectionId]);
+                    cronometrosActivos[sectionId] = null;
+                }
+
+                if (btnPause) {
+                    btnPause.innerHTML = `<i class="fa-solid fa-play"></i> Reanudar (Profe)`;
+                    btnPause.classList.remove('btn-warning');
+                    btnPause.classList.add('btn-success');
+                }
+                
+                if (banner) banner.classList.add('active');
+                if (editor) editor.disabled = true;
+
+                ['run', 'preview', 'ai', 'reset'].forEach(btn => {
+                    const el = document.getElementById(`btn-${btn}-${sectionId}`);
+                    if (el) el.disabled = true;
+                });
+
+                alert(`⏸️ Cronómetro y edición pausados por el profesor para el módulo ${sectionId}.`);
+            } else {
+                if (btnPause) {
+                    btnPause.innerHTML = `<i class="fa-solid fa-pause"></i> Pausar (Profe)`;
+                    btnPause.classList.remove('btn-success');
+                    btnPause.classList.add('btn-warning');
+                }
+
+                if (banner) banner.classList.remove('active');
+
+                if (!actividadesFinalizadas[sectionId]) {
+                    if (editor) editor.disabled = false;
+                    ['run', 'preview', 'ai', 'reset'].forEach(btn => {
+                        const el = document.getElementById(`btn-${btn}-${sectionId}`);
+                        if (el) el.disabled = false;
+                    });
+                    iniciarCronometro(sectionId);
+                }
+
+                alert(`▶️ Cronómetro y edición reanudados para el módulo ${sectionId}.`);
+            }
+            seccionPendientePausa = null;
+        }
+
+        // PAUSA GLOBAL DOCENTE PARA TODA LA CLASE
+        function togglePausaGlobal() {
+            const algunPausado = Object.values(modulosPausados).some(val => val === true);
+            const nuevoEstadoPausa = !algunPausado;
+
+            seccionesData.forEach(sec => {
+                modulosPausados[sec.id] = nuevoEstadoPausa;
+                const btnPause = document.getElementById(`btn-pause-${sec.id}`);
+                const banner = document.getElementById(`pause-banner-${sec.id}`);
+                const editor = document.getElementById(`editor-${sec.id}`);
+
+                if (nuevoEstadoPausa) {
+                    if (cronometrosActivos[sec.id]) {
+                        clearInterval(cronometrosActivos[sec.id]);
+                        cronometrosActivos[sec.id] = null;
+                    }
+                    if (btnPause) {
+                        btnPause.innerHTML = `<i class="fa-solid fa-play"></i> Reanudar (Profe)`;
+                        btnPause.className = "btn btn-success";
+                    }
+                    if (banner) banner.classList.add('active');
+                    if (editor) editor.disabled = true;
+                    ['run', 'preview', 'ai', 'reset'].forEach(btn => {
+                        const el = document.getElementById(`btn-${btn}-${sec.id}`);
+                        if (el) el.disabled = true;
+                    });
+                } else {
+                    if (btnPause) {
+                        btnPause.innerHTML = `<i class="fa-solid fa-pause"></i> Pausar (Profe)`;
+                        btnPause.className = "btn btn-warning";
+                    }
+                    if (banner) banner.classList.remove('active');
+                    if (!actividadesFinalizadas[sec.id]) {
+                        if (editor) editor.disabled = false;
+                        ['run', 'preview', 'ai', 'reset'].forEach(btn => {
+                            const el = document.getElementById(`btn-${btn}-${sec.id}`);
+                            if (el) el.disabled = false;
+                        });
+                        iniciarCronometro(sec.id);
+                    }
+                }
+            });
+
+            if (nuevoEstadoPausa) {
+                alert("⏸️ Pausa Global Activada: Se han congelado los cronómetros y editores de todos los módulos.");
+            } else {
+                alert("▶️ Pausa Global Desactivada: Se han reanudado todos los módulos activos.");
+            }
+        }
+
+        function resetearSistemaCompleto() {
+            actividadesFinalizadas = {};
+            contadorPrevisualizaciones = {};
+            totalSalidasPestaña = 0;
+            localStorage.removeItem('app_blur_count');
+            document.getElementById('blurCount').innerText = '0';
+
+            seccionesData.forEach(sec => {
+                localStorage.removeItem(`finalized_${sec.id}`);
+                localStorage.removeItem(`preview_count_${sec.id}`);
+                localStorage.removeItem(`timer_${sec.id}`);
+                tiemposRestantes[sec.id] = TIEMPO_MAXIMO_SEGUNDOS;
+                modulosPausados[sec.id] = false;
+                if(cronometrosActivos[sec.id]) {
+                    clearInterval(cronometrosActivos[sec.id]);
+                    cronometrosActivos[sec.id] = null;
+                }
+                actualizarDisplayTiempo(sec.id);
+
+                const banner = document.getElementById(`pause-banner-${sec.id}`);
+                if (banner) banner.classList.remove('active');
+
+                const editor = document.getElementById(`editor-${sec.id}`);
+                if (editor) editor.disabled = false;
+                
+                ['run', 'preview', 'ai', 'reset', 'pause'].forEach(btn => {
+                    const el = document.getElementById(`btn-${btn}-${sec.id}`);
+                    if (el) el.disabled = false;
+                });
+                const btnPause = document.getElementById(`btn-pause-${sec.id}`);
+                if (btnPause) {
+                    btnPause.innerHTML = `<i class="fa-solid fa-pause"></i> Pausar (Profe)`;
+                    btnPause.className = "btn btn-warning";
+                }
+
+                const consoleBox = document.getElementById(`console-${sec.id}`);
+                if (consoleBox) consoleBox.innerText = '// Ejercicio desbloqueado.';
+
+                const navBtn = document.getElementById(`nav-btn-${sec.id}`);
+                if (navBtn) {
+                    const statusIcon = navBtn.querySelector('.status-icon');
+                    if (statusIcon) statusIcon.remove();
+                }
+            });
+            actualizarProgreso();
+            alert("🔓 ¡Sistema completo y contadores antifraude reiniciados con éxito!");
+        }
+
+        function actualizarIconoEstado(sectionId, esExitoso) {
+            const navBtn = document.getElementById(`nav-btn-${sectionId}`);
+            if (navBtn) {
+                let statusIcon = navBtn.querySelector('.status-icon');
+                if (!statusIcon) {
+                    statusIcon = document.createElement('i');
+                    statusIcon.className = 'fa-solid fa-circle-check status-icon';
+                    navBtn.appendChild(statusIcon);
+                }
+                statusIcon.style.color = esExitoso ? 'var(--success)' : 'var(--danger)';
+            }
+        }
+
+        function restablecerCodigo(sectionId) {
+            if (actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
+
+            if (confirm("¿Estás seguro de restablecer este ejercicio?")) {
+                const sec = seccionesData.find(s => s.id === sectionId);
+                if (sec) {
+                    document.getElementById(`editor-${sectionId}`).value = sec.initialCode;
+                    document.getElementById(`console-${sectionId}`).innerText = '// Código restablecido.';
+                    document.getElementById(`ai-feedback-${sectionId}`).classList.remove('active');
+                    localStorage.removeItem(`draft_editor-${sectionId}`);
+                    delete historialResultados[sectionId];
+
+                    const navBtn = document.getElementById(`nav-btn-${sectionId}`);
+                    if (navBtn) {
+                        const statusIcon = navBtn.querySelector('.status-icon');
+                        if (statusIcon) statusIcon.remove();
+                    }
+                    actualizarProgreso();
+                }
+            }
+        }
+
+        function reiniciarSesionEstudiante() {
+            if (confirm("⚠️ ¿Iniciar nueva sesión? Se borrará todo el avance, notas y cronómetros.")) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        }
+
+        function switchSection(sectionId) {
+            seccionActivaActual = sectionId;
+            document.querySelectorAll('.section-card').forEach(card => card.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+
+            const targetCard = document.getElementById(sectionId);
+            const targetNav = document.getElementById(`nav-btn-${sectionId}`);
+
+            if (targetCard && targetNav) {
+                targetCard.classList.add('active');
+                targetNav.classList.add('active');
+                const data = seccionesData.find(s => s.id === sectionId);
+                if (data) document.getElementById('currentTitle').innerText = data.title;
+            }
+        }
+
+        function actualizarProgreso() {
+            const finalizadasCount = Object.keys(actividadesFinalizadas).length;
+            const porcentaje = Math.round((finalizadasCount / seccionesData.length) * 100);
+            document.getElementById('progressBar').style.width = `${porcentaje}%`;
+            document.getElementById('progressText').innerText = `Progreso: ${porcentaje}% (${finalizadasCount}/${seccionesData.length} finalizadas)`;
+        }
+
+        function ejecutarCodigo(sectionId) {
+            if (actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
+
+            const editor = document.getElementById(`editor-${sectionId}`);
+            const consoleBox = document.getElementById(`console-${sectionId}`);
+            const code = editor.value;
+
+            consoleBox.innerHTML = "";
+            let logs = [];
+            const originalLog = console.log;
+            console.log = function(...args) {
+                const output = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(" ");
+                logs.push("[LOG]: " + output);
+                originalLog.apply(console, args);
+            };
+
+            try {
+                const runCode = new Function(`{ ${code} }`);
+                runCode();
+                if (logs.length === 0) logs.push("// Ejecutado sin salida en consola.");
+                consoleBox.style.color = "#10b981";
+                consoleBox.innerText = logs.join("\n");
+            } catch (err) {
+                logs.push("[EXCEPCIÓN]: " + err.message);
+                consoleBox.style.color = "#ef4444";
+                consoleBox.innerText = logs.join("\n");
+            } finally {
+                console.log = originalLog;
+            }
+
+            const esExitoso = !logs.some(l => l.includes("[EXCEPCIÓN]"));
+
+            if(!historialResultados[sectionId]) historialResultados[sectionId] = {};
+            historialResultados[sectionId].codigo = code;
+            historialResultados[sectionId].salida = logs.join("\n");
+            historialResultados[sectionId].fecha = new Date().toLocaleString();
+            historialResultados[sectionId].exito = esExitoso;
+        }
+
+        function calcularNotaEstricta(code, sec) {
+            const esPlantilla = code === sec.initialCode.trim() || code.length < 15;
+            if (esPlantilla) return 1;
+
+            let proporcionLongitud = code.length / sec.aiSolution.length;
+            let tieneEstructuraMinima = code.includes("console.log") || code.includes("function") || code.includes("let") || code.includes("const");
+
+            if (!tieneEstructuraMinima) return 4;
+            if (proporcionLongitud >= 0.9) return 10;
+            if (proporcionLongitud >= 0.7) return 7;
+            if (proporcionLongitud >= 0.4) return 5;
+            return 3;
+        }
+
+        function previsualizarNotaIA(sectionId) {
+            if (actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
+
+            let usos = contadorPrevisualizaciones[sectionId] || 0;
+            if (usos >= 3) {
+                alert("⚠️ Has alcanzado el límite máximo de 3 consultas de nota previa para este módulo.");
+                return;
+            }
+
+            usos++;
+            contadorPrevisualizaciones[sectionId] = usos;
+            localStorage.setItem(`preview_count_${sectionId}`, usos);
+
+            const btnPreview = document.getElementById(`btn-preview-${sectionId}`);
+            btnPreview.innerText = `Consultar Nota Previa (${3 - usos} usos)`;
+
+            const editor = document.getElementById(`editor-${sectionId}`);
+            const sec = seccionesData.find(s => s.id === sectionId);
+            const code = editor.value.trim();
+            const feedbackBox = document.getElementById(`ai-feedback-${sectionId}`);
+            const studentCodeDisplay = document.getElementById(`ai-student-code-${sectionId}`);
+            const feedbackText = document.getElementById(`ai-text-${sectionId}`);
+
+            feedbackBox.classList.add('active');
+            studentCodeDisplay.innerText = code;
+            document.getElementById(`ai-ideal-code-${sectionId}`).innerText = "// (Oculto en previsualización parcial)";
+
+            let notaEstimada = calcularNotaEstricta(code, sec);
+            feedbackText.innerHTML = `🤖 <strong>Previsualización de Nota IA (${usos}/3):</strong> Con tu código actual obtendrías un <strong>${notaEstimada}/10</strong> según el criterio del 70%.`;
+        }
+
+
+        /*
+         * Analista de Viabilidad y Excelencia — RESPONDE AHORA
+         * Las preguntas se construyen sobre el código entregado por el estudiante.
+         * No muestran la solución ideal ni la respuesta correcta antes de entregar.
+         */
+        /*
+         * Analista de Viabilidad y Excelencia — RESPONDE AHORA — versión dinámica
+         *
+         * Las preguntas se construyen a partir de:
+         *  1) código REAL entregado por el estudiante;
+         *  2) solución ideal programada por la IA.
+         *
+         * Cada pregunta puede tener 1, 2 o más respuestas correctas.
+         * Las alternativas se mezclan y la posición de las correctas cambia.
+         */
+
+        /*
+         * PREGUNTAS SOCRÁTICAS
+         * No buscan solamente recordar sintaxis: obligan al estudiante a
+         * justificar decisiones, detectar supuestos, anticipar errores y proponer mejoras.
+         */
+        const preguntasSocraticas = [
+            {
+                q: (code, ideal) => `Si tuvieras que defender tu código ante otro programador, ¿qué parte de tu solución considerarías indispensable y por qué?`,
+                opciones: (code, ideal) => [
+                    {t:"La parte que realmente participa en la resolución del problema, explicando su función.", c:true},
+                    {t:"La parte que tiene más líneas, aunque no sea necesaria.", c:false},
+                    {t:"Cualquier código que se parezca visualmente a la solución de IA.", c:false},
+                    {t:"No es necesario justificar ninguna decisión.", c:false}
+                ]
+            },
+            {
+                q: (code, ideal) => `¿Qué podría ocurrir si modificas una de las decisiones principales de tu código sin revisar las demás instrucciones que dependen de ella?`,
+                opciones: (code, ideal) => [
+                    {t:"Podrían producirse resultados incorrectos.", c:true},
+                    {t:"Podrían romperse dependencias entre partes del programa.", c:true},
+                    {t:"El programa necesariamente se vuelve más eficiente.", c:false},
+                    {t:"La modificación nunca puede afectar otras instrucciones.", c:false}
+                ]
+            },
+            {
+                q: (code, ideal) => `La IA propone una solución diferente a la tuya. ¿Qué preguntas deberías hacerte antes de afirmar que la solución de IA es mejor?`,
+                opciones: (code, ideal) => [
+                    {t:"¿Ambas soluciones cumplen realmente el objetivo del desafío?", c:true},
+                    {t:"¿Cuál solución es más clara y mantenible?", c:true},
+                    {t:"¿Cuál tiene más líneas de código?", c:false},
+                    {t:"¿Cuál utiliza nombres de variables más largos?", c:false}
+                ]
+            },
+            {
+                q: (code, ideal) => `Si tu código funciona con el ejemplo proporcionado, ¿qué deberías investigar para decidir si realmente es una solución viable?`,
+                opciones: (code, ideal) => [
+                    {t:"Qué ocurre con otros valores de entrada.", c:true},
+                    {t:"Qué ocurre en casos límite o inesperados.", c:true},
+                    {t:"Si la solución depende accidentalmente de un único ejemplo.", c:true},
+                    {t:"Si el código tiene exactamente el mismo aspecto que la solución de IA.", c:false}
+                ]
+            },
+            {
+                q: (code, ideal) => `Imagina que mañana otro estudiante debe mantener tu código. ¿Qué características deberías evaluar críticamente?`,
+                opciones: (code, ideal) => [
+                    {t:"Claridad de las variables y estructuras.", c:true},
+                    {t:"Separación lógica de responsabilidades.", c:true},
+                    {t:"Facilidad para detectar y corregir errores.", c:true},
+                    {t:"Cantidad máxima posible de instrucciones.", c:false}
+                ]
+            },
+            {
+                q: (code, ideal) => `¿Qué evidencia necesitarías para sostener que tu código es mejor que la solución de IA?`,
+                opciones: (code, ideal) => [
+                    {t:"Demostrar que cumple los requisitos.", c:true},
+                    {t:"Mostrar que funciona en diferentes casos.", c:true},
+                    {t:"Explicar por qué tus decisiones técnicas son adecuadas.", c:true},
+                    {t:"Decir simplemente que tu código es más corto.", c:false}
+                ]
+            },
+            {
+                q: (code, ideal) => `Si descubres que tu código obtiene el resultado correcto por una razón accidental, ¿qué actitud demuestra mayor excelencia?`,
+                opciones: (code, ideal) => [
+                    {t:"Investigar por qué funciona realmente.", c:true},
+                    {t:"Probar otros casos para confirmar el comportamiento.", c:true},
+                    {t:"Modificarlo si existe una solución más robusta.", c:true},
+                    {t:"Dejarlo igual porque una prueba funcionó.", c:false}
+                ]
+            },
+            {
+                q: (code, ideal) => `¿Qué diferencia existe entre que un código "funcione" y que sea una solución técnicamente excelente?`,
+                opciones: (code, ideal) => [
+                    {t:"Un código puede funcionar y aun así ser difícil de mantener.", c:true},
+                    {t:"La excelencia también considera claridad, robustez y adecuación al problema.", c:true},
+                    {t:"Funcionamiento y excelencia siempre significan exactamente lo mismo.", c:false},
+                    {t:"Un código excelente necesariamente tiene más líneas.", c:false}
+                ]
+            }
+        ];
+
+        const analistaPlantillas = [
+            {
+                tipo: "ESTUDIANTE",
+                q: code => `¿Cuál de las siguientes afirmaciones describe correctamente algo que aparece en el código que programaste?`,
+                opciones: code => {
+                    const snippets = extraerEvidencias(code);
+                    return [
+                        {t:`El código contiene: ${snippets[0] || "una instrucción ejecutable"}`, c:true},
+                        {t:`El código contiene: ${snippets[1] || "una estructura declarativa"}`, c:true},
+                        {t:"El código necesariamente utiliza una API externa aunque no aparezca en el código.", c:false},
+                        {t:"El código no contiene ninguna instrucción ejecutable.", c:false}
+                    ];
+                }
+            },
+            {
+                tipo: "ESTUDIANTE",
+                q: code => `Observando tu código, ¿cuáles de estas características pueden identificarse realmente?`,
+                opciones: code => {
+                    const features = detectarCaracteristicas(code);
+                    const correctas = features.filter(x => x.c).slice(0,2);
+                    const falsas = [
+                        "Utiliza una base de datos externa obligatoriamente.",
+                        "Contiene una clase CSS con el mismo comportamiento que una función JavaScript."
+                    ];
+                    return [...correctas, ...falsas.map(t=>({t,c:false}))];
+                }
+            },
+            {
+                tipo: "ESTUDIANTE",
+                q: code => `¿Qué afirmaciones son compatibles con la lógica de tu código entregado?`,
+                opciones: code => generarAfirmacionesEstudiante(code)
+            },
+            {
+                tipo: "IA",
+                q: (code, ideal) => `Al comparar tu solución con la solución programada por la IA, ¿cuáles afirmaciones describen correctamente la solución ideal?`,
+                opciones: (code, ideal) => generarAfirmacionesIA(ideal)
+            },
+            {
+                tipo: "IA",
+                q: (code, ideal) => `Respecto de la solución de IA mostrada en la evaluación, ¿qué elementos forman parte de su lógica?`,
+                opciones: (code, ideal) => generarAfirmacionesIA(ideal)
+            },
+            {
+                tipo: "COMPARACION",
+                q: (code, ideal) => `Comparando ambos códigos, ¿qué afirmaciones son verdaderas?`,
+                opciones: (code, ideal) => generarComparaciones(code, ideal)
+            }
+        ];
+
+        function escaparTextoAnalista(s) {
+            return String(s || "")
+                .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+                .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+        }
+
+        function extraerEvidencias(code) {
+            const lineas = String(code || "").split("\n")
+                .map(x => x.trim())
+                .filter(x => x && !x.startsWith("//"));
+            return lineas.slice(0, 4);
+        }
+
+        function detectarCaracteristicas(code) {
+            const c = String(code || "");
+            const out = [];
+            if (/\b(if|else if|else)\b/.test(c))
+                out.push({t:"Utiliza estructuras condicionales.",c:true});
+            if (/\b(for|while|forEach)\b/.test(c))
+                out.push({t:"Utiliza una estructura de repetición.",c:true});
+            if (/\bfunction\b|=>/.test(c))
+                out.push({t:"Define o utiliza funciones.",c:true});
+            if (/\b(const|let|var)\b/.test(c))
+                out.push({t:"Declara variables mediante const, let o var.",c:true});
+            if (/\b(array|push|pop|shift|unshift|map|filter|reduce)\b/i.test(c) || /\[[^\]]*\]/.test(c))
+                out.push({t:"Trabaja con estructuras tipo array.",c:true});
+            if (/console\.log/.test(c))
+                out.push({t:"Muestra información mediante console.log().",c:true});
+            if (/\.length\b/.test(c))
+                out.push({t:"Consulta la propiedad length.",c:true});
+            if (/\.trim\(\)|toLowerCase|toUpperCase/.test(c))
+                out.push({t:"Realiza operaciones de normalización de texto.",c:true});
+            if (/this\./.test(c))
+                out.push({t:"Utiliza this para acceder al estado de un objeto/clase.",c:true});
+
+            if (!out.length)
+                out.push({t:"Contiene instrucciones JavaScript ejecutables.",c:true});
+
+            return out;
+        }
+
+        function generarAfirmacionesEstudiante(code) {
+            const reales = detectarCaracteristicas(code).filter(x=>x.c).slice(0,2);
+            const opciones = reales.map(x=>({t:x.t,c:true}));
+            opciones.push(
+                {t:"El código contiene obligatoriamente una conexión a una base de datos.",c:false},
+                {t:"El código ejecuta automáticamente una solución generada por una IA externa.",c:false},
+                {t:"Todas las variables del código son constantes inmutables.",c:false}
+            );
+            return opciones.slice(0,5);
+        }
+
+        function generarAfirmacionesIA(ideal) {
+            const reales = detectarCaracteristicas(ideal).filter(x=>x.c).slice(0,3);
+            const opciones = reales.map(x=>({t:x.t,c:true}));
+            opciones.push(
+                {t:"La solución ideal no contiene ninguna instrucción ejecutable.",c:false},
+                {t:"La solución ideal depende obligatoriamente de una base de datos externa.",c:false},
+                {t:"La solución ideal utiliza solamente HTML y nunca JavaScript.",c:false}
+            );
+            return opciones.slice(0,5);
+        }
+
+        function generarComparaciones(code, ideal) {
+            const fc = detectarCaracteristicas(code).filter(x=>x.c);
+            const fi = detectarCaracteristicas(ideal).filter(x=>x.c);
+            const opciones = [];
+
+            const common = fc.find(a => fi.some(b => b.t === a.t));
+            if (common)
+                opciones.push({t:`Ambos códigos ${common.t.toLowerCase()}`,c:true});
+
+            const onlyIA = fi.find(a => !fc.some(b => b.t === a.t));
+            if (onlyIA)
+                opciones.push({t:`La solución de IA ${onlyIA.t.toLowerCase()} y eso no se detecta en tu código entregado.`,c:true});
+
+            const onlyStudent = fc.find(a => !fi.some(b => b.t === a.t));
+            if (onlyStudent)
+                opciones.push({t:`Tu código ${onlyStudent.t.toLowerCase()} y esa característica no se detecta en la solución ideal.`,c:true});
+
+            opciones.push(
+                {t:"Ambos códigos son necesariamente idénticos carácter por carácter.",c:false},
+                {t:"La solución de IA siempre debe tener exactamente la misma cantidad de líneas que tu código.",c:false},
+                {t:"Si dos códigos resuelven el mismo problema, obligatoriamente deben utilizar las mismas variables.",c:false}
+            );
+
+            return opciones.slice(0,5);
+        }
+
+        function mezclarArray(arr) {
+            const copia = [...arr];
+            for (let i = copia.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copia[i], copia[j]] = [copia[j], copia[i]];
+            }
+            return copia;
+        }
+
+        function construirPreguntasAnalista(sectionId, code, ideal) {
+            const preguntasBase = mezclarArray(analistaPlantillas).slice(0,4);
+            const socraticas = mezclarArray(preguntasSocraticas).slice(0,2);
+
+            const preguntas = [
+                ...preguntasBase.map(p => ({...p, categoria:"ANÁLISIS TÉCNICO"})),
+                ...socraticas.map(p => ({...p, categoria:"SOCRÁTICA"}))
+            ];
+
+            return preguntas.map((plantilla, indice) => {
+                let opciones = plantilla.opciones(code, ideal);
+                opciones = mezclarArray(opciones);
+
+                // Puede haber 1, 2 o 3 respuestas correctas.
+                // El generador conserva las correctas reales y nunca las fija en una posición.
+                const correctas = opciones.filter(x => x.c).length;
+                if (correctas === 0) {
+                    opciones[0].c = true;
+                }
+
+                return {
+                    id: indice,
+                    tipo: plantilla.tipo,
+                    q: plantilla.q(code, ideal),
+                    opciones
+                };
+            });
+        }
+
+        function construirAnalista(sectionId, code) {
+            const box = document.getElementById(`analyst-${sectionId}`);
+            const container = document.getElementById(`analyst-questions-${sectionId}`);
+            const result = document.getElementById(`analyst-result-${sectionId}`);
+            const sec = seccionesData.find(s => s.id === sectionId);
+            if (!box || !container || !sec) return;
+
+            const ideal = sec.aiSolution || "";
+            const preguntas = construirPreguntasAnalista(sectionId, code, ideal);
+
+            // Guardamos las preguntas en memoria para corregirlas después.
+            window.analistaActual = window.analistaActual || {};
+            window.analistaActual[sectionId] = preguntas;
+
+            container.innerHTML = preguntas.map((p, i) => `
+                <div class="analyst-question">
+                    <strong>${i + 1}. ${p.q}</strong>
+                    <div style="margin:.4rem 0 .7rem;color:var(--text-muted);font-size:.75rem">
+                        <span class="analyst-badge">${p.categoria || "ANÁLISIS"}</span>
+                        ${p.tipo === "ESTUDIANTE" ? "🔵 Basada en tu código" :
+                          p.tipo === "IA" ? "🟣 Basada en la solución de IA" :
+                          "🟢 Comparación entre ambos códigos"}
+                        <br>Puede haber <strong>más de una respuesta correcta</strong>.
+                    </div>
+                    ${p.opciones.map((op,j) => `
+                        <label class="analyst-option">
+                            <input type="checkbox"
+                                   name="analyst-${sectionId}-${i}"
+                                   value="${j}">
+                            ${String.fromCharCode(65+j)}) ${escaparTextoAnalista(op.t)}
+                        </label>
+                    `).join("")}
+                </div>
+            `).join("");
+
+            result.innerHTML = "";
+            box.classList.add("active");
+            document.getElementById(`analyst-submit-${sectionId}`).disabled = false;
+        }
+
+
+        function resaltarRespuestasAnalista(sectionId) {
+            const preguntas = (window.analistaActual && window.analistaActual[sectionId]) || [];
+            preguntas.forEach((p, i) => {
+                const inputs = document.querySelectorAll(`input[name="analyst-${sectionId}-${i}"]`);
+                inputs.forEach((input, j) => {
+                    const label = input.closest(".analyst-option");
+                    if (!label) return;
+                    const elegida = input.checked;
+                    const correcta = !!p.opciones[j].c;
+                    label.classList.remove("analyst-correct", "analyst-wrong", "analyst-selected-correct");
+                    if (elegida && correcta) label.classList.add("analyst-selected-correct");
+                    else if (elegida) label.classList.add("analyst-wrong");
+                    else if (correcta) label.classList.add("analyst-correct");
+                });
+            });
+        }
+
+        function evaluarAnalista(sectionId) {
+            const preguntas = (window.analistaActual && window.analistaActual[sectionId]) || [];
+            let correctas = 0;
+            let respondidas = 0;
+            let maxPuntos = preguntas.length;
+
+            preguntas.forEach((p,i) => {
+                const marcadas = [...document.querySelectorAll(`input[name="analyst-${sectionId}-${i}"]:checked`)]
+                    .map(x => Number(x.value)).sort((a,b)=>a-b);
+
+                if (marcadas.length) respondidas++;
+
+                const reales = p.opciones
+                    .map((x,j)=>x.c ? j : null)
+                    .filter(x=>x !== null)
+                    .sort((a,b)=>a-b);
+
+                if (JSON.stringify(marcadas) === JSON.stringify(reales)) {
+                    correctas++;
+                }
+            });
+
+            const result = document.getElementById(`analyst-result-${sectionId}`);
+
+            if (respondidas < preguntas.length) {
+                result.innerHTML = `⚠️ Debes responder todas las preguntas. Recuerda que algunas pueden tener 2 o más respuestas correctas.`;
+                return;
+            }
+
+            const porcentaje = Math.round((correctas / maxPuntos) * 100);
+            const viabilidad = porcentaje >= 80 ? "ALTA" : porcentaje >= 60 ? "MEDIA" : "BAJA";
+            const excelencia = porcentaje === 100 ? "EXCELENTE" :
+                               porcentaje >= 80 ? "MUY BUENA" :
+                               porcentaje >= 60 ? "EN DESARROLLO" : "REQUIERE MEJORA";
+
+            document.getElementById(`viability-${sectionId}`).innerText = `Viabilidad: ${viabilidad}`;
+            document.getElementById(`excellence-${sectionId}`).innerText = `Excelencia: ${excelencia}`;
+
+            result.innerHTML =
+                `<strong>Resultado del Analista:</strong><br>` +
+                `Aciertos completos: <strong>${correctas}/${maxPuntos}</strong> (${porcentaje}%).<br>` +
+                `Viabilidad: <strong>${viabilidad}</strong>.<br>` +
+                `Excelencia: <strong>${excelencia}</strong>.<br>` +
+                `Las preguntas mezclaron evidencias de tu código, de la solución IA, de la comparación entre ambos y situaciones de razonamiento socrático.`;
+
+            resaltarRespuestasAnalista(sectionId);
+            document.querySelectorAll(`#analyst-${sectionId} input`).forEach(el => el.disabled = true);
+            document.getElementById(`analyst-submit-${sectionId}`).disabled = true;
+
+            if (!historialResultados[sectionId]) historialResultados[sectionId] = {};
+            historialResultados[sectionId].analista = {
+                correctas,
+                total: maxPuntos,
+                porcentaje,
+                viabilidad,
+                excelencia,
+                preguntas: preguntas.map((p, i) => ({
+                    tipo: p.tipo,
+                    categoria: p.categoria || "ANÁLISIS",
+                    pregunta: p.q,
+                    opciones: p.opciones.map(x => ({
+                        texto: x.t || "",
+                        correcta: !!x.c
+                    })),
+                    seleccionadas: [...document.querySelectorAll(`input[name="analyst-${sectionId}-${i}"]:checked`)]
+                        .map(x => Number(x.value)),
+                    correctas: p.opciones.map((x,j)=>x.c?j:null).filter(x=>x!==null)
+                }))
+            };
+        }
+
+
+        function resolverYCompararIA(sectionId) {
+            if (actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
+
+            if (!confirm("⚠️ ATENCIÓN: Al pulsar este botón, la IA resolverá el ejercicio, evaluará tu código y bloqueará la actividad. ¿Deseas continuar?")) {
+                return;
+            }
+
+            const editor = document.getElementById(`editor-${sectionId}`);
+            const sec = seccionesData.find(s => s.id === sectionId);
+            const feedbackBox = document.getElementById(`ai-feedback-${sectionId}`);
+            const studentCodeDisplay = document.getElementById(`ai-student-code-${sectionId}`);
+            const idealDisplay = document.getElementById(`ai-ideal-code-${sectionId}`);
+            const feedbackText = document.getElementById(`ai-text-${sectionId}`);
+            const code = editor.value.trim();
+
+            if (!editor || !sec || !feedbackBox || !feedbackText) return;
+
+            if (idealDisplay) idealDisplay.innerText = sec.aiSolution;
+            feedbackBox.classList.add('active');
+            if (studentCodeDisplay) studentCodeDisplay.innerText = code;
+            feedbackText.innerHTML = "<i>🤖 Evaluando tu código y preparando el Analista...</i>";
+
+            setTimeout(() => {
+                const puntaje = calcularNotaEstricta(code, sec);
+                let analisis = "";
+
+                if (puntaje === 1) analisis = "❌ <strong>Evaluación Estricta (1/10):</strong> Plantilla inicial sin resolver.";
+                else if (puntaje === 4) analisis = "⚠️ <strong>Evaluación Estricta (4/10):</strong> Código sin estructuras lógicas requeridas.";
+                else if (puntaje === 7) analisis = "🎯 <strong>Evaluación Estricta (7/10):</strong> Alcanza o supera el 70% de desarrollo.";
+                else if (puntaje === 5) analisis = "🔍 <strong>Evaluación Estricta (5/10):</strong> Resolución parcial por debajo del 70%.";
+                else if (puntaje === 3) analisis = "⚠️ <strong>Evaluación Estricta (3/10):</strong> Código demasiado escueto.";
+                else if (puntaje === 10) analisis = "✅ <strong>¡Excelente Trabajo! (10/10):</strong> Cumple rigurosamente con los parámetros ideales.";
+
+                feedbackText.innerHTML = `<strong>Calificación Estricta IA: ${puntaje}/10</strong><br>${analisis}`;
+
+                // IMPORTANTE: el cuestionario se construye AQUÍ, al pulsar IA,
+                // usando el código real del estudiante + solución ideal de IA.
+                construirAnalista(sectionId, code);
+
+                const analystBox = document.getElementById(`analyst-${sectionId}`);
+                if (analystBox) {
+                    analystBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+
+                editor.disabled = true;
+                ["run","preview","ai","reset","pause"].forEach(btn => {
+                    const el = document.getElementById(`btn-${btn}-${sectionId}`);
+                    if (el) el.disabled = true;
+                });
+
+                if (cronometrosActivos[sectionId]) {
+                    clearInterval(cronometrosActivos[sectionId]);
+                    cronometrosActivos[sectionId] = null;
+                }
+
+                actividadesFinalizadas[sectionId] = true;
+                localStorage.setItem(`finalized_${sectionId}`, 'true');
+
+                if (!historialResultados[sectionId]) historialResultados[sectionId] = {};
+                historialResultados[sectionId].codigo = code;
+                historialResultados[sectionId].solucionIA = sec.aiSolution;
+                historialResultados[sectionId].notaIA = puntaje;
+                historialResultados[sectionId].analisisIA = analisis.replace(/<[^>]*>?/gm, '');
+                historialResultados[sectionId].exito = true;
+
+                actualizarIconoEstado(sectionId, true);
+                actualizarProgreso();
+            }, 800);
+        }
+
+
+        function generarTextoAnalistaPDF(sectionId) {
+            const analistaPDF = generarTextoAnalistaPDF(typeof sectionId !== "undefined" ? sectionId : "");
+
+            const data = historialResultados[sectionId] || {};
+            const preguntas = data.analista && data.analista.preguntas ? data.analista.preguntas : [];
+            if (!preguntas.length) return "ANALISTA DE VIABILIDAD Y EXCELENCIA\nNo se respondió el cuestionario del analista.\n";
+
+            let texto = "\n\n════════════════════════════════════════════════════\n";
+            texto += "ANALISTA DE VIABILIDAD Y EXCELENCIA\n";
+            texto += "════════════════════════════════════════════════════\n\n";
+
+            texto += `Resultado: ${data.analista.correctas || 0}/${data.analista.total || preguntas.length} `;
+            texto += `(${data.analista.porcentaje || 0}%)\n`;
+            texto += `Viabilidad: ${data.analista.viabilidad || "PENDIENTE"}\n`;
+            texto += `Excelencia: ${data.analista.excelencia || "PENDIENTE"}\n\n`;
+
+            preguntas.forEach((p, i) => {
+                texto += `${i + 1}. [${p.categoria || p.tipo || "ANÁLISIS"}]\n`;
+                texto += `${p.pregunta}\n`;
+
+                if (p.opciones) {
+                    p.opciones.forEach((op, j) => {
+                        const marcada = p.seleccionadas && p.seleccionadas.includes(j) ? "☑" : "☐";
+                        texto += `   ${marcada} ${String.fromCharCode(65 + j)}) ${op.texto || op.t || ""}`;
+                        if (op.correcta === true || op.c === true) texto += "  [CORRECTA]";
+                        texto += "\n";
+                    });
+                } else if (p.correctas) {
+                    texto += `   Respuestas correctas: ${p.correctas.map(j => String.fromCharCode(65 + j)).join(", ")}\n`;
+                }
+
+                if (p.respuestaTexto) {
+                    texto += `   Respuesta del estudiante: ${p.respuestaTexto}\n`;
+                }
+                texto += "\n";
+            });
+
+            return texto;
+        }
+
+        function configurarEditores() {
+            document.querySelectorAll('.code-editor').forEach(textarea => {
+                textarea.addEventListener('click', (e) => {
+                    const secId = e.target.id.replace('editor-', '');
+                    iniciarCronometro(secId);
+                });
+                textarea.addEventListener('focus', (e) => {
+                    const secId = e.target.id.replace('editor-', '');
+                    iniciarCronometro(secId);
+                });
+                textarea.addEventListener('input', (e) => {
+                    const secId = e.target.id.replace('editor-', '');
+                    if (!actividadesFinalizadas[secId] && !modulosPausados[secId]) {
+                        localStorage.setItem(`draft_${e.target.id}`, e.target.value);
+                    }
+                });
+                textarea.addEventListener('keydown', function(e) {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = this.selectionStart;
+                        const end = this.selectionEnd;
+                        this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
+                        this.selectionStart = this.selectionEnd = start + 4;
+                        localStorage.setItem(`draft_${this.id}`, this.value);
+                    }
+                });
+            });
+        }
+
+        function bloquearCopiaYPegado() {
+            document.querySelectorAll('.code-editor').forEach(editor => {
+                editor.addEventListener('paste', (e) => { e.preventDefault(); alert('⚠️ Pegado deshabilitado por seguridad.'); });
+                editor.addEventListener('copy', (e) => { e.preventDefault(); });
+                editor.addEventListener('cut', (e) => { e.preventDefault(); });
+                editor.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+            });
+        }
+
+        function exportarProgresoJSON() {
+            const nombre = document.getElementById('studentName').value.trim();
+            const curso = document.getElementById('studentCourse').value.trim();
+            const paqueteAvance = { 
+                estudiante: { nombre, curso }, 
+                salidasPestaña: totalSalidasPestaña, 
+                codigos: {}, 
+                tiemposRestantes: tiemposRestantes,
+                finalizadas: actividadesFinalizadas 
+            };
+            seccionesData.forEach(sec => {
+                paqueteAvance.codigos[sec.id] = localStorage.getItem(`draft_editor-${sec.id}`);
+            });
+            const blob = new Blob([JSON.stringify(paqueteAvance, null, 2)], { type: "application/json" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `avance_js_${(nombre || 'estudiante').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+            a.click();
+        }
+
+        function importarProgresoJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const paqueteAvance = JSON.parse(e.target.result);
+                    if (paqueteAvance.estudiante) {
+                        document.getElementById('studentName').value = paqueteAvance.estudiante.nombre || '';
+                        document.getElementById('studentCourse').value = paqueteAvance.estudiante.curso || '';
+                    }
+                    if (paqueteAvance.salidasPestaña !== undefined) {
+                        totalSalidasPestaña = paqueteAvance.salidasPestaña;
+                        localStorage.setItem('app_blur_count', totalSalidasPestaña);
+                        document.getElementById('blurCount').innerText = totalSalidasPestaña;
+                    }
+                    if (paqueteAvance.tiemposRestantes) {
+                        Object.keys(paqueteAvance.tiemposRestantes).forEach(secId => {
+                            tiemposRestantes[secId] = paqueteAvance.tiemposRestantes[secId];
+                            localStorage.setItem(`timer_${secId}`, tiemposRestantes[secId]);
+                        });
+                    }
+                    const codigos = paqueteAvance.codigos || paqueteAvance;
+                    Object.keys(codigos).forEach(secId => {
+                        if (codigos[secId] && secId.startsWith('sec-')) {
+                            localStorage.setItem(`draft_editor-${secId}`, codigos[secId]);
+                        }
+                    });
+                    alert("¡Progreso cargado con éxito! Recargando...");
+                    window.location.reload();
+                } catch (err) {
+                    alert("⚠️ Error al leer el archivo JSON.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function exportarResultadosPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const nombre = document.getElementById('studentName').value.trim() || "Estudiante No Especificado";
+            const curso = document.getElementById('studentCourse').value.trim() || "Sin Especificar";
+            const fechaGeneracion = new Date().toLocaleString();
+
+            const seccionesResueltas = seccionesData.filter(sec => historialResultados[sec.id]);
+
+            if (seccionesResueltas.length === 0) {
+                alert("⚠️ Aún no has finalizado ninguna actividad con el tutor IA.");
+                return;
+            }
+
+            let sumaNotas = 0;
+            seccionesResueltas.forEach(sec => {
+                sumaNotas += historialResultados[sec.id].notaIA;
+            });
+            let notaBrutaPromedio = sumaNotas / seccionesResueltas.length;
+
+            let puntosDescuento = 0;
+            let mensajeFraude = "Sin penalizaciones (Comportamiento íntegro)";
+            if (totalSalidasPestaña >= 3 && totalSalidasPestaña <= 7) {
+                puntosDescuento = 2;
+                mensajeFraude = `Penalización aplicada: -2 pts por ${totalSalidasPestaña} salidas de pestaña (Rango 3-7).`;
+            } else if (totalSalidasPestaña > 7) {
+                puntosDescuento = 10;
+                mensajeFraude = `EJERCICIO ANULADO: ${totalSalidasPestaña} salidas de pestaña (>7 detectadas).`;
+            }
+
+            let notaFinalPromedio = totalSalidasPestaña > 7 ? 1 : Math.max(1, notaBrutaPromedio - puntosDescuento).toFixed(2);
+
+            let y = 15;
+            function verificarEspacio(espacio) {
+                if (y + espacio > 275) { doc.addPage(); y = 15; return true; }
+                return false;
+            }
+
+            doc.setFillColor(15, 23, 42);
+            doc.rect(0, 0, 210, 42, 'F');
+            doc.setTextColor(56, 189, 248);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("IPEM 146 — INFORME OFICIAL DE EVALUACIÓN", 14, 15);
+
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8.5);
+            doc.setFont("helvetica", "normal");
+            doc.text("Materia: JavaScript Interactivo | Sistema de Control Estricto con Cronómetro y Anti-Fraude", 14, 22);
+            doc.text(`Generado el: ${fechaGeneracion} | Docente: Prof. J. Pantaleo`, 14, 28);
+            doc.text(`Validador de Seguridad: Cifrado por PDF-Lib (Prohibida la edición o copia)`, 14, 34);
+
+            y = 48;
+            doc.setFillColor(241, 245, 249);
+            doc.setDrawColor(203, 213, 225);
+            doc.roundedRect(14, y, 182, 38, 2, 2, 'FD');
+            doc.setTextColor(15, 23, 42);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9.5);
+            doc.text(`Estudiante: ${nombre}`, 18, y + 8);
+            doc.text(`Curso: ${curso}`, 18, y + 15);
+            doc.text(`Módulos completados: ${seccionesResueltas.length} / ${seccionesData.length}`, 115, y + 8);
+            doc.text(`Salidas de Pestaña: ${totalSalidasPestaña}`, 115, y + 15);
+
+            doc.setFontSize(9);
+            doc.setTextColor(totalSalidasPestaña > 7 ? 185 : 30, totalSalidasPestaña > 7 ? 28 : 41, totalSalidasPestaña > 7 ? 28 : 59);
+            doc.text(`Estado Anti-Fraude: ${mensajeFraude}`, 18, y + 23);
+
+            doc.setFontSize(10.5);
+            doc.setTextColor(185, 28, 28);
+            doc.text(`PROMEDIO: ${notaFinalPromedio} / 10`, 18, y + 32);
+
+            y += 45;
+
+            seccionesResueltas.forEach((sec, idx) => {
+                const reg = historialResultados[sec.id];
+                verificarEspacio(55);
+
+                let tiempoUsadoSegs = TIEMPO_MAXIMO_SEGUNDOS - (tiemposRestantes[sec.id] !== undefined ? tiemposRestantes[sec.id] : TIEMPO_MAXIMO_SEGUNDOS);
+                let tMins = Math.floor(tiempoUsadoSegs / 60);
+                let tSecs = tiempoUsadoSegs % 60;
+                let tiempoStr = `${tMins}m ${tSecs}s`;
+
+                doc.setFillColor(30, 41, 59);
+                doc.rect(14, y, 182, 7, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(8);
+                doc.text(`[MÓDULO ${idx + 1}] ${sec.title} — Calificación: ${totalSalidasPestaña > 7 ? 1 : reg.notaIA}/10 | Tiempo empleado: ${tiempoStr}`, 16, y + 5);
+
+                y += 9;
+                doc.setFont("courier", "normal");
+                doc.setFontSize(7.5);
+                
+                const codigoLineas = doc.splitTextToSize("CÓDIGO ENTREGADO POR EL ALUMNO:\n" + (reg.codigo ? reg.codigo.trim() : "// Sin código"), 174);
+                doc.setFillColor(248, 250, 252);
+                doc.setDrawColor(203, 213, 225);
+                let altoCodigo = (codigoLineas.length * 3.5) + 4;
+                doc.rect(14, y, 182, altoCodigo, 'FD');
+                
+                doc.setTextColor(30, 41, 59);
+                y += 4;
+                codigoLineas.forEach(linea => {
+                    doc.text(linea, 18, y);
+                    y += 3.5;
+                });
+                y += 3;
+
+                verificarEspacio(25);
+                const aiLineas = doc.splitTextToSize("SOLUCIÓN IDEAL DE LA IA:\n" + sec.aiSolution.trim(), 174);
+                doc.setFillColor(243, 232, 255);
+                doc.setDrawColor(196, 181, 253);
+                let altoAI = (aiLineas.length * 3.5) + 4;
+                doc.rect(14, y, 182, altoAI, 'FD');
+                
+                doc.setTextColor(107, 33, 168);
+                y += 4;
+                aiLineas.forEach(linea => {
+                    doc.text(linea, 18, y);
+                    y += 3.5;
+                });
+                y += 6;
+
+                // ─────────────────────────────────────────────────────────────
+                // ANALISTA DE VIABILIDAD Y EXCELENCIA — PREGUNTAS Y RESPUESTAS
+                // Se incorpora al PDF cada pregunta, todas sus opciones, la
+                // selección del estudiante y las respuestas correctas.
+                // ─────────────────────────────────────────────────────────────
+                const analistaReg = reg.analista;
+                if (analistaReg && analistaReg.preguntas && analistaReg.preguntas.length) {
+                    verificarEspacio(35);
+
+                    doc.setFillColor(22, 101, 52);
+                    doc.rect(14, y, 182, 8, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(8.5);
+                    doc.text("ANALISTA DE VIABILIDAD Y EXCELENCIA", 17, y + 5.5);
+                    y += 11;
+
+                    doc.setTextColor(30, 41, 59);
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(8);
+                    doc.text(
+                        `Resultado: ${analistaReg.correctas || 0}/${analistaReg.total || analistaReg.preguntas.length} | ` +
+                        `Puntaje: ${analistaReg.porcentaje || 0}% | ` +
+                        `Viabilidad: ${analistaReg.viabilidad || "PENDIENTE"} | ` +
+                        `Excelencia: ${analistaReg.excelencia || "PENDIENTE"}`,
+                        16, y
+                    );
+                    y += 7;
+
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(7);
+
+                    doc.setTextColor(22, 101, 52);
+                    doc.text("★ ELEGIDA + CORRECTA", 16, y);
+                    doc.setTextColor(185, 28, 28);
+                    doc.text("✗ ELEGIDA INCORRECTA", 70, y);
+                    doc.setTextColor(161, 98, 7);
+                    doc.text("✓ CORRECTA NO ELEGIDA", 125, y);
+                    y += 6;
+
+                    analistaReg.preguntas.forEach((preg, qi) => {
+                        const opciones = preg.opciones || [];
+                        const seleccionadas = preg.seleccionadas || [];
+                        const correctas = preg.correctas || [];
+
+                        const bloque = [];
+                        bloque.push(`${qi + 1}. [${preg.categoria || preg.tipo || "ANÁLISIS"}]`);
+                        bloque.push(preg.pregunta || "");
+
+                        opciones.forEach((op, oi) => {
+                            const elegida = seleccionadas.includes(oi);
+                            const correcta = correctas.includes(oi);
+
+                            let marca = "";
+                            if (elegida && correcta) {
+                                marca = " ★ ELEGIDA + CORRECTA";
+                            } else if (elegida) {
+                                marca = " ✗ ELEGIDA (INCORRECTA)";
+                            } else if (correcta) {
+                                marca = " ✓ CORRECTA";
+                            }
+
+                            bloque.push(
+                                `   ${String.fromCharCode(65 + oi)}) ${op.texto || ""}${marca}`
+                            );
+                        });
+
+                        // Si el PDF se genera antes de entregar el analista,
+                        // igualmente informa cuáles serían las correctas.
+                        if (!seleccionadas.length) {
+                            bloque.push("   Respuesta del estudiante: SIN RESPONDER");
+                        } else {
+                            bloque.push(
+                                "   Respuesta del estudiante: " +
+                                seleccionadas.map(i => String.fromCharCode(65 + i)).join(", ")
+                            );
+                        }
+
+                        bloque.push(
+                            "   Respuesta correcta: " +
+                            (correctas.length
+                                ? correctas.map(i => String.fromCharCode(65 + i)).join(", ")
+                                : "NO DISPONIBLE")
+                        );
+
+                        // Encabezado de la pregunta.
+                        const preguntaLineas = doc.splitTextToSize(
+                            `${qi + 1}. [${preg.categoria || preg.tipo || "ANÁLISIS"}] ${preg.pregunta || ""}`,
+                            174
+                        );
+                        const altoPregunta = preguntaLineas.length * 3.4 + 5;
+                        verificarEspacio(altoPregunta + 3);
+
+                        doc.setFillColor(241, 245, 249);
+                        doc.setDrawColor(203, 213, 225);
+                        doc.roundedRect(14, y, 182, altoPregunta, 1.5, 1.5, 'FD');
+                        doc.setTextColor(30, 41, 59);
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(7.1);
+
+                        let yy = y + 4;
+                        preguntaLineas.forEach(linea => {
+                            doc.text(linea, 18, yy);
+                            yy += 3.4;
+                        });
+                        y += altoPregunta + 2;
+
+                        // Cada alternativa se muestra con color real.
+                        opciones.forEach((op, oi) => {
+                            const elegida = seleccionadas.includes(oi);
+                            const correcta = correctas.includes(oi);
+
+                            let bg, border, textColor, etiqueta;
+                            if (elegida && correcta) {
+                                // Verde fuerte: el estudiante eligió una correcta.
+                                bg = [187, 247, 208];
+                                border = [22, 163, 74];
+                                textColor = [20, 83, 45];
+                                etiqueta = "★ ELEGIDA + CORRECTA";
+                            } else if (elegida) {
+                                // Rojo: eligió una incorrecta.
+                                bg = [254, 202, 202];
+                                border = [220, 38, 38];
+                                textColor = [127, 29, 29];
+                                etiqueta = "✗ ELEGIDA (INCORRECTA)";
+                            } else if (correcta) {
+                                // Amarillo/verde claro: correcta pero no seleccionada.
+                                bg = [254, 249, 195];
+                                border = [202, 138, 4];
+                                textColor = [113, 63, 18];
+                                etiqueta = "✓ CORRECTA NO ELEGIDA";
+                            } else {
+                                bg = [248, 250, 252];
+                                border = [203, 213, 225];
+                                textColor = [51, 65, 85];
+                                etiqueta = "";
+                            }
+
+                            const textoOpcion = `${String.fromCharCode(65 + oi)}) ${op.texto || ""}${etiqueta ? " — " + etiqueta : ""}`;
+                            const lineasOpcion = doc.splitTextToSize(textoOpcion, 168);
+                            const altoOpcion = lineasOpcion.length * 3.4 + 4;
+
+                            verificarEspacio(altoOpcion + 2);
+
+                            doc.setFillColor(...bg);
+                            doc.setDrawColor(...border);
+                            doc.setLineWidth(elegida || correcta ? 0.8 : 0.3);
+                            doc.roundedRect(16, y, 178, altoOpcion, 1.2, 1.2, 'FD');
+
+                            doc.setTextColor(...textColor);
+                            doc.setFont("helvetica", elegida || correcta ? "bold" : "normal");
+                            doc.setFontSize(7);
+
+                            let oy = y + 4;
+                            lineasOpcion.forEach(linea => {
+                                doc.text(linea, 19, oy);
+                                oy += 3.4;
+                            });
+
+                            y += altoOpcion + 1.5;
+                        });
+
+                        // Resumen final de la pregunta.
+                        const resumen = seleccionadas.length
+                            ? `Respuesta del estudiante: ${seleccionadas.map(i => String.fromCharCode(65 + i)).join(", ")}`
+                            : "Respuesta del estudiante: SIN RESPONDER";
+                        const correctasTxt = correctas.length
+                            ? `Respuesta correcta: ${correctas.map(i => String.fromCharCode(65 + i)).join(", ")}`
+                            : "Respuesta correcta: NO DISPONIBLE";
+
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(6.8);
+                        doc.setTextColor(30, 41, 59);
+                        doc.text(resumen, 18, y + 3);
+                        doc.text(correctasTxt, 18, y + 6);
+                        y += 9;
+                    });
+
+                    y += 3;
+                }
+            });
+
+            try {
+                const pdfArrayBuffer = doc.output('arraybuffer');
+                const { PDFDocument } = PDFLib;
+                const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
+                const pdfBytes = await pdfDoc.save({
+                    userPassword: '',
+                    ownerPassword: 'clave_profe_ipem_146',
+                    permissions: { copying: false, modifying: false, annotating: false }
+                });
+
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `Evaluacion_Protegida_JS_${nombre.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+                link.click();
+            } catch (error) {
+                console.error("Error al cifrar PDF:", error);
+                alert("Error al generar el reporte seguro.");
+            }
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>

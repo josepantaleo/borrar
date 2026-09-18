@@ -1,11 +1,23 @@
 {
+  "name": "formacion-profesional-web",
   "private": true,
   "scripts": {
-    "build": "node build-app.js",
-    "predeploy": "npm run build",
-    "deploy": "firebase deploy --only hosting,firestore"
+    "test:rules": "npx firebase-tools@14.17.0 emulators:exec --only firestore --project ipem146js \"node firestore-rules.test.cjs\"",
+    "test:crdt": "node crdt-merge.test.cjs",
+    "test:cooperation": "node cooperation-contract.test.cjs",
+    "test:session": "node session-presence-contract.test.cjs",
+    "test:ui": "node ui-contract.test.cjs",
+    "test:sync": "node sync-contract.test.cjs",
+    "test:dashboard": "node dashboard-contract.test.cjs",
+    "test:rubric": "node rubric-contract.test.cjs",
+    "test:learning-path": "node learning-path-contract.test.cjs",
+    "validate": "powershell -NoProfile -ExecutionPolicy Bypass -File ./validate-project.ps1",
+    "version:bump": "powershell -NoProfile -ExecutionPolicy Bypass -File ./versionar-publicacion.ps1",
+    "version:publish": "powershell -NoProfile -ExecutionPolicy Bypass -File ./versionar-publicacion.ps1 -SourceRoot . -DestinationRoot \"C:\\Users\\Estudiante\\Desktop\\formacionprofesionalweb-main\""
   },
-  "dependencies": {
-    "ws": "^8.21.2"
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase": "^12.3.0",
+    "yjs": "^13.6.31"
   }
 }
