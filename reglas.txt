@@ -797,6 +797,25 @@ service cloud.firestore {
       allow delete: if isTeacher();
     }
 
+    // Resultados y conversaciones emitidos por Cloud Functions.
+    // El Admin SDK escribe fuera de estas reglas; ningún navegador puede
+    // crear, alterar o borrar evidencia marcada como verificada.
+    match /estudiantes/{uid}/evaluacionesServidor/{sectionId} {
+      allow get, list: if ownsDocument(uid) || isTeacher();
+      allow create, update, delete: if false;
+    }
+
+    match /estudiantes/{uid}/tutorServidor/{requestId} {
+      allow get, list: if ownsDocument(uid) || isTeacher();
+      allow create, update, delete: if false;
+    }
+
+    // Las cuotas son exclusivamente server-side. El cliente recibe el saldo
+    // necesario como respuesta de la función callable.
+    match /backendUsage/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
     match /estudiantes/{uid}/historialDesbloqueos/{eventoId} {
       allow get, list: if isTeacher();
 

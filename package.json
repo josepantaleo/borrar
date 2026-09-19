@@ -12,9 +12,12 @@
     "test:rubric": "node rubric-contract.test.cjs",
     "test:learning-path": "node learning-path-contract.test.cjs",
     "test:tutor": "node tutor-levels-contract.test.cjs",
+    "test:security": "node security-contract.test.cjs",
+    "test:backend-contract": "node backend-security-contract.test.cjs",
+    "test:functions": "npm --prefix functions test",
+    "check:functions": "npm --prefix functions run check",
     "validate": "powershell -NoProfile -ExecutionPolicy Bypass -File ./validate-project.ps1",
-    "version:bump": "powershell -NoProfile -ExecutionPolicy Bypass -File ./versionar-publicacion.ps1",
-    "version:publish": "powershell -NoProfile -ExecutionPolicy Bypass -File ./versionar-publicacion.ps1 -SourceRoot . -DestinationRoot \"C:\\Users\\Estudiante\\Desktop\\formacionprofesionalweb-main\""
+    "version:bump": "powershell -NoProfile -ExecutionPolicy Bypass -File ./versionar-publicacion.ps1"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",

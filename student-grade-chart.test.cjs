@@ -10,8 +10,10 @@ assert(
   "Falta el grafico individual de notas por desafio."
 );
 assert(
-  /resultado\.notaFinal\s*\?\?\s*resultado\.notaIA/.test(app),
-  "El grafico no toma la nota automatica."
+  app.includes("d?.resultadosVerificados?.[sec.id] || {}") &&
+  app.includes("resultadoServidor.verificadaServidor === true") &&
+  app.includes("resultadoServidor.notaCodigo"),
+  "El grafico no toma la nota automatica verificada por el servidor."
 );
 assert(
   /notasDocente\[sec\.id\]\?\.nota/.test(app),

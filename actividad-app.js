@@ -273,10 +273,22 @@
 
       function obtenerNotaRuta(sectionId, contexto) {
           const ajuste = contexto.notasDocente?.[sectionId] || {};
-          const resultado = contexto.historial?.[sectionId] || {};
-          const valor = ajuste.notaDocente ?? ajuste.notaFinalCalculada ?? ajuste.nota ??
-              resultado.notaFinal ?? resultado.notaIA;
+          const resultadoServidor = contexto.resultadosVerificados?.[sectionId] || {};
+          const valorServidor = resultadoServidor.verificadaServidor === true
+              ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+              : null;
+          const valor = ajuste.notaDocente ?? ajuste.notaFinalCalculada ?? ajuste.nota ?? valorServidor;
           const nota = valor === null || valor === undefined || valor === "" ? NaN : Number(valor);
+          return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
+      }
+
+      function obtenerNotaHistoricaOrientativaRuta(sectionId, contexto) {
+          const resultado = contexto.historial?.[sectionId];
+          if (!resultado || typeof resultado !== "object") return null;
+          const valorHistorico = resultado?.["notaFinal"] ?? resultado?.["notaIA"];
+          const nota = valorHistorico === null || valorHistorico === undefined || valorHistorico === ""
+              ? NaN
+              : Number(valorHistorico);
           return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
       }
 
@@ -286,6 +298,8 @@
               finalizadas: datos.finalizadas && typeof datos.finalizadas === "object" ? datos.finalizadas : {},
               notasDocente: datos.notasDocente && typeof datos.notasDocente === "object" ? datos.notasDocente : {},
               historial: datos.historial && typeof datos.historial === "object" ? datos.historial : {},
+              resultadosVerificados: datos.resultadosVerificados && typeof datos.resultadosVerificados === "object"
+                  ? datos.resultadosVerificados : {},
               ayudas: datos.ayudas && typeof datos.ayudas === "object" ? datos.ayudas : {},
               tiempos: datos.tiempos && typeof datos.tiempos === "object" ? datos.tiempos : {},
               borradores: datos.borradores && typeof datos.borradores === "object" ? datos.borradores : {}
@@ -305,6 +319,9 @@
               const corregida = Boolean(contexto.notasDocente[seccion.id] &&
                   Object.keys(contexto.notasDocente[seccion.id]).length);
               const nota = obtenerNotaRuta(seccion.id, contexto);
+              const notaOrientativa = Number.isFinite(nota)
+                  ? nota
+                  : obtenerNotaHistoricaOrientativaRuta(seccion.id, contexto);
               const errores = contarErroresRuta(contexto.historial[seccion.id]);
               const ayudas = contarAyudasRuta(contexto.ayudas[seccion.id]);
               const bloqueado = !finalizada && seccion.id !== actualId &&
@@ -334,6 +351,7 @@
                   bloqueado,
                   estado,
                   nota,
+                  notaOrientativa,
                   errores,
                   ayudas,
                   intentoAbandonado
@@ -360,7 +378,7 @@
           const recomendaciones = [];
           desafios.forEach((item, indice) => {
               if (item.errores >= 2) recomendaciones.push({ id: `${item.id}-errores`, sectionId: item.id, tipo: "errores_repetidos", prioridad: "alta", titulo: `Revisar errores de ${item.titulo}`, detalle: `Se detectaron ${item.errores} respuestas o ejecuciones con dificultad.` });
-              if (Number.isFinite(item.nota) && item.nota < 6) recomendaciones.push({ id: `${item.id}-nota`, sectionId: item.id, tipo: "baja_nota", prioridad: "alta", titulo: `Reforzar ${item.titulo}`, detalle: `La nota vigente es ${item.nota.toFixed(1)}/10.` });
+              if (Number.isFinite(item.notaOrientativa) && item.notaOrientativa < 6) recomendaciones.push({ id: `${item.id}-nota`, sectionId: item.id, tipo: "baja_nota", prioridad: "alta", titulo: `Reforzar ${item.titulo}`, detalle: `El historial sugiere reforzar este desafío (referencia ${item.notaOrientativa.toFixed(1)}/10).` });
               if (item.ayudas >= 5) recomendaciones.push({ id: `${item.id}-ayudas`, sectionId: item.id, tipo: "demasiadas_ayudas", prioridad: "media", titulo: `Practicar sin guía en ${item.titulo}`, detalle: `Se registraron ${item.ayudas} usos de ayudas o verificaciones.` });
               if (item.intentoAbandonado) recomendaciones.push({ id: `${item.id}-abandono`, sectionId: item.id, tipo: "abandono", prioridad: "media", titulo: `Retomar ${item.titulo}`, detalle: "Hay actividad iniciada que todavía no fue finalizada." });
               if (item.id === actualId && indice > 0 && !desafios[indice - 1].finalizada) {
@@ -994,28 +1012,6 @@
           const locales = palabrasClaveLocales(sec);
           descripcion.innerHTML = resaltarPalabrasClaveIA(sec.exerciseDesc, locales);
           if (estado) estado.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Palabras clave sugeridas por el desafío';
-          if (!window.firebaseAIRealConfigurada || typeof window.consultarTutorIAFirebase !== "function" || !window.firebaseCurrentUser) return;
-          try {
-              if (estado) estado.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> La IA está identificando las acciones y conceptos principales...';
-              const respuesta = await window.consultarTutorIAFirebase({
-                  nombreModulo: sec.title || sec.id,
-                  consigna: sec.exerciseDesc || "",
-                  pregunta: "Identificá entre 6 y 14 palabras o frases clave que ayuden a comprender qué debe hacer el estudiante. Devolvé únicamente un array JSON de objetos con las propiedades termino y explicacion. La explicación debe ser breve, clara, orientada a la acción y no debe resolver el ejercicio.",
-                  modo: "identificar_palabras_clave",
-                  conceptos: locales.join(", ")
-              });
-              const palabrasIA = extraerPalabrasClaveIA(respuesta);
-              if (palabrasIA.length) {
-                  descripcion.innerHTML = resaltarPalabrasClaveIA(sec.exerciseDesc, palabrasIA);
-                  if (estado) {
-                      estado.classList.add("ready");
-                      estado.innerHTML = '<i class="fa-solid fa-circle-check"></i> Palabras clave identificadas por IA';
-                  }
-              }
-          } catch (error) {
-              console.warn("No se pudieron identificar palabras clave con IA; se mantienen las sugerencias locales.", error);
-              if (estado) estado.innerHTML = '<i class="fa-solid fa-circle-info"></i> Palabras clave sugeridas localmente';
-          }
       }
 
       window.addEventListener("firebase-auth-changed", event => {
@@ -1062,6 +1058,7 @@
 
 
       let historialResultados = {};
+      let resultadosVerificadosEstudiante = {};
       let notasDesafiosDocente = {};
       let actividadesFinalizadas = {};
       let estadosRecomendacionesInforme = {};
@@ -1091,12 +1088,15 @@
 
       function obtenerNotaVigenteModuloEstudiante(sectionId) {
           const resultado = historialResultados[sectionId] || {};
+          const resultadoServidor = resultadosVerificadosEstudiante[sectionId] || {};
           const ajuste = notasDesafiosDocente[sectionId] || null;
           const notaDocenteValor = ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota;
           const notaDocente = notaDocenteValor === null || notaDocenteValor === undefined || notaDocenteValor === ''
               ? NaN
               : Number(notaDocenteValor);
-          const notaAutomatica = Number(resultado.notaFinal ?? resultado.notaIA);
+          const notaAutomatica = resultadoServidor.verificadaServidor === true
+              ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+              : NaN;
           return {
               nota: Number.isFinite(notaDocente)
                   ? Math.max(0, Math.min(10, notaDocente))
@@ -2472,6 +2472,10 @@
           if (datos.contadorPrevisualizaciones) Object.entries(datos.contadorPrevisualizaciones).forEach(([id,v]) => setLocalStorage(`preview_count_${id}`, Number(v)));
           if (datos.codigos) Object.entries(datos.codigos).forEach(([id,v]) => { if (typeof v === 'string') setLocalStorage(`draft_editor-${id}`, v); });
           historialResultados = datos.historialResultados || {};
+          resultadosVerificadosEstudiante = datos.resultadosVerificados &&
+              typeof datos.resultadosVerificados === 'object'
+              ? datos.resultadosVerificados
+              : {};
           notasDesafiosDocente = datos.notasDesafiosDocente && typeof datos.notasDesafiosDocente === 'object'
               ? datos.notasDesafiosDocente
               : {};
@@ -2945,13 +2949,13 @@
                       <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                           <span class="timer-display" id="timer-display-${sec.id}">40:00</span>
                           <small style="color:var(--text-muted)">Comienza al hacer clic en el editor</small>
-                          <button class="btn btn-warning teacher-only" id="btn-pause-${sec.id}" onclick="solicitarPausaModulo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                          <button type="button" class="btn btn-warning teacher-only" id="btn-pause-${sec.id}" onclick="solicitarPausaModulo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                               <i class="fa-solid fa-pause"></i> Pausar (Profe)
                           </button>
-                          <button class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_current')">
+                          <button type="button" class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_current')">
                               <i class="fa-solid fa-unlock"></i> Desbloquear Este
                           </button>
-                          <button class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_all')">
+                          <button type="button" class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_all')">
                               <i class="fa-solid fa-unlock-keyhole"></i> Desbloquear Todos
                           </button>
                       </div>
@@ -2963,11 +2967,11 @@
                   </div>
 
                   <div class="theory-box">
-                      <p>${sec.theory}</p>
+                      <p>${escapeHtml(sec.theory || "")}</p>
                   </div>
 
                   <div class="exercise-box">
-                      <h3><i class="fa-solid fa-laptop-code"></i> ${sec.exerciseTitle}</h3>
+                      <h3><i class="fa-solid fa-laptop-code"></i> ${escapeHtml(sec.exerciseTitle || "")}</h3>
                       <p id="exercise-desc-${sec.id}">${resaltarPalabrasClave(sec.exerciseDesc)}</p>
                       <div class="exercise-ai-status" id="exercise-ai-status-${sec.id}" aria-live="polite">
                           <i class="fa-solid fa-wand-magic-sparkles"></i> Preparando palabras clave...
@@ -3066,21 +3070,21 @@
                                       <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
                                       <span>Copiar, cortar y pegar están deshabilitados para estudiantes. Cada intento queda registrado para revisión docente.</span>
                                   </div>
-                                  <label class="sr-only" for="editor-${sec.id}">Código para ${sec.title}</label>
-                                      <textarea id="editor-${sec.id}" class="code-editor" aria-label="Código para ${sec.title}" spellcheck="false" autocapitalize="off" autocomplete="off" ${isFinalized ? 'disabled' : ''}>${savedCode}</textarea>
+                                  <label class="sr-only" for="editor-${sec.id}">Código para ${escapeHtml(sec.title || "")}</label>
+                                      <textarea id="editor-${sec.id}" class="code-editor" aria-label="Código para ${escapeHtml(sec.title || "")}" spellcheck="false" autocapitalize="off" autocomplete="off" ${isFinalized ? 'disabled' : ''}>${escapeHtml(savedCode)}</textarea>
                                   </div>
 
                                   <div class="student-run-actions">
-                                      <button class="btn btn-primary student-run-primary" id="btn-run-${sec.id}" onclick="ejecutarCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                      <button type="button" class="btn btn-primary student-run-primary" id="btn-run-${sec.id}" onclick="ejecutarCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                                           <i class="fa-solid fa-play"></i> Ejecutar código
                                       </button>
-                                      <button class="btn btn-preview" id="btn-preview-${sec.id}" onclick="previsualizarNotaIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                      <button type="button" class="btn btn-preview" id="btn-preview-${sec.id}" onclick="previsualizarNotaIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                                           <i class="fa-solid fa-star-half-stroke"></i> Nota previa (${3 - contadorPrevisualizaciones[sec.id]})
                                       </button>
-                                      <button class="btn btn-ai" id="btn-ai-${sec.id}" onclick="resolverYCompararIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                      <button type="button" class="btn btn-ai" id="btn-ai-${sec.id}" onclick="resolverYCompararIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                                           <i class="fa-solid fa-flag-checkered"></i> Entregar y comparar
                                       </button>
-                                      <button class="btn btn-secondary" id="btn-reset-${sec.id}" onclick="restablecerCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''} title="Volver al código inicial">
+                                      <button type="button" class="btn btn-secondary" id="btn-reset-${sec.id}" onclick="restablecerCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''} title="Volver al código inicial">
                                           <i class="fa-solid fa-rotate-left"></i> Restablecer
                                       </button>
                                   </div>
@@ -3142,11 +3146,11 @@
                               <div class="ai-comparison-grid">
                                   <div class="ai-column">
                                       <h4><i class="fa-solid fa-user-graduate"></i> Tu Código Entregado</h4>
-                                      <pre id="ai-student-code-${sec.id}">${savedCode}</pre>
+                                      <pre id="ai-student-code-${sec.id}">${escapeHtml(savedCode)}</pre>
                                   </div>
                                   <div class="ai-column">
                                       <h4><i class="fa-solid fa-robot"></i> Solución de referencia</h4>
-                                      <pre id="ai-ideal-code-${sec.id}">${sec.aiSolution}</pre>
+                                      <pre id="ai-ideal-code-${sec.id}">${escapeHtml(sec.aiSolution || "")}</pre>
                                   </div>
                               </div>
                               <div class="ai-eval-summary" id="ai-text-${sec.id}">${isFinalized ? 'Actividad previamente evaluada de forma estricta y cerrada.' : 'Generando comparativa...'}</div>
@@ -3166,7 +3170,7 @@
                                       <span class="analyst-badge" id="excellence-${sec.id}">Excelencia: pendiente</span>
                                   </div>
                                   <div id="analyst-questions-${sec.id}"></div>
-                                  <button class="btn btn-success" id="analyst-submit-${sec.id}" onclick="evaluarAnalista('${sec.id}')">
+                                  <button type="button" class="btn btn-success" id="analyst-submit-${sec.id}" onclick="evaluarAnalista('${sec.id}')">
                                       <i class="fa-solid fa-check-double"></i> Entregar respuestas al analista
                                   </button>
                                   <div class="analyst-result" id="analyst-result-${sec.id}"></div>
@@ -3946,6 +3950,22 @@
       }
 
       async function ejecutarCodigoAislado(code) {
+          const fuente = String(code || "");
+          const APIs_PROHIBIDAS = [
+              { patron: /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|WebTransport|importScripts)\b/, nombre: "acceso a red" },
+              { patron: /\b(?:Worker|SharedWorker|ServiceWorker|BroadcastChannel|RTCPeerConnection)\b/, nombre: "procesos o canales externos" },
+              { patron: /\b(?:indexedDB|caches)\b/, nombre: "almacenamiento del navegador" },
+              { patron: /\bimport\s*\(/, nombre: "importación dinámica" },
+              { patron: /\bnavigator\s*\.\s*sendBeacon\b/, nombre: "envío de datos" }
+          ];
+          const apiDetectada = APIs_PROHIBIDAS.find(item => item.patron.test(fuente));
+          if (apiDetectada) {
+              return {
+                  ok: false,
+                  logs: [],
+                  error: `La ejecución fue bloqueada porque intenta usar ${apiDetectada.nombre}.`
+              };
+          }
           const workerSource = `
               const serializar = valor => {
                   if (typeof valor !== "object" || valor === null) return String(valor);
@@ -3958,6 +3978,13 @@
               self.WebSocket = undefined;
               self.EventSource = undefined;
               self.importScripts = bloquearRed;
+              self.Worker = undefined;
+              self.SharedWorker = undefined;
+              self.BroadcastChannel = undefined;
+              self.RTCPeerConnection = undefined;
+              self.WebTransport = undefined;
+              self.indexedDB = undefined;
+              self.caches = undefined;
               self.onmessage = event => {
                   const logs = [];
                   const consola = {
@@ -3998,7 +4025,7 @@
                       URL.revokeObjectURL(workerUrl);
                       reject(new Error(event.message || "Error en el entorno aislado."));
                   };
-                  worker.postMessage({ code });
+                  worker.postMessage({ code: fuente });
               });
           } catch (error) {
               return { ok: false, logs: [], error: error.message };
@@ -4554,7 +4581,8 @@
           const preguntas = Math.max(0, Math.min(100, Number(porcentajePreguntas) || 0)) / 10;
           let nota = codigo * 0.7 + preguntas * 0.3;
           const sintaxisValida = evaluacionCodigo?.sintaxis?.valida !== false;
-          const ejecucionCorrecta = evaluacionCodigo?.ejecucion?.ok !== false;
+          const ejecucionNoAplicada = evaluacionCodigo?.ejecucion?.intentada === false;
+          const ejecucionCorrecta = ejecucionNoAplicada || evaluacionCodigo?.ejecucion?.ok !== false;
           const comportamiento = Number(evaluacionCodigo?.metricas?.comportamiento);
           if (!sintaxisValida) nota = Math.min(nota, 3);
           else if (!ejecucionCorrecta) nota = Math.min(nota, 4);
@@ -4746,9 +4774,14 @@
       }
 
       function contarConsultasTutor(sectionId) {
-          return (historialChatIA[sectionId] || []).filter(mensaje =>
+          const registradas = (historialChatIA[sectionId] || []).filter(mensaje =>
               mensaje.rol === "student" && mensaje.noConsumeCuota !== true
           ).length;
+          const persistidas = Math.max(
+              0,
+              Number.parseInt(getLocalStorage(`ai_usage_${sectionId}`) || "0", 10) || 0
+          );
+          return Math.max(registradas, persistidas);
       }
 
       function obtenerEstadoTutor(sectionId, nivel = 1) {
@@ -4830,6 +4863,9 @@
 
       function agregarMensajeChatIA(sectionId, rol, texto, metadata = {}) {
           if (!historialChatIA[sectionId]) historialChatIA[sectionId] = [];
+          if (rol === "student" && metadata.noConsumeCuota !== true) {
+              setLocalStorage(`ai_usage_${sectionId}`, String(contarConsultasTutor(sectionId) + 1));
+          }
           historialChatIA[sectionId].push({
               rol,
               texto: String(texto || "").trim(),
@@ -4974,12 +5010,12 @@
           actualizarEstadoChatIA(sectionId, "saving", "Consultando tutor IA seguro...");
           try {
               const consulta = window.consultarTutorIAFirebase({
-                  nombreModulo: sec.title || sectionId,
-                  consigna: sec.exerciseDesc || "",
+                  classId: idClaseSeguimientoPestanas(),
+                  sectionId,
                   pregunta,
                   modo,
+                  nivel,
                   codigo: code,
-                  conceptos: (sec.conceptosDetectar || []).join(", "),
                   diagnosticoLocal: resumenLocal,
                   historialReciente: mensajes.map(m => `${m.rol === "student" ? "Alumno" : "Tutor"}: ${m.texto}`).join("\n")
               });
@@ -4991,6 +5027,15 @@
               return validarRespuestaTutorRemoto(respuestaRemota, respaldoLocal);
           } catch (error) {
               console.warn("Tutor IA remoto no disponible; se usará el tutor local.", error);
+              const codigoError = String(error?.code || "");
+              if (codigoError.includes("resource-exhausted")) {
+                  actualizarEstadoChatIA(sectionId, "error", "Cuota de IA agotada");
+                  return "Alcanzaste la cuota segura de consultas de IA para este desafío. Podés seguir ejecutando y revisando tu código; el docente puede ajustar el límite para una próxima consulta.";
+              }
+              if (codigoError.includes("permission-denied") || codigoError.includes("failed-precondition")) {
+                  actualizarEstadoChatIA(sectionId, "error", "Consulta no autorizada");
+                  return `La consulta remota no fue autorizada: ${error?.message || "revisá el estado de la clase y tu cuenta"}.`;
+              }
               actualizarEstadoChatIA(sectionId, "error", "Tutor local activo");
               return `${respaldoLocal}\n\nAviso: el proveedor de IA no respondió. Se utilizó el tutor local y la consulta quedó registrada sin reintento automático.`;
           }
@@ -5327,7 +5372,7 @@
 
       function limpiarChatIA(sectionId) {
           if (!claseHabilitada || actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
-          if (!confirm("¿Limpiar las consultas de IA de este módulo? El docente dejará de ver este historial después de sincronizarse.")) return;
+          if (!confirm("¿Ocultar las consultas de IA de este módulo? La cantidad de consultas utilizadas no se reiniciará.")) return;
           historialChatIA[sectionId] = [];
           guardarChatIA(sectionId);
           renderizarChatIA(sectionId);
@@ -5741,12 +5786,12 @@
           const notaCodigo = Number(historialResultados[sectionId].notaCodigo ?? historialResultados[sectionId].notaIA ?? 0);
           const evaluacionCodigo = historialResultados[sectionId].evaluacionCodigo || null;
           const notaFinal = calcularNotaCombinada(notaCodigo, porcentaje, evaluacionCodigo);
-          const limiteFinal = evaluacionCodigo?.sintaxis?.valida === false
-              ? "La calificación automática del módulo se limitó a 3 porque el código contiene un error de sintaxis."
-              : evaluacionCodigo?.ejecucion?.ok === false
-                  ? "La calificación automática del módulo se limitó a 4 porque el código no se ejecutó correctamente."
-                  : Number(evaluacionCodigo?.metricas?.comportamiento) < 0.35
-                      ? "La calificación automática del módulo se limitó a 6 porque la salida no demuestra el comportamiento esperado."
+           const limiteFinal = evaluacionCodigo?.sintaxis?.valida === false
+               ? "La calificación automática del módulo se limitó a 3 porque el código contiene un error de sintaxis."
+               : evaluacionCodigo?.ejecucion?.intentada !== false && evaluacionCodigo?.ejecucion?.ok === false
+                   ? "La calificación automática del módulo se limitó a 4 porque el código no se ejecutó correctamente."
+                   : evaluacionCodigo?.ejecucion?.intentada !== false && Number(evaluacionCodigo?.metricas?.comportamiento) < 0.35
+                       ? "La calificación automática del módulo se limitó a 6 porque la salida no demuestra el comportamiento esperado."
                       : "";
 
            result.innerHTML =
@@ -5847,13 +5892,25 @@
           const salidaReferencia = resultadoReferencia.ok
               ? (Array.isArray(resultadoReferencia.logs) ? resultadoReferencia.logs.join("\n") : "")
               : "";
-          const evaluacion = evaluarCodigoPorEvidencias(code, sec, {
-              ok: Boolean(resultadoAlumno.ok),
-              logs: resultadoAlumno.logs || [],
-              salida: salidaAlumno,
-              error: resultadoAlumno.error || "",
-              salidaEsperada: salidaReferencia
-          });
+          if (!window.firebaseBackendSeguroConfigurado || typeof window.evaluarCodigoServidorFirebase !== "function") {
+              feedbackText.innerHTML = "<strong>No se pudo entregar:</strong> el backend seguro no está disponible. El código permanece editable y no se registró una calificación.";
+              return;
+          }
+          let evaluacionServidor;
+          try {
+              feedbackText.innerHTML = "<i>Solicitando evaluación autenticada al servidor...</i>";
+              evaluacionServidor = await window.evaluarCodigoServidorFirebase({
+                  classId: idClaseSeguimientoPestanas(),
+                  sectionId,
+                  codigo: code
+              });
+          } catch (error) {
+              console.error("Evaluación segura no disponible", error);
+              const mensaje = error?.message || "No se pudo contactar al evaluador seguro.";
+              feedbackText.innerHTML = `<strong>No se pudo entregar:</strong> ${escaparTextoAnalista(mensaje)} El código permanece editable y no se consumó la entrega.`;
+              return;
+          }
+          const evaluacion = evaluacionServidor.evaluation;
               const diagnostico = generarDiagnosticoIA(evaluacion, sec, {
                   ok: Boolean(resultadoAlumno.ok),
                   salida: salidaAlumno,
@@ -5917,6 +5974,7 @@
               historialResultados[sectionId].solucionIA = sec.aiSolution;
               historialResultados[sectionId].notaCodigo = puntaje;
               historialResultados[sectionId].evaluacionCodigo = evaluacion;
+              historialResultados[sectionId].evaluacionServidorId = evaluacionServidor.evaluationId;
               historialResultados[sectionId].salida = salidaAlumno;
               historialResultados[sectionId].error = resultadoAlumno.error || "";
               delete historialResultados[sectionId].notaPreguntas;
@@ -6774,8 +6832,8 @@
                       Solicitud: ${escapeHtml(fecha)}
                   </p>
                   <div class="pending-request-actions">
-                      <button class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
-                      <button class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
+                      <button type="button" class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
+                      <button type="button" class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
                   </div>
               </article>`;
           }).join('') : '<p style="color:var(--text-muted);margin:0">No hay solicitudes pendientes.</p>';
@@ -6864,8 +6922,8 @@
                   ${antecedentes.length ? `<details style="margin-bottom:.6rem;font-size:.73rem;color:var(--text-muted)"><summary style="cursor:pointer;color:#fca5a5">Antecedentes de rechazo (${antecedentes.length})</summary>${antecedentes.map(a => `<div style="margin-top:.35rem">Motivo: ${escapeHtml(a.motivo || 'Sin motivo')}<br>Responsable: ${escapeHtml(a.rechazadoPor || 'Sin registrar')}</div>`).join('')}</details>` : ''}
                   ${problemas.length ? `<div class="pending-request-warning"><i class="fa-solid fa-triangle-exclamation"></i> No se puede aceptar todavía:<br>${problemas.map(escapeHtml).join('<br>')}</div>` : ''}
                   <div class="pending-request-actions">
-                      <button class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')" ${seleccionable ? '' : 'disabled'}><i class="fa-solid fa-user-check"></i> Aceptar</button>
-                      <button class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
+                      <button type="button" class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')" ${seleccionable ? '' : 'disabled'}><i class="fa-solid fa-user-check"></i> Aceptar</button>
+                      <button type="button" class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
                   </div>
               </article>`;
           }).join('') : '<p style="color:var(--text-muted);margin:0">No hay solicitudes pendientes.</p>';
@@ -8977,9 +9035,20 @@
               ? NaN
               : Number(valorDocente);
           if (Number.isFinite(notaDocente)) return Math.max(0, Math.min(10, notaDocente));
-          const registro = resultado || d?.historialResultados?.[sectionId] || {};
-          const notaAutomatica = Number(registro.notaFinal ?? registro.notaIA);
-          return Number.isFinite(notaAutomatica) ? Math.max(0, Math.min(10, notaAutomatica)) : null;
+          const verificada = d?.resultadosVerificados?.[sectionId] || {};
+          const notaVerificada = Number(
+              verificada.notaCodigo ??
+              verificada.evaluacionCodigo?.nota
+          );
+          if (verificada.verificadaServidor === true && Number.isFinite(notaVerificada)) {
+              return Math.max(0, Math.min(10, notaVerificada));
+          }
+          return null;
+      }
+      function evaluacionCodigoTieneError(evaluacion = {}, registro = {}) {
+          return evaluacion?.sintaxis?.valida === false ||
+              (evaluacion?.ejecucion?.intentada !== false && evaluacion?.ejecucion?.ok === false) ||
+              Boolean(registro?.error);
       }
       function obtenerNotasDesafiosFinalizadosEstudiante(d) {
           const historial = d?.historialResultados || {};
@@ -9192,11 +9261,14 @@
           };
           const datos = seccionesData.map((sec, indice) => {
               const resultado = historial[sec.id] || {};
+              const resultadoServidor = d?.resultadosVerificados?.[sec.id] || {};
               return {
                   id: sec.id,
                   indice: indice + 1,
                   titulo: sec.title || `Desafío ${indice + 1}`,
-                  automatica: limitarNota(resultado.notaFinal ?? resultado.notaIA),
+                  automatica: resultadoServidor.verificadaServidor === true
+                      ? limitarNota(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+                      : null,
                   docente: limitarNota(
                       notasDocente[sec.id]?.notaDocente ??
                       notasDocente[sec.id]?.notaFinalCalculada ??
@@ -9587,10 +9659,10 @@
               );
               return;
           }
-          const notaAutomatica = Number(
-              d.historialResultados?.[sectionId]?.notaFinal ??
-              d.historialResultados?.[sectionId]?.notaIA
-          );
+          const resultadoServidor = d.resultadosVerificados?.[sectionId] || {};
+          const notaAutomatica = resultadoServidor.verificadaServidor === true
+              ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+              : NaN;
           d.notasDesafiosDocente = {
               ...(d.notasDesafiosDocente || {}),
               [sectionId]: {
@@ -10687,14 +10759,14 @@
               <div style="padding:1rem;border:1px solid rgba(245,158,11,.45);border-radius:8px;background:rgba(245,158,11,.08);margin-bottom:1rem">
                   <strong style="color:#fde68a"><i class="fa-solid fa-user-clock"></i> Solicitud de acceso pendiente</strong>
                   <div class="btn-group" style="margin-top:.75rem">
-                      <button class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar estudiante</button>
-                      <button class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar solicitud</button>
+                      <button type="button" class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar estudiante</button>
+                      <button type="button" class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar solicitud</button>
                   </div>
               </div>` : (cuentaRechazada ? `
               <div style="padding:1rem;border:1px solid rgba(239,68,68,.45);border-radius:8px;background:rgba(239,68,68,.08);margin-bottom:1rem">
                   <strong style="color:#fca5a5"><i class="fa-solid fa-user-xmark"></i> Solicitud rechazada</strong>
                   <div style="margin-top:.45rem">Motivo: ${escapeHtml(d.rechazoMotivo || 'Sin motivo registrado')}</div>
-                  <button class="btn btn-success" style="margin-top:.75rem" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Habilitar cuenta</button>
+                  <button type="button" class="btn btn-success" style="margin-top:.75rem" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Habilitar cuenta</button>
               </div>` : '');
           const fecha = d.actualizadoEn?.toDate ? d.actualizadoEn.toDate().toLocaleString() : 'Sin fecha';
           const cantidadDesbloqueos = Number(d.cantidadDesbloqueos || 0);
@@ -10709,12 +10781,15 @@
 
           const actividadesHtml = seccionesData.map((sec, numero) => {
               const r = historial[sec.id] || {};
+              const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
               const ajusteNotaDocente = d.notasDesafiosDocente?.[sec.id] || null;
               const mensajesChat = Array.isArray(chatIA[sec.id]) ? chatIA[sec.id] : [];
               const preguntas = Array.isArray(r.analista?.preguntas) ? r.analista.preguntas : [];
-              const codigo = r.codigo || codigos[sec.id] || '// Sin código guardado';
+              const codigo = resultadoServidor.codigo || r.codigo || codigos[sec.id] || '// Sin código guardado';
               const salida = r.salida || '// Sin salida de ejecución guardada';
-              const notaAutomatica = r.notaFinal ?? r.notaIA;
+              const notaAutomatica = resultadoServidor.verificadaServidor === true
+                  ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+                  : null;
               const notaFinal = obtenerNotaDesafioEstudiante(d, sec.id, r);
               const valorNotaDocente = ajusteNotaDocente?.notaDocente ??
                   ajusteNotaDocente?.notaFinalCalculada ??
@@ -10729,7 +10804,7 @@
               const criteriosRubricaIniciales = criteriosRubricaDocente.length
                   ? criteriosRubricaDocente
                   : [];
-              const evaluacionCodigo = r.evaluacionCodigo || null;
+               const evaluacionCodigo = resultadoServidor.evaluacionCodigo || r.evaluacionCodigo || null;
               const ayudaModulo = ayudas[sec.id] || {};
               const palabrasModulo = Object.values(ayudaModulo.palabras || {});
               const consultasPalabrasModulo = palabrasModulo.reduce((total, item) => total + Number(item?.consultas || 0), 0);
@@ -10745,7 +10820,7 @@
                   ? `(${r.notaCodigo} × 0,70) + (${r.notaPreguntas} × 0,30) = ${notaAutomatica}`
                   : 'La fórmula se completará al entregar código y preguntas.';
               const estadosDetalle = [
-                  (!evaluacionCodigo?.sintaxis?.valida || evaluacionCodigo?.ejecucion?.ok === false || Boolean(r.error)) ? 'errores' : '',
+                  evaluacionCodigoTieneError(evaluacionCodigo, r) ? 'errores' : '',
                   (!finalizadas[sec.id] || r.notaPreguntas === undefined || notaAutomatica === undefined) ? 'pendientes' : '',
                   tieneNotaDocente ? 'modificadas' : '',
                   finalizadas[sec.id] ? 'finalizadas' : '',
@@ -10753,8 +10828,7 @@
                   notaFinal !== null && Number(notaFinal) >= 6 ? 'aprobadas' : '',
                   notaFinal !== null && Number(notaFinal) < 6 ? 'desaprobadas' : '',
                   finalizadas[sec.id] && notaFinal !== null &&
-                      evaluacionCodigo?.sintaxis?.valida !== false &&
-                      evaluacionCodigo?.ejecucion?.ok !== false &&
+                      !evaluacionCodigoTieneError(evaluacionCodigo, r) &&
                       !r.error && !tieneNotaDocente ? 'completas' : ''
               ].filter(Boolean).join(' ');
               const estadoDetalleFinal = estadosDetalle || 'completas';
@@ -11022,7 +11096,7 @@
                   <strong>Estado institucional: ${cuentaInactiva ? 'INACTIVA' : 'ACTIVA'}</strong>
                   ${cuentaInactiva ? `<div style="margin-top:.35rem">Motivo: ${escapeHtml(d.bajaMotivo || 'Sin motivo')}<br>Fecha: ${escapeHtml(d.bajaFecha ? new Date(d.bajaFecha).toLocaleString() : 'Sin fecha')}<br>Responsable: ${escapeHtml(d.bajaPor || 'Sin registrar')}</div>` : '<div style="margin-top:.35rem;color:var(--text-muted)">La cuenta puede iniciar sesión normalmente.</div>'}
                   <div style="margin-top:.7rem">
-                      <button class="btn ${cuentaInactiva ? 'btn-success' : 'btn-danger'}" onclick="cambiarEstadoCuentaEstudiante(${indice}, '${cuentaInactiva ? 'activo' : 'inactivo'}')">
+                      <button type="button" class="btn ${cuentaInactiva ? 'btn-success' : 'btn-danger'}" onclick="cambiarEstadoCuentaEstudiante(${indice}, '${cuentaInactiva ? 'activo' : 'inactivo'}')">
                           <i class="fa-solid ${cuentaInactiva ? 'fa-user-check' : 'fa-user-slash'}"></i>
                           ${cuentaInactiva ? 'Reactivar cuenta' : 'Dar de baja'}
                       </button>
@@ -11031,14 +11105,14 @@
               <div style="padding:1rem;border:1px solid rgba(56,189,248,.35);border-radius:8px;background:rgba(56,189,248,.06);margin-bottom:1rem">
                   <strong>Control individual del cronómetro: ${cronometroIndividualPausado ? 'PAUSADO' : 'ACTIVO'}</strong>
                   <div class="btn-group" style="margin-top:.7rem">
-                      <button class="btn ${cronometroIndividualPausado ? 'btn-success' : 'btn-warning'}" onclick="controlarCronometroEstudianteProfesor(${indice}, '${cronometroIndividualPausado ? 'reanudar' : 'pausar'}')">
+                      <button type="button" class="btn ${cronometroIndividualPausado ? 'btn-success' : 'btn-warning'}" onclick="controlarCronometroEstudianteProfesor(${indice}, '${cronometroIndividualPausado ? 'reanudar' : 'pausar'}')">
                           <i class="fa-solid ${cronometroIndividualPausado ? 'fa-play' : 'fa-pause'}"></i>
                           ${cronometroIndividualPausado ? 'Reanudar cronómetro' : 'Pausar cronómetro'}
                       </button>
-                      <button class="btn btn-secondary" onclick="controlarCronometroEstudianteProfesor(${indice}, 'reiniciar')">
+                      <button type="button" class="btn btn-secondary" onclick="controlarCronometroEstudianteProfesor(${indice}, 'reiniciar')">
                           <i class="fa-solid fa-clock-rotate-left"></i> Reiniciar a 40:00
                       </button>
-                      <button class="btn btn-danger" onclick="desbloquearPantallaEstudianteProfesor(${indice})">
+                      <button type="button" class="btn btn-danger" onclick="desbloquearPantallaEstudianteProfesor(${indice})">
                           <i class="fa-solid fa-unlock-keyhole"></i> Desbloquear pantalla
                       </button>
                   </div>
@@ -11071,7 +11145,7 @@
                   <summary>Registro de cambios de pestaña y revisión docente <small>${eventos.length} evento${eventos.length === 1 ? '' : 's'} · ${revision.estado || 'pendiente'}</small></summary>
                   <div class="teacher-activity-content">
                       <p style="color:var(--text-muted);margin-bottom:.7rem;">Estos eventos son indicadores para revisión; no constituyen por sí solos una prueba de fraude.</p>
-                      <button class="btn btn-danger" style="margin-bottom:.8rem" onclick="reiniciarSalidasEstudianteProfesor(${indice})">
+                      <button type="button" class="btn btn-danger" style="margin-bottom:.8rem" onclick="reiniciarSalidasEstudianteProfesor(${indice})">
                           <i class="fa-solid fa-rotate-left"></i> Reiniciar contador de cambios de pestaña
                       </button>
                       ${eventosHtml}
@@ -11119,7 +11193,7 @@
                                   <small>Se confirmará el valor ingresado arriba. Si se modifica el descuento desde el editor rápido, deberá confirmarse nuevamente.</small>
                               </span>
                           </label>
-                          <button class="btn btn-warning" style="margin-top:.8rem" onclick="guardarRevisionSalidasProfesor(${indice})">
+                          <button type="button" class="btn btn-warning" style="margin-top:.8rem" onclick="guardarRevisionSalidasProfesor(${indice})">
                               <i class="fa-solid fa-floppy-disk"></i> Guardar decisión y confirmación
                           </button>
                       </div>
@@ -12251,8 +12325,8 @@
                   const acciones = fila.querySelector('td:last-child > div');
                   const indiceReal = estudiantesProfesor.indexOf(estudiante);
                   if (acciones) acciones.insertAdjacentHTML('afterbegin', `
-                      <button class="btn btn-success" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
-                      <button class="btn btn-danger" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
+                      <button type="button" class="btn btn-success" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
+                      <button type="button" class="btn btn-danger" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
                   `);
               }
           });
@@ -12433,10 +12507,10 @@
           <p style="color:var(--text-muted);font-size:.8rem;">Los pesos deben sumar 100.</p>
           <table style="width:100%;border-collapse:collapse;min-width:650px;"><thead><tr><th>Criterio</th><th>Peso</th><th>Indicador</th><th></th></tr></thead><tbody id="edf_criterios"></tbody></table>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;">
-            <button class="btn btn-secondary" onclick="agregarCriterioFirebase()">➕ Criterio</button>
-            <button class="btn btn-secondary" onclick="normalizarCriteriosFirebase()">⚖️ Normalizar</button>
-            <button class="btn btn-primary" onclick="guardarDesafioActualFirebase()">☁️ Guardar desafío</button>
-            <button class="btn btn-secondary" onclick="guardarLos19Firebase()">☁️ Guardar los 19</button>
+            <button type="button" class="btn btn-secondary" onclick="agregarCriterioFirebase()">➕ Criterio</button>
+            <button type="button" class="btn btn-secondary" onclick="normalizarCriteriosFirebase()">⚖️ Normalizar</button>
+            <button type="button" class="btn btn-primary" onclick="guardarDesafioActualFirebase()">☁️ Guardar desafío</button>
+            <button type="button" class="btn btn-secondary" onclick="guardarLos19Firebase()">☁️ Guardar los 19</button>
           </div>`;
         criterios.forEach(c=>agregarFilaCriterioFirebase(c));
         document.querySelectorAll('#formDesafioFirebase input,#formDesafioFirebase textarea').forEach(el => {
@@ -12452,7 +12526,7 @@
         tr.innerHTML=`<td><input data-k="criterio" value="${escapeHtml(c.criterio||'')}"></td>
           <td><input data-k="peso" type="number" min="0" max="100" value="${Number(c.peso)||0}" style="width:80px"></td>
           <td><input data-k="indicador" value="${escapeHtml(c.indicador||'')}"></td>
-          <td><button class="btn btn-danger" onclick="this.closest('tr').remove()">🗑️</button></td>`;
+          <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">🗑️</button></td>`;
         document.getElementById('edf_criterios').appendChild(tr);
       }
       function agregarCriterioFirebase(){agregarFilaCriterioFirebase();}
@@ -12619,10 +12693,11 @@
 
           seccionesExportar.forEach((sec, indice) => {
               const r = historial[sec.id] || {};
-              const evaluacion = r.evaluacionCodigo || {};
+              const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
+              const evaluacion = resultadoServidor.evaluacionCodigo || r.evaluacionCodigo || {};
               const ajuste = notasDocente[sec.id] || {};
               const notaVigente = obtenerNotaDesafioEstudiante(d, sec.id, r);
-              const codigo = r.codigo || d.codigos?.[sec.id] || '// Sin código guardado';
+              const codigo = resultadoServidor.codigo || r.codigo || d.codigos?.[sec.id] || '// Sin código guardado';
               if (y > 248) {
                   doc.addPage();
                   y = 18;
@@ -12632,7 +12707,7 @@
               doc.setFontSize(11);
               y = agregarTextoPDFProfesor(doc, `${indice + 1}. ${sec.title}`, y);
               doc.setFontSize(8.5);
-              y = agregarTextoPDFProfesor(doc, `Estado: ${finalizadas[sec.id] ? 'Finalizada' : 'Pendiente'} · Nota automática: ${r.notaFinal ?? r.notaIA ?? 'Pendiente'} · Nota vigente: ${notaVigente ?? 'Pendiente'}${ajuste.nota !== undefined && ajuste.nota !== null ? ' (corrección docente)' : ''}`, y);
+              y = agregarTextoPDFProfesor(doc, `Estado: ${finalizadas[sec.id] ? 'Finalizada' : 'Pendiente'} · Código verificado: ${resultadoServidor.verificadaServidor === true ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota ?? 'Pendiente') : 'Pendiente'} · Nota vigente: ${notaVigente ?? 'Pendiente'}${ajuste.nota !== undefined && ajuste.nota !== null ? ' (corrección docente)' : ''}`, y);
               doc.setFont('helvetica', 'normal');
               y = agregarTextoPDFProfesor(doc, `Consigna: ${sec.exerciseDesc || 'Sin consigna'}`, y);
               if (evaluacion.nota !== undefined) {
@@ -12723,10 +12798,10 @@
               const finalizadas = d.finalizadas || {};
               return seccionesData.reduce((resumen, sec) => {
                   const resultado = historial[sec.id] || {};
-                  const evaluacion = resultado.evaluacionCodigo || {};
+                   const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
+                   const evaluacion = resultadoServidor.evaluacionCodigo || resultado.evaluacionCodigo || {};
                   const nota = obtenerNotaDesafioEstudiante(d, sec.id, resultado);
-                  const conError = evaluacion.sintaxis?.valida === false ||
-                      evaluacion.ejecucion?.ok === false || Boolean(resultado.error);
+                  const conError = evaluacionCodigoTieneError(evaluacion, resultado);
                   const pendiente = !finalizadas[sec.id] ||
                       resultado.notaPreguntas === undefined || nota === null;
                   if (conError) resumen.errores += 1;
@@ -12877,11 +12952,14 @@
 
               seccionesData.forEach((sec, desafioIndice) => {
                   const r = historial[sec.id] || {};
-                  const evaluacion = r.evaluacionCodigo || {};
+                  const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
+                  const evaluacion = resultadoServidor.evaluacionCodigo || r.evaluacionCodigo || {};
                   const ajuste = notasDocente[sec.id] || {};
                   const notaVigente = obtenerNotaDesafioEstudiante(d, sec.id, r);
-                  const notaAutomatica = r.notaFinal ?? r.notaIA;
-                  const codigo = r.codigo || codigos[sec.id] || '// Sin código guardado';
+                  const notaAutomatica = resultadoServidor.verificadaServidor === true
+                      ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+                      : null;
+                  const codigo = resultadoServidor.codigo || r.codigo || codigos[sec.id] || '// Sin código guardado';
                   const mensajes = Array.isArray(chatIA[sec.id]) ? chatIA[sec.id] : [];
                   const ayudaModulo = ayudas[sec.id] || {};
                   const consultasPalabras = Object.values(ayudaModulo.palabras || {})
@@ -13234,6 +13312,7 @@
               finalizadas: actividadesFinalizadas,
               notasDocente: notasDesafiosDocente,
               historial: historialResultados,
+              resultadosVerificados: resultadosVerificadosEstudiante,
               ayudas: ayudasComprension,
               tiempos: tiemposRestantes,
               borradores

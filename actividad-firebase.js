@@ -2,7 +2,7 @@
       import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
       import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, collection, collectionGroup, query, orderBy, limit, onSnapshot, getDocs, increment, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
       import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check.js";
-      import { getAI, getTemplateGenerativeModel, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-ai.js";
+      import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-functions.js";
       import * as Y from "https://cdn.jsdelivr.net/npm/yjs@13.6.31/+esm";
       import {
         Compartment,
@@ -21,7 +21,7 @@
         autocompletion,
         completionKeymap,
         startCompletion
-} from "./codemirror-bundle.js?v=20260918-9";
+} from "./codemirror-bundle.js?v=20260919-2";
 
       window.CodeMirror6 = {
         Compartment,
@@ -59,8 +59,7 @@
       // Esta clave identifica el sitio ante reCAPTCHA Enterprise y es pública.
       // No pegues aquí claves de Gemini, Vertex AI, cuentas de servicio ni secretos.
       const APP_CHECK_RECAPTCHA_ENTERPRISE_SITE_KEY = "6Ld7l5stAAAAABjs2OrNxeDMaKZ6oAGERjopw3U9";
-      const FIREBASE_AI_TEMPLATE_ID = "tutor-javascript-ipem146-v1-0-0";
-      const FIREBASE_AI_MODEL_NAME = "gemini-2.5-flash";
+      const FIREBASE_FUNCTIONS_REGION = "southamerica-east1";
       const VERSION_SCRIPT = (() => {
         try {
           const src = [...document.scripts].find(script => /actividad-app\.js(?:\?|$)/.test(script.src || ""));
@@ -88,9 +87,9 @@
       window.TEACHER_EMAILS = TEACHER_EMAILS;
       let auth = null, db = null, googleProvider = null;
       let teacherAuth = null, teacherDb = null, teacherProvider = null;
-      let firebaseAITemplateModel = null;
-      let firebaseAIDirectModel = null;
-      let firebaseAIInitError = "";
+      let functions = null;
+      let callableTutorSeguro = null;
+      let callableEvaluacionSegura = null;
       let teacherPersistenceReady = Promise.resolve();
 
       if (firebaseConfigured) {
@@ -106,23 +105,18 @@
             console.warn("Firebase App Check no pudo inicializarse; se continuará sin bloquear el acceso.", error);
             window.firebaseAppCheckError = error?.message || String(error);
           }
-          try {
-            const ai = getAI(app, { backend: new GoogleAIBackend() });
-            firebaseAITemplateModel = getTemplateGenerativeModel(ai);
-            firebaseAIDirectModel = getGenerativeModel(ai, {
-              model: FIREBASE_AI_MODEL_NAME,
-              generationConfig: {
-                temperature: 0.25,
-                topP: 0.85,
-                maxOutputTokens: 700
-              }
-            });
-          } catch (error) {
-            console.warn("Firebase AI Logic no pudo inicializarse; se usará el tutor local.", error);
-          }
         }
         auth = getAuth(app);
         db = getFirestore(app);
+        functions = getFunctions(app, FIREBASE_FUNCTIONS_REGION);
+        callableTutorSeguro = httpsCallable(functions, "consultarTutorSeguro", {
+          timeout: 60000,
+          limitedUseAppCheckTokens: true
+        });
+        callableEvaluacionSegura = httpsCallable(functions, "evaluarEntregaSegura", {
+          timeout: 30000,
+          limitedUseAppCheckTokens: true
+        });
         googleProvider = new GoogleAuthProvider();
         googleProvider.setCustomParameters({ prompt: "select_account" });
         const teacherApp = initializeApp(firebaseConfig, "teacherAuthorization");
@@ -148,10 +142,11 @@
         window.firebaseConfigError = "Hay valores REEMPLAZAR_ en firebaseConfig.";
       }
 
-      window.firebaseAIRealConfigurada = Boolean(firebaseAITemplateModel || firebaseAIDirectModel);
+      window.firebaseAIRealConfigurada = Boolean(callableTutorSeguro);
+      window.firebaseBackendSeguroConfigurado = Boolean(callableTutorSeguro && callableEvaluacionSegura);
       window.consultarTutorIAFirebase = async function(payload = {}) {
-        if (!firebaseAITemplateModel && !firebaseAIDirectModel) {
-          throw new Error("Firebase AI Logic todavía no está configurado.");
+        if (!callableTutorSeguro) {
+          throw new Error("El backend seguro todavía no está configurado.");
         }
         const user = auth?.currentUser;
         if (!user) {
@@ -159,40 +154,47 @@
         }
         const textoSeguro = (valor, limite) => String(valor || "").slice(0, limite);
         const parametros = {
-            nombreModulo: textoSeguro(payload.nombreModulo, 180),
-            consigna: textoSeguro(payload.consigna, 1800),
+            classId: textoSeguro(payload.classId, 120),
+            sectionId: textoSeguro(payload.sectionId, 40),
             pregunta: textoSeguro(payload.pregunta, 500),
             modo: textoSeguro(payload.modo, 40),
+            nivel: Math.max(1, Math.min(6, Number(payload.nivel) || 1)),
             codigo: textoSeguro(payload.codigo, 5000),
-            conceptos: textoSeguro(payload.conceptos, 800),
             diagnosticoLocal: textoSeguro(payload.diagnosticoLocal, 1200),
             historialReciente: textoSeguro(payload.historialReciente, 1800)
         };
-        const instrucciones = [
-          "Sos un tutor de JavaScript para estudiantes de nivel secundario.",
-          "Respondé en español rioplatense, con tono claro y respetuoso.",
-          "Ayudá con pistas progresivas; no entregues la solución completa ni código listo para copiar.",
-          "Usá el diagnóstico local y el código del estudiante para señalar un único próximo paso verificable.",
-          `Módulo: ${parametros.nombreModulo}`,
-          `Consigna: ${parametros.consigna}`,
-          `Modo: ${parametros.modo}`,
-          `Pregunta: ${parametros.pregunta}`,
-          `Código del estudiante:\n${parametros.codigo}`,
-          `Conceptos esperados: ${parametros.conceptos}`,
-          `Diagnóstico local: ${parametros.diagnosticoLocal}`,
-          `Historial reciente:\n${parametros.historialReciente}`
-        ].join("\n\n");
-        const response = firebaseAITemplateModel
-          ? await firebaseAITemplateModel.generateContent(FIREBASE_AI_TEMPLATE_ID, parametros)
-          : await firebaseAIDirectModel.generateContent(instrucciones);
-        const texto = String(
-          response?.response?.text?.() ||
-          response?.text?.() ||
-          response?.candidates?.[0]?.content?.parts?.map(p => p?.text || "").join("") ||
-          ""
-        ).trim();
+        const response = await callableTutorSeguro(parametros);
+        const texto = String(response?.data?.answer || "").trim();
         if (!texto) throw new Error("La IA no devolvió una respuesta utilizable.");
+        window.ultimaCuotaTutorServidor = response?.data?.quota || null;
+        if (response?.data?.quota && payload.sectionId) {
+          const usadas = Number(response.data.quota.used);
+          if (Number.isFinite(usadas)) {
+            localStorage.setItem(`ai_usage_${String(payload.sectionId).slice(0, 40)}`, String(usadas));
+          }
+        }
         return texto;
+      };
+
+      window.evaluarCodigoServidorFirebase = async function(payload = {}) {
+        if (!callableEvaluacionSegura) {
+          throw new Error("El evaluador seguro todavía no está configurado.");
+        }
+        const user = auth?.currentUser;
+        if (!user) {
+          throw new Error("El estudiante debe iniciar sesión para entregar.");
+        }
+        const response = await callableEvaluacionSegura({
+          classId: String(payload.classId || "").slice(0, 120),
+          sectionId: String(payload.sectionId || "").slice(0, 40),
+          codigo: String(payload.codigo || "").slice(0, 12000)
+        });
+        const data = response?.data || {};
+        if (!data.evaluation?.verificadaServidor || !data.evaluationId) {
+          throw new Error("El servidor no devolvió una evaluación verificable.");
+        }
+        window.ultimaCuotaEvaluacionServidor = data.quota || null;
+        return data;
       };
 
       window.firebaseAuthReady = new Promise(resolve => {
@@ -2872,21 +2874,26 @@
             const penalizacionAnterior = Math.max(0, Math.min(10, Number(revisionAnterior.penalizacion) || 0));
             const motivoAnterior = String(revisionAnterior.motivo || "").trim();
             const historialResultadosActual = datos.historialResultados || {};
+            const resultadosVerificadosActual = datos.resultadosVerificados || {};
             const notasDesafiosActual = datos.notasDesafiosDocente || {};
             const idsConNota = [...new Set([
               ...Object.keys(historialResultadosActual),
+              ...Object.keys(resultadosVerificadosActual),
               ...Object.keys(notasDesafiosActual)
             ])];
             const notasAcademicas = idsConNota
               .map(sectionId => {
                 const resultado = historialResultadosActual[sectionId] || {};
+                const resultadoServidor = resultadosVerificadosActual[sectionId] || {};
                 const ajuste = datos.notasDesafiosDocente?.[sectionId];
                 const notaDocente = ajuste?.nota === null || ajuste?.nota === undefined || ajuste?.nota === ""
                   ? NaN
                   : Number(ajuste.nota);
                 return Number.isFinite(notaDocente)
                   ? notaDocente
-                  : Number(resultado?.notaFinal ?? resultado?.notaIA);
+                  : resultadoServidor.verificadaServidor === true
+                    ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+                    : NaN;
               })
               .filter(nota => Number.isFinite(nota));
             const promedioAcademico = notasAcademicas.length
@@ -2975,7 +2982,10 @@
             const notasDocente = { ...(datos.notasDesafiosDocente || {}) };
             const ajusteAnterior = notasDocente[sectionId] || null;
             const resultado = datos.historialResultados?.[sectionId] || {};
-            const notaAutomatica = Number(resultado.notaFinal ?? resultado.notaIA);
+            const resultadoServidor = datos.resultadosVerificados?.[sectionId] || {};
+            const notaAutomatica = resultadoServidor.verificadaServidor === true
+              ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+              : NaN;
             const notaAnteriorValor = ajusteAnterior?.notaDocente ??
               ajusteAnterior?.notaFinalCalculada ??
               ajusteAnterior?.nota;
@@ -3080,9 +3090,13 @@
                 ? { ...rubricaNueva, fechaCorreccion: serverTimestamp() }
                 : null,
               intento: {
-                notaIA: Number.isFinite(Number(resultado.notaIA)) ? Number(resultado.notaIA) : null,
-                notaFinal: Number.isFinite(Number(resultado.notaFinal)) ? Number(resultado.notaFinal) : null,
-                codigo: String(resultado.codigo || "").slice(0, 20000),
+                notaIA: Number.isFinite(Number(resultadoServidor.evaluacionCodigo?.nota))
+                  ? Number(resultadoServidor.evaluacionCodigo.nota)
+                  : null,
+                notaFinal: Number.isFinite(Number(resultadoServidor.notaCodigo))
+                  ? Number(resultadoServidor.notaCodigo)
+                  : null,
+                codigo: String(resultadoServidor.codigo || resultado.codigo || "").slice(0, 20000),
                 salida: String(resultado.salida || "").slice(0, 5000),
                 evaluadoEn: String(resultado.fecha || resultado.evaluadoEn || "")
               },
@@ -4767,6 +4781,7 @@
           if(remotos.length===19) window.dispatchEvent(new CustomEvent('desafios-profesor-data',{detail:remotos}));
         }, err => window.dispatchEvent(new CustomEvent('desafios-firebase-error',{detail:err.message})));
       };
+
 
 
 

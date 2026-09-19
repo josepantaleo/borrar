@@ -10,6 +10,7 @@ Carpeta preparada para publicarse con GitHub Pages.
 - `actividad.html`: marcado de la actividad interactiva.
 - `actividad-base.css`: estilos base de la actividad.
 - `actividad-firebase.js`: autenticación, Firestore, IA, Yjs y configuración de CodeMirror.
+- `functions/`: Cloud Functions autenticadas para evaluación server-side, tutor IA y cuotas.
 - `actividad-app.js`: actividades, evaluación y lógica principal.
 - `actividad-cooperacion.js`: cooperación y llamadas Jitsi.
 - `mejoras-seguimiento.css`: panel docente, seguimiento y adaptación móvil.
@@ -17,6 +18,20 @@ Carpeta preparada para publicarse con GitHub Pages.
 - `codemirror-bundle.js`: dependencias compiladas del editor.
 
 El orden de carga declarado en `actividad.html` debe conservarse.
+
+### Tutor de programación
+
+El tutor local guiado permanece activo como respaldo. Las consultas generativas pasan
+por la callable `consultarTutorSeguro`, que exige Firebase Auth, correo verificado,
+App Check, una cuenta estudiantil activa y una clase iniciada. La cuota se reserva con
+una transacción server-side por estudiante, clase y desafío.
+
+La entrega final de código usa `evaluarEntregaSegura`. El backend analiza el AST sin
+ejecutar código no confiable y guarda el resultado en `resultadosVerificados`, un campo
+que las reglas no permiten modificar desde el navegador. Las previsualizaciones locales
+siguen siendo orientativas; la nota definitiva requiere confirmación docente.
+
+La configuración y el despliegue están documentados en `BACKEND_SEGURO.md`.
 
 ## Publicación en GitHub Pages
 
@@ -26,7 +41,8 @@ El orden de carga declarado en `actividad.html` debe conservarse.
 4. Seleccionar la rama `main` y la carpeta `/ (root)`.
 5. Guardar y esperar a que GitHub muestre la dirección publicada.
 6. Publicar las reglas de `reglas.txt` por separado en Firebase Firestore.
-7. Agregar el dominio de GitHub Pages a los dominios autorizados de Firebase Authentication.
+7. Desplegar `functions/` y habilitar Vertex AI según `BACKEND_SEGURO.md`.
+8. Agregar el dominio de GitHub Pages a los dominios autorizados de Firebase Authentication.
 
 `index.html` es la página de entrada y enlaza con `actividad.html`.
 
@@ -119,6 +135,12 @@ El funcionamiento del boton de autorizacion, la pausa, los estados de lectura y 
 
 ```powershell
 npx firebase-tools deploy --only firestore:rules --project ipem146js
+```
+
+El backend seguro también debe desplegarse; GitHub Pages solo publica el cliente:
+
+```powershell
+npx firebase-tools deploy --only functions --project ipem146js
 ```
 
 ## Verificacion

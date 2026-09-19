@@ -15,9 +15,9 @@
       href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="actividad-base.css?v=20260918-9" />
-    <link rel="stylesheet" href="actividad-mobile.css?v=20260918-9" />
-    <link rel="stylesheet" href="mejoras-seguimiento.css?v=20260918-9" />
+  <link rel="stylesheet" href="actividad-base.css?v=20260919-2" />
+  <link rel="stylesheet" href="actividad-mobile.css?v=20260919-2" />
+  <link rel="stylesheet" href="mejoras-seguimiento.css?v=20260919-2" />
     <style>
       .skip-link {
         position: fixed;
@@ -240,7 +240,7 @@
       }
     </style>
     <!-- Firebase Authentication + Firestore (modular browser SDK) -->
-    <script type="module" src="actividad-firebase.js?v=20260918-9"></script>
+<script type="module" src="actividad-firebase.js?v=20260919-2"></script>
   </head>
   <body onload="initApp()">
     <a class="skip-link" href="#contenidoPrincipal">Saltar al contenido principal</a>
@@ -252,7 +252,7 @@
         <div id="localFileNotice" style="display:none;margin:.8rem 0;padding:.7rem;border:1px solid #f59e0b;border-radius:6px;background:rgba(245,158,11,.12);color:#fde68a;font-size:.82rem;line-height:1.45;">
           Para usar Google, abrí esta página desde <strong>http://localhost:5500/actividad.html</strong>. Firebase no permite iniciar sesión desde un archivo local.
         </div>
-        <button class="btn btn-google" style="width:100%; justify-content:center; font-size:1rem; padding:.8rem 1rem;" onclick="iniciarSesionGoogle()">
+        <button type="button" class="btn btn-google" style="width:100%; justify-content:center; font-size:1rem; padding:.8rem 1rem;" onclick="iniciarSesionGoogle()">
           <i class="fa-brands fa-google"></i> Ingresar como alumno
         </button>
         <div style="display:flex;align-items:center;gap:.7rem;margin:1rem 0;color:var(--text-muted);font-size:.8rem;">
@@ -260,10 +260,10 @@
           <span>DOCENTES</span>
           <span style="height:1px;background:var(--border);flex:1;"></span>
         </div>
-        <button class="btn btn-warning" style="width:100%;justify-content:center;font-size:1rem;padding:.8rem 1rem;" onclick="ingresarComoDocente(this)">
+        <button type="button" class="btn btn-warning" style="width:100%;justify-content:center;font-size:1rem;padding:.8rem 1rem;" onclick="ingresarComoDocente(this)">
           <i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente
         </button>
-        <button class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:.75rem;" onclick="cerrarSesionGoogle()">
+        <button type="button" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:.75rem;" onclick="cerrarSesionGoogle()">
           <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión / cambiar cuenta
         </button>
         <div id="firebaseConfigWarning" style="display:none; margin-top:1rem; color:#fca5a5; font-size:.8rem;">Firebase no está configurado todavía.</div>
@@ -312,19 +312,19 @@
           <button class="btn btn-secondary student-tabs-summary-trigger" id="btnAbrirResumenPestanas" type="button" onclick="abrirResumenPestanasEstudiante()" aria-haspopup="dialog" aria-controls="resumenPestanasEstudianteModal">
             <i class="fa-solid fa-window-restore"></i><span>Mi resumen de pestañas</span>
           </button>
-          <button class="btn btn-secondary" id="btnJustificarSalida" style="display:none;font-size:.75rem;padding:.4rem .8rem" onclick="abrirJustificacionUltimaSalida()">
+          <button type="button" class="btn btn-secondary" id="btnJustificarSalida" style="display:none;font-size:.75rem;padding:.4rem .8rem" onclick="abrirJustificacionUltimaSalida()">
             <i class="fa-solid fa-comment"></i> Justificar última
           </button>
 
           <!-- Botones protegidos del profesor -->
-          <button
+          <button type="button"
             class="btn btn-warning teacher-only"
             style="font-size: 0.75rem; padding: 0.4rem 0.8rem"
             onclick="solicitarAccionProfesor('pausar_global')"
           >
             <i class="fa-solid fa-pause"></i> Pausa Global Profe
           </button>
-          <button
+          <button type="button"
             class="btn btn-danger teacher-only"
             style="font-size: 0.75rem; padding: 0.4rem 0.8rem"
             onclick="solicitarAccionProfesor('reset_contador_salidas')"
@@ -378,12 +378,12 @@
             <small id="firebaseLastSync" class="firebase-last-sync" aria-live="polite">Última sincronización: todavía no confirmada</small>
           </div>
           <div class="btn-group">
-            <button class="btn btn-success" onclick="guardarAhoraFirebase()"><i class="fa-solid fa-cloud-arrow-up"></i> Guardar ahora</button>
-            <button class="btn btn-warning" id="btnIngresoDocente" onclick="ingresarComoDocente(this)"><i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente</button>
-            <button class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('editor_desafios')"><i class="fa-solid fa-puzzle-piece"></i> Editor de desafíos</button>
-            <button class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('panel_profesor')"><i class="fa-solid fa-chalkboard-user"></i> Panel Profesor</button>
-            <button class="btn btn-warning teacher-only teacher-session-only" onclick="cerrarAccesoDocenteTemporal()"><i class="fa-solid fa-user-lock"></i> Cerrar acceso docente</button>
-            <button class="btn btn-danger" onclick="cerrarSesionGoogle()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
+            <button type="button" class="btn btn-success" onclick="guardarAhoraFirebase()"><i class="fa-solid fa-cloud-arrow-up"></i> Guardar ahora</button>
+            <button type="button" class="btn btn-warning" id="btnIngresoDocente" onclick="ingresarComoDocente(this)"><i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente</button>
+            <button type="button" class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('editor_desafios')"><i class="fa-solid fa-puzzle-piece"></i> Editor de desafíos</button>
+            <button type="button" class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('panel_profesor')"><i class="fa-solid fa-chalkboard-user"></i> Panel Profesor</button>
+            <button type="button" class="btn btn-warning teacher-only teacher-session-only" onclick="cerrarAccesoDocenteTemporal()"><i class="fa-solid fa-user-lock"></i> Cerrar acceso docente</button>
+            <button type="button" class="btn btn-danger" onclick="cerrarSesionGoogle()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
           </div>
         </div>
 
@@ -407,7 +407,7 @@
           <label for="studentTurno">Turno</label>
           <select id="studentTurno" required><option value="">Seleccionar turno</option><option>Mañana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select>
         </div>
-        <button class="btn btn-danger" onclick="reiniciarSesionEstudiante()">
+        <button type="button" class="btn btn-danger" onclick="reiniciarSesionEstudiante()">
           <i class="fa-solid fa-user-xmark"></i> Nuevo Estudiante
         </button>
       </div>
@@ -441,8 +441,8 @@
             <i class="fa-solid fa-code-branch"></i> Código subido · v1.0
           </span>
           <div class="teacher-panel-toolbar">
-            <button class="btn btn-success" onclick="iniciarClaseDesdeInterfaz(this)"><i class="fa-solid fa-play"></i> Iniciar clase</button>
-            <button class="btn btn-danger" onclick="finalizarClaseDesdeInterfaz(this)"><i class="fa-solid fa-stop"></i> Finalizar clase</button>
+            <button type="button" class="btn btn-success" onclick="iniciarClaseDesdeInterfaz(this)"><i class="fa-solid fa-play"></i> Iniciar clase</button>
+            <button type="button" class="btn btn-danger" onclick="finalizarClaseDesdeInterfaz(this)"><i class="fa-solid fa-stop"></i> Finalizar clase</button>
             <button class="btn btn-success" id="btnIniciarJitsiGrupal" type="button" onclick="abrirSelectorJitsiGrupal()" title="Seleccionar curso, división y turno para iniciar una videollamada grupal">
               <i class="fa-solid fa-users-viewfinder"></i> Iniciar Jitsi grupal
             </button>
@@ -470,8 +470,8 @@
             <button class="btn btn-primary" id="btnMensajeDocente" type="button" onclick="abrirMensajeriaDocente()" title="Enviar un aviso en pantalla a todos, a un grupo o a un estudiante">
               <i class="fa-solid fa-bullhorn"></i> Enviar mensaje
             </button>
-            <button class="btn btn-primary" onclick="abrirEditorDesafiosFirebase()"><i class="fa-solid fa-puzzle-piece"></i> Editar desafíos</button>
-            <button class="btn btn-secondary teacher-panel-close" onclick="cerrarPanelProfesor()" aria-label="Cerrar panel" title="Cerrar panel"><i class="fa-solid fa-xmark"></i></button>
+            <button type="button" class="btn btn-primary" onclick="abrirEditorDesafiosFirebase()"><i class="fa-solid fa-puzzle-piece"></i> Editar desafíos</button>
+            <button type="button" class="btn btn-secondary teacher-panel-close" onclick="cerrarPanelProfesor()" aria-label="Cerrar panel" title="Cerrar panel"><i class="fa-solid fa-xmark"></i></button>
           </div>
         </div>
         <div class="teacher-panel-content">
@@ -921,7 +921,7 @@
         <div style="font-size:3rem;margin-bottom:.6rem;"><i class="fa-solid fa-hourglass-start"></i></div>
         <h2 id="classStartTitle">Esperando el inicio de la clase</h2>
         <p id="classStartMessage">El docente habilitará las actividades. Mantené esta pestaña abierta.</p>
-        <button class="btn btn-warning" style="margin-top:1rem;" onclick="ingresarComoDocente(this)">
+        <button type="button" class="btn btn-warning" style="margin-top:1rem;" onclick="ingresarComoDocente(this)">
           <i class="fa-solid fa-chalkboard-user"></i> Soy docente
         </button>
         <div style="margin-top:1rem;color:#fbbf24;font-size:.85rem;">
@@ -951,7 +951,7 @@
             <button class="btn btn-primary" id="btnActualizarDetalleEstudianteProfesor" type="button" onclick="actualizarDetalleEstudianteProfesor()" title="Consultar nuevamente este estudiante en Firebase">
               <i class="fa-solid fa-rotate"></i> Actualizar datos
             </button>
-            <button class="btn btn-secondary" onclick="cerrarDetalleEstudianteProfesor()">Cerrar</button>
+            <button type="button" class="btn btn-secondary" onclick="cerrarDetalleEstudianteProfesor()">Cerrar</button>
           </div>
         </div>
         <div id="detalleEstudianteProfesorContenido"></div>
@@ -1154,8 +1154,8 @@
           <textarea id="detalleJustificacionSalida" style="min-height:100px;padding:.7rem;border-radius:6px;background:var(--bg-dark);color:white;border:1px solid var(--border)"></textarea>
         </div>
         <div class="modal-actions" style="margin-top:1rem">
-          <button class="btn btn-secondary" onclick="cerrarJustificacionSalida()">Cancelar</button>
-          <button class="btn btn-primary" onclick="guardarJustificacionSalida()">Guardar justificación</button>
+          <button type="button" class="btn btn-secondary" onclick="cerrarJustificacionSalida()">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="guardarJustificacionSalida()">Guardar justificación</button>
         </div>
       </div>
     </div>
@@ -1191,7 +1191,7 @@
       <div class="modal-box" style="max-width:1250px;width:96vw;max-height:92vh;overflow:auto;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
           <div><h3>🧩 Editor de los 19 Desafíos en Firebase</h3><p style="color:var(--text-muted);margin:.3rem 0;">Editá contenido, rúbrica y reglas de IA sin modificar el HTML.</p></div>
-          <button class="btn btn-secondary" onclick="cerrarEditorDesafiosFirebase()">Cerrar</button>
+          <button type="button" class="btn btn-secondary" onclick="cerrarEditorDesafiosFirebase()">Cerrar</button>
         </div>
         <div class="editor-desafios-layout">
           <div class="editor-desafios-sidebar">
@@ -1215,7 +1215,7 @@
           Ctrl + Alt + Shift + P
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" onclick="cerrarModalPassword()">
+          <button type="button" class="btn btn-secondary" onclick="cerrarModalPassword()">
             Cancelar
           </button>
         </div>
@@ -1281,20 +1281,21 @@
           La protección del archivo puede variar según el navegador.</span
         >
       </div>
-      <button class="btn btn-success" onclick="exportarResultadosPDF()">
+      <button type="button" class="btn btn-success" onclick="exportarResultadosPDF()">
         <i class="fa-solid fa-file-arrow-down"></i> Descargar reporte (.PDF)
       </button>
     </div>
 
-    <script src="actividad-network-status.js?v=20260918-9"></script>
-    <script src="actividad-utils.js?v=20260918-9"></script>
-    <script src="actividad-pdf-loader.js?v=20260918-9"></script>
-    <script src="actividad-app.js?v=20260918-9"></script>
-    <script src="panel-profesor.js?v=20260918-9"></script>
-    <script src="actividad-cooperacion.js?v=20260918-9"></script>
-    <script src="mejoras-seguimiento.js?v=20260918-9"></script>
+  <script src="actividad-network-status.js?v=20260919-2"></script>
+  <script src="actividad-utils.js?v=20260919-2"></script>
+  <script src="actividad-pdf-loader.js?v=20260919-2"></script>
+  <script src="actividad-app.js?v=20260919-2"></script>
+  <script src="panel-profesor.js?v=20260919-2"></script>
+  <script src="actividad-cooperacion.js?v=20260919-2"></script>
+  <script src="mejoras-seguimiento.js?v=20260919-2"></script>
   </body>
 </html>
+
 
 
 

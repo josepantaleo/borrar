@@ -30,7 +30,12 @@ assert.strictEqual(context.calcularNotaRubrica({
 }), null, "Los datos incompletos no deben producir una nota inválida.");
 
 const checks = [
-  ["compatibilidad con nota automática", app.includes("resultado.notaFinal ?? resultado.notaIA")],
+  [
+    "nota automática verificada por servidor",
+    app.includes("d?.resultadosVerificados?.[sectionId] || {}") &&
+      app.includes("verificadaServidor === true") &&
+      !app.includes("resultado.notaFinal ?? resultado.notaIA")
+  ],
   ["compatibilidad con nota docente anterior", app.includes("ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota")],
   ["rúbrica configurable por desafío", app.includes("criteriosRubrica-") && app.includes("agregarCriterioRubrica")],
   ["comentarios y evidencia por criterio", app.includes("comentarioDocente") && app.includes("evidenciaAsociada")],

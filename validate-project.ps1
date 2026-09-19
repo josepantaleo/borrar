@@ -24,6 +24,22 @@ foreach ($script in $scripts) {
   }
 }
 
+$backendScripts = @(
+  "functions/index.js",
+  "functions/evaluator.js",
+  "functions/challenges.js"
+)
+
+foreach ($script in $backendScripts) {
+  if (-not (Test-Path -LiteralPath $script)) {
+    throw "Falta el script de backend requerido: $script"
+  }
+  node --check ".\$script"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Sintaxis invalida en backend: $script"
+  }
+}
+
 $required = @(
   "actividad.html",
   "actividad-app.js",
@@ -32,7 +48,11 @@ $required = @(
   "actividad-firebase.js",
   "mejoras-seguimiento.css",
   "mejoras-seguimiento.js",
-  "reglas.txt"
+  "reglas.txt",
+  "functions/package.json",
+  "functions/index.js",
+  "functions/evaluator.js",
+  "functions/challenges.js"
 )
 
 $missing = $required | Where-Object { -not (Test-Path -LiteralPath $_) }
@@ -52,13 +72,7 @@ function Get-LocalReferencePath([string]$reference) {
 }
 
 $missingReferences = New-Object System.Collections.Generic.List[string]
-$legacyMissingReferences = New-Object System.Collections.Generic.List[string]
 $versionReferences = New-Object System.Collections.Generic.List[string]
-$legacyHtmlFiles = @(
-  "modulo-profeso.html",
-  "actividad_analista_viabilidad_excelencia (8).html",
-  "ejerciciosbucles.html"
-)
 
 foreach ($htmlFile in Get-ChildItem -File -Filter "*.html") {
   $html = Get-Content -LiteralPath $htmlFile.FullName -Raw -Encoding UTF8
@@ -68,11 +82,7 @@ foreach ($htmlFile in Get-ChildItem -File -Filter "*.html") {
     $localPath = Get-LocalReferencePath $reference
 
     if ($localPath -and -not (Test-Path -LiteralPath $localPath)) {
-      if ($legacyHtmlFiles -contains $htmlFile.Name) {
-        $legacyMissingReferences.Add("$($htmlFile.Name): $reference")
-      } else {
-        $missingReferences.Add("$($htmlFile.Name): $reference")
-      }
+      $missingReferences.Add("$($htmlFile.Name): $reference")
     }
 
     if ($reference -match '\?v=(\d{8}-\d+)') {
@@ -102,10 +112,6 @@ foreach ($jsFile in Get-ChildItem -File -Filter "*.js") {
 if ($missingReferences.Count -gt 0) {
   throw "Referencias locales inexistentes:`n$($missingReferences -join "`n")"
 }
-if ($legacyMissingReferences.Count -gt 0) {
-  Write-Warning "Referencias inexistentes en archivos heredados:`n$($legacyMissingReferences -join "`n")"
-}
-
 $distinctVersions = @($versionReferences | Sort-Object -Unique)
 if ($distinctVersions.Count -gt 1) {
   Write-Warning "Versiones de recursos no uniformes: $($distinctVersions -join ', '). Ejecuta versionar-publicacion.ps1 antes de publicar."
@@ -126,9 +132,27 @@ foreach ($logFile in @("firebase-debug.log", "firestore-debug.log", "ui-debug.lo
   }
 }
 
-node ".\ui-contract.test.cjs"
-if ($LASTEXITCODE -ne 0) {
-  throw "Fallo el contrato de interfaz."
+$contractTests = @(
+  "ui-contract.test.cjs",
+  "button-contract.test.cjs",
+  "cooperation-contract.test.cjs",
+  "session-presence-contract.test.cjs",
+  "sync-contract.test.cjs",
+  "dashboard-contract.test.cjs",
+  "rubric-contract.test.cjs",
+  "learning-path-contract.test.cjs",
+  "tutor-levels-contract.test.cjs",
+  "student-grade-chart.test.cjs",
+  "mobile-ui-contract.test.cjs",
+  "security-contract.test.cjs",
+  "backend-security-contract.test.cjs"
+)
+
+foreach ($test in $contractTests) {
+  node ".\$test"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Fallo el contrato: $test"
+  }
 }
 
 Write-Host "Validacion del proyecto: OK"

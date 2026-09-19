@@ -4,16 +4,15 @@
 
 El modulo docente oficial es `modulo-profesor.html`. Es la version completa que conserva la integracion actual con Firebase. No esta enlazada desde `index.html` ni `actividad.html`; se abre de forma independiente cuando corresponde.
 
-## Archivos heredados conservados
+## Archivos heredados retirados
 
-Estos archivos no se eliminan porque no se encontro una referencia interna concluyente que permita descartar su uso externo:
+La carpeta de publicacion ya no incluye borradores HTML, implementaciones auxiliares
+sin cargar ni copias divergentes de las reglas de Firestore. El unico archivo de
+reglas desplegable es `reglas.txt`.
 
-- `modulo-profeso.html`: version anterior; referencia `desafios_ia.js`, que no existe en la carpeta actual, y contiene configuracion Firebase de reemplazo.
-- `actividad_analista_viabilidad_excelencia (8).html`: borrador HTML independiente no enlazado por la aplicacion principal.
-- `ejerciciosbucles.html`: ejercicio HTML independiente no enlazado por la aplicacion principal.
-- `mejoras-seguimiento-codemirror.js`: implementacion auxiliar no cargada por `actividad.html`.
-
-No deben considerarse entradas de produccion sin una revision especifica.
+La carpeta `functions/` es parte del despliegue productivo. GitHub Pages publica
+solo el cliente; las funciones callable y las reglas de Firestore deben publicarse
+en el proyecto Firebase `ipem146js` siguiendo `BACKEND_SEGURO.md`.
 
 ## Versionado de recursos
 
@@ -25,6 +24,7 @@ El script `versionar-publicacion.ps1` actualiza en conjunto:
 - scripts de actividad;
 - scripts auxiliares cargados por `actividad.html`;
 - la importacion de `codemirror-bundle.js`.
+- las funciones de `functions/` y sus dependencias bloqueadas en `functions/package-lock.json`.
 
 Antes de publicar:
 
