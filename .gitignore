@@ -20,6 +20,3 @@ build/
 *.zip
 .DS_Store
 Thumbs.db
-functions/.env
-functions/.env.*
-!functions/.env.example

@@ -1,6 +1,10 @@
 {
   "name": "formacion-profesional-web",
   "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "test:rules": "npx firebase-tools@14.17.0 emulators:exec --only firestore --project ipem146js \"node firestore-rules.test.cjs\"",
     "test:crdt": "node crdt-merge.test.cjs",
@@ -14,10 +18,17 @@
     "test:tutor": "node tutor-levels-contract.test.cjs",
     "test:security": "node security-contract.test.cjs",
     "test:backend-contract": "node backend-security-contract.test.cjs",
-    "test:functions": "npm --prefix functions test",
-    "check:functions": "npm --prefix functions run check",
+    "test:functions": "node --test evaluator.test.js",
+    "check:functions": "node --check index.js && node --check evaluator.js && node --check challenges.js",
     "validate": "powershell -NoProfile -ExecutionPolicy Bypass -File ./validate-project.ps1",
     "version:bump": "powershell -NoProfile -ExecutionPolicy Bypass -File ./versionar-publicacion.ps1"
+  },
+  "dependencies": {
+    "@google/genai": "^1.52.0",
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
+    "firebase-admin": "^14.4.0",
+    "firebase-functions": "^7.4.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",

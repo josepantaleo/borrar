@@ -5,12 +5,12 @@ const assert = require("node:assert/strict");
 
 const firebaseClient = fs.readFileSync("actividad-firebase.js", "utf8");
 const appClient = fs.readFileSync("actividad-app.js", "utf8");
-const backend = fs.readFileSync("functions/index.js", "utf8");
-const evaluator = fs.readFileSync("functions/evaluator.js", "utf8");
+const backend = fs.readFileSync("index.js", "utf8");
+const evaluator = fs.readFileSync("evaluator.js", "utf8");
 const rules = fs.readFileSync("reglas.txt", "utf8");
 const firebaseConfig = JSON.parse(fs.readFileSync("firebase.json", "utf8"));
 
-assert.equal(firebaseConfig.functions?.source, "functions", "Firebase debe desplegar la carpeta functions.");
+assert.equal(firebaseConfig.functions?.source, ".", "Firebase debe desplegar el backend desde la raiz.");
 assert.match(backend, /enforceAppCheck:\s*true/, "Las callables deben exigir App Check.");
 assert.match(backend, /consumeAppCheckToken:\s*true/, "Las callables deben protegerse contra repetición.");
 assert.match(backend, /email_verified/, "El backend debe exigir correo verificado.");

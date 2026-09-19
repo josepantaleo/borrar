@@ -25,9 +25,9 @@ foreach ($script in $scripts) {
 }
 
 $backendScripts = @(
-  "functions/index.js",
-  "functions/evaluator.js",
-  "functions/challenges.js"
+  "index.js",
+  "evaluator.js",
+  "challenges.js"
 )
 
 foreach ($script in $backendScripts) {
@@ -49,10 +49,11 @@ $required = @(
   "mejoras-seguimiento.css",
   "mejoras-seguimiento.js",
   "reglas.txt",
-  "functions/package.json",
-  "functions/index.js",
-  "functions/evaluator.js",
-  "functions/challenges.js"
+  "package.json",
+  "index.js",
+  "evaluator.js",
+  "challenges.js",
+  "evaluator.test.js"
 )
 
 $missing = $required | Where-Object { -not (Test-Path -LiteralPath $_) }

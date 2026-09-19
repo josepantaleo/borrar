@@ -10,7 +10,8 @@ Carpeta preparada para publicarse con GitHub Pages.
 - `actividad.html`: marcado de la actividad interactiva.
 - `actividad-base.css`: estilos base de la actividad.
 - `actividad-firebase.js`: autenticación, Firestore, IA, Yjs y configuración de CodeMirror.
-- `functions/`: Cloud Functions autenticadas para evaluación server-side, tutor IA y cuotas.
+- `index.js`, `evaluator.js`, `challenges.js`: backend autenticado para evaluación server-side, tutor IA y cuotas.
+- `evaluator.test.js`: pruebas unitarias del evaluador backend.
 - `actividad-app.js`: actividades, evaluación y lógica principal.
 - `actividad-cooperacion.js`: cooperación y llamadas Jitsi.
 - `mejoras-seguimiento.css`: panel docente, seguimiento y adaptación móvil.
@@ -41,7 +42,7 @@ La configuración y el despliegue están documentados en `BACKEND_SEGURO.md`.
 4. Seleccionar la rama `main` y la carpeta `/ (root)`.
 5. Guardar y esperar a que GitHub muestre la dirección publicada.
 6. Publicar las reglas de `reglas.txt` por separado en Firebase Firestore.
-7. Desplegar `functions/` y habilitar Vertex AI según `BACKEND_SEGURO.md`.
+7. Desplegar el backend de la raíz y habilitar Vertex AI según `BACKEND_SEGURO.md`.
 8. Agregar el dominio de GitHub Pages a los dominios autorizados de Firebase Authentication.
 
 `index.html` es la página de entrada y enlaza con `actividad.html`.

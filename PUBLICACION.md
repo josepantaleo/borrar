@@ -10,9 +10,10 @@ La carpeta de publicacion ya no incluye borradores HTML, implementaciones auxili
 sin cargar ni copias divergentes de las reglas de Firestore. El unico archivo de
 reglas desplegable es `reglas.txt`.
 
-La carpeta `functions/` es parte del despliegue productivo. GitHub Pages publica
-solo el cliente; las funciones callable y las reglas de Firestore deben publicarse
-en el proyecto Firebase `ipem146js` siguiendo `BACKEND_SEGURO.md`.
+El backend server-side (`index.js`, `evaluator.js` y `challenges.js`) forma parte
+del despliegue productivo. GitHub Pages publica solo el cliente; las funciones
+callable y las reglas de Firestore deben publicarse en el proyecto Firebase
+`ipem146js` siguiendo `BACKEND_SEGURO.md`.
 
 ## Versionado de recursos
 
@@ -24,7 +25,7 @@ El script `versionar-publicacion.ps1` actualiza en conjunto:
 - scripts de actividad;
 - scripts auxiliares cargados por `actividad.html`;
 - la importacion de `codemirror-bundle.js`.
-- las funciones de `functions/` y sus dependencias bloqueadas en `functions/package-lock.json`.
+- el backend de la raíz y sus dependencias bloqueadas en `package-lock.json`.
 
 Antes de publicar:
 

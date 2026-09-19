@@ -49,9 +49,9 @@ asignar el rol a esa cuenta en lugar de la cuenta de cómputo predeterminada.
 ## Instalación y pruebas
 
 ```powershell
-npm.cmd --prefix functions install
-npm.cmd --prefix functions run check
-npm.cmd --prefix functions test
+npm.cmd ci
+npm.cmd run check:functions
+npm.cmd run test:functions
 npm.cmd run test:backend-contract
 npm.cmd run validate
 ```
