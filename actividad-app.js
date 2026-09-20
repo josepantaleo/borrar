@@ -273,11 +273,13 @@
 
       function obtenerNotaRuta(sectionId, contexto) {
           const ajuste = contexto.notasDocente?.[sectionId] || {};
+          const resultado = contexto.historial?.[sectionId] || {};
           const resultadoServidor = contexto.resultadosVerificados?.[sectionId] || {};
           const valorServidor = resultadoServidor.verificadaServidor === true
               ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
               : null;
-          const valor = ajuste.notaDocente ?? ajuste.notaFinalCalculada ?? ajuste.nota ?? valorServidor;
+          const valorHistorico = resultado.notaFinal ?? resultado.notaIA;
+          const valor = ajuste.notaDocente ?? ajuste.notaFinalCalculada ?? ajuste.nota ?? valorHistorico ?? valorServidor;
           const nota = valor === null || valor === undefined || valor === "" ? NaN : Number(valor);
           return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
       }
@@ -1086,6 +1088,33 @@
           return Number.isNaN(fecha.getTime()) ? '' : fecha.toLocaleString('es-AR');
       }
 
+      function normalizarNotaModulo(valor) {
+          const nota = valor === null || valor === undefined || valor === '' ? NaN : Number(valor);
+          return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
+      }
+
+      function obtenerNotaCodigoVerificada(resultadoServidor = {}) {
+          if (resultadoServidor?.verificadaServidor !== true) return null;
+          return normalizarNotaModulo(
+              resultadoServidor.notaCodigo ??
+              resultadoServidor.evaluacionCodigo?.nota
+          );
+      }
+
+      function obtenerNotaAutomaticaModulo(resultado = {}, resultadoServidor = {}) {
+          const notaFinal = normalizarNotaModulo(resultado?.notaFinal ?? resultado?.notaIA);
+          if (notaFinal !== null) return notaFinal;
+
+          const notaPreguntas = normalizarNotaModulo(resultado?.notaPreguntas);
+          const notaCodigo = obtenerNotaCodigoVerificada(resultadoServidor) ??
+              normalizarNotaModulo(resultado?.notaCodigo);
+          if (notaCodigo !== null && notaPreguntas !== null) {
+              return normalizarNotaModulo(calcularNotaCombinada(notaCodigo, notaPreguntas * 10, resultadoServidor?.evaluacionCodigo || resultado?.evaluacionCodigo || null));
+          }
+
+          return notaCodigo;
+      }
+
       function obtenerNotaVigenteModuloEstudiante(sectionId) {
           const resultado = historialResultados[sectionId] || {};
           const resultadoServidor = resultadosVerificadosEstudiante[sectionId] || {};
@@ -1094,14 +1123,12 @@
           const notaDocente = notaDocenteValor === null || notaDocenteValor === undefined || notaDocenteValor === ''
               ? NaN
               : Number(notaDocenteValor);
-          const notaAutomatica = resultadoServidor.verificadaServidor === true
-              ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-              : NaN;
+          const notaAutomatica = obtenerNotaAutomaticaModulo(resultado, resultadoServidor);
           return {
               nota: Number.isFinite(notaDocente)
                   ? Math.max(0, Math.min(10, notaDocente))
-                  : (Number.isFinite(notaAutomatica) ? Math.max(0, Math.min(10, notaAutomatica)) : null),
-              notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
+                  : notaAutomatica,
+              notaAutomatica,
               corregida: Number.isFinite(notaDocente),
               ajuste
           };
@@ -9031,19 +9058,10 @@
       function obtenerNotaDesafioEstudiante(d, sectionId, resultado = null) {
           const ajuste = d?.notasDesafiosDocente?.[sectionId];
           const valorDocente = ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota;
-          const notaDocente = valorDocente === null || valorDocente === undefined || valorDocente === ''
-              ? NaN
-              : Number(valorDocente);
-          if (Number.isFinite(notaDocente)) return Math.max(0, Math.min(10, notaDocente));
+          const notaDocente = normalizarNotaModulo(valorDocente);
+          if (notaDocente !== null) return notaDocente;
           const verificada = d?.resultadosVerificados?.[sectionId] || {};
-          const notaVerificada = Number(
-              verificada.notaCodigo ??
-              verificada.evaluacionCodigo?.nota
-          );
-          if (verificada.verificadaServidor === true && Number.isFinite(notaVerificada)) {
-              return Math.max(0, Math.min(10, notaVerificada));
-          }
-          return null;
+          return obtenerNotaAutomaticaModulo(resultado || {}, verificada);
       }
       function evaluacionCodigoTieneError(evaluacion = {}, registro = {}) {
           return evaluacion?.sintaxis?.valida === false ||
@@ -9255,10 +9273,6 @@
           const historial = d?.historialResultados || {};
           const notasDocente = d?.notasDesafiosDocente || {};
           const desafioActual = obtenerDesafioActualEstudiante(d);
-          const limitarNota = valor => {
-              const numero = valor === null || valor === undefined || valor === '' ? NaN : Number(valor);
-              return Number.isFinite(numero) ? Math.max(0, Math.min(10, numero)) : null;
-          };
           const datos = seccionesData.map((sec, indice) => {
               const resultado = historial[sec.id] || {};
               const resultadoServidor = d?.resultadosVerificados?.[sec.id] || {};
@@ -9266,10 +9280,8 @@
                   id: sec.id,
                   indice: indice + 1,
                   titulo: sec.title || `Desafío ${indice + 1}`,
-                  automatica: resultadoServidor.verificadaServidor === true
-                      ? limitarNota(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-                      : null,
-                  docente: limitarNota(
+                  automatica: obtenerNotaAutomaticaModulo(resultado, resultadoServidor),
+                  docente: normalizarNotaModulo(
                       notasDocente[sec.id]?.notaDocente ??
                       notasDocente[sec.id]?.notaFinalCalculada ??
                       notasDocente[sec.id]?.nota
@@ -9660,9 +9672,7 @@
               return;
           }
           const resultadoServidor = d.resultadosVerificados?.[sectionId] || {};
-          const notaAutomatica = resultadoServidor.verificadaServidor === true
-              ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-              : NaN;
+          const notaAutomatica = obtenerNotaAutomaticaModulo(d.historialResultados?.[sectionId] || {}, resultadoServidor);
           d.notasDesafiosDocente = {
               ...(d.notasDesafiosDocente || {}),
               [sectionId]: {
@@ -9671,7 +9681,7 @@
                   notaFinalCalculada: notaNormalizada,
                   rubrica: rubrica.criterios.length ? rubrica : null,
                   motivo,
-                  notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
+                  notaAutomatica,
                   modificadaPor: window.firebaseTeacherUser?.email || window.firebaseCurrentUser?.email || ''
               }
           };
@@ -10787,9 +10797,7 @@
               const preguntas = Array.isArray(r.analista?.preguntas) ? r.analista.preguntas : [];
               const codigo = resultadoServidor.codigo || r.codigo || codigos[sec.id] || '// Sin código guardado';
               const salida = r.salida || '// Sin salida de ejecución guardada';
-              const notaAutomatica = resultadoServidor.verificadaServidor === true
-                  ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-                  : null;
+              const notaAutomatica = obtenerNotaAutomaticaModulo(r, resultadoServidor);
               const notaFinal = obtenerNotaDesafioEstudiante(d, sec.id, r);
               const valorNotaDocente = ajusteNotaDocente?.notaDocente ??
                   ajusteNotaDocente?.notaFinalCalculada ??
@@ -12956,9 +12964,7 @@
                   const evaluacion = resultadoServidor.evaluacionCodigo || r.evaluacionCodigo || {};
                   const ajuste = notasDocente[sec.id] || {};
                   const notaVigente = obtenerNotaDesafioEstudiante(d, sec.id, r);
-                  const notaAutomatica = resultadoServidor.verificadaServidor === true
-                      ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-                      : null;
+                  const notaAutomatica = obtenerNotaAutomaticaModulo(r, resultadoServidor);
                   const codigo = resultadoServidor.codigo || r.codigo || codigos[sec.id] || '// Sin código guardado';
                   const mensajes = Array.isArray(chatIA[sec.id]) ? chatIA[sec.id] : [];
                   const ayudaModulo = ayudas[sec.id] || {};

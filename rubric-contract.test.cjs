@@ -31,10 +31,11 @@ assert.strictEqual(context.calcularNotaRubrica({
 
 const checks = [
   [
-    "nota automática verificada por servidor",
+    "nota automática combinada con respaldo verificado por servidor",
     app.includes("d?.resultadosVerificados?.[sectionId] || {}") &&
       app.includes("verificadaServidor === true") &&
-      !app.includes("resultado.notaFinal ?? resultado.notaIA")
+      app.includes("obtenerNotaAutomaticaModulo") &&
+      app.includes("resultado?.notaFinal ?? resultado?.notaIA")
   ],
   ["compatibilidad con nota docente anterior", app.includes("ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota")],
   ["rúbrica configurable por desafío", app.includes("criteriosRubrica-") && app.includes("agregarCriterioRubrica")],

@@ -2983,9 +2983,21 @@
             const ajusteAnterior = notasDocente[sectionId] || null;
             const resultado = datos.historialResultados?.[sectionId] || {};
             const resultadoServidor = datos.resultadosVerificados?.[sectionId] || {};
-            const notaAutomatica = resultadoServidor.verificadaServidor === true
-              ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-              : NaN;
+            const normalizarNotaModulo = valor => {
+              const nota = valor === null || valor === undefined || valor === "" ? NaN : Number(valor);
+              return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
+            };
+            const notaCodigoServidor = resultadoServidor.verificadaServidor === true
+              ? normalizarNotaModulo(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
+              : null;
+            const notaCodigoBase = notaCodigoServidor ?? normalizarNotaModulo(resultado.notaCodigo);
+            const notaPreguntas = normalizarNotaModulo(resultado.notaPreguntas);
+            const notaCombinada = normalizarNotaModulo(resultado.notaFinal ?? resultado.notaIA);
+            const notaAutomatica = notaCombinada ?? (
+              notaCodigoBase !== null && notaPreguntas !== null
+                ? normalizarNotaModulo((notaCodigoBase * 0.7) + (notaPreguntas * 0.3))
+                : notaCodigoBase
+            );
             const notaAnteriorValor = ajusteAnterior?.notaDocente ??
               ajusteAnterior?.notaFinalCalculada ??
               ajusteAnterior?.nota;
@@ -3019,7 +3031,7 @@
             const rubricaNueva = normalizarRubrica(cambio.rubrica);
             if (cambio.restaurar === true) {
               delete notasDocente[sectionId];
-              valorNuevo = Number.isFinite(notaAutomatica) ? notaAutomatica : null;
+              valorNuevo = notaAutomatica;
               motivoNuevo = motivoNuevo || "Restauración de la calificación automática";
             } else {
               const maximoRubrica = rubricaNueva.criterios.reduce(
@@ -3045,7 +3057,7 @@
                 notaDocente: valorNuevo,
                 notaFinalCalculada: valorNuevo,
                 motivo: motivoNuevo,
-                notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
+                notaAutomatica,
                 rubrica: rubricaNueva.criterios.length
                   ? { ...rubricaNueva, fechaCorreccion: serverTimestamp() }
                   : null,
@@ -3083,7 +3095,7 @@
               tipo: cambio.restaurar === true ? "restauracion" : "modificacion",
               valorAnterior,
               valorNuevo,
-              notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
+              notaAutomatica,
               motivo: motivoNuevo,
               rubricaAnterior: ajusteAnterior?.rubrica || null,
               rubricaNueva: rubricaNueva.criterios.length

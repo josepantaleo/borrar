@@ -16,6 +16,12 @@ assert(
   "El grafico no toma la nota automatica verificada por el servidor."
 );
 assert(
+  /function\s+obtenerNotaAutomaticaModulo\s*\(/.test(app) &&
+  /resultado\?\.notaFinal\s*\?\?\s*resultado\?\.notaIA/.test(app) &&
+  /calcularNotaCombinada\(notaCodigo,\s*notaPreguntas\s*\*\s*10/.test(app),
+  "La nota automatica del modulo debe priorizar notaFinal/notaIA y reconstruir la combinada si solo hay codigo y preguntas."
+);
+assert(
   /notasDocente\[sec\.id\]\?\.nota/.test(app),
   "El grafico no toma la nota modificada por el docente."
 );

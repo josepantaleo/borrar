@@ -171,8 +171,39 @@ service cloud.firestore {
         'jitsiGrupal',
         'planesRefuerzo',
         'mensajeDocenteActual',
+        'chatIA',
+        'chatIABorradoId',
+        'chatIABorradoPor',
+        'chatIABorradoEn',
         'actualizadoEn'
       ];
+    }
+
+    function teacherTouchedChatDeleteFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'chatIA',
+        'chatIABorradoId',
+        'chatIABorradoPor',
+        'chatIABorradoEn'
+      ]);
+    }
+
+    function validTeacherChatDeleteUpdate() {
+      return !teacherTouchedChatDeleteFields() ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasAll([
+            'chatIA',
+            'chatIABorradoId',
+            'chatIABorradoPor',
+            'chatIABorradoEn'
+          ]) &&
+          request.resource.data.chatIA == {} &&
+          request.resource.data.chatIABorradoId is string &&
+          request.resource.data.chatIABorradoId.size() <= 120 &&
+          request.resource.data.chatIABorradoPor is string &&
+          request.resource.data.chatIABorradoPor.size() <= 254 &&
+          request.resource.data.chatIABorradoEn == request.time
+        );
     }
 
     function validTeacherStudentUpdate(uid) {
@@ -202,7 +233,8 @@ service cloud.firestore {
         request.resource.data.get('notasDesafiosDocente', {}) is map &&
         request.resource.data.get('planesRefuerzo', []) is list &&
         request.resource.data.get('planesRefuerzo', []).size() <= 100 &&
-        request.resource.data.get('mensajeDocenteActual', {}) is map;
+        request.resource.data.get('mensajeDocenteActual', {}) is map &&
+        validTeacherChatDeleteUpdate();
     }
 
     function newStudentAllowedFields() {
