@@ -13,6 +13,7 @@ test("limita una entrega con error sintáctico", () => {
   assert.equal(result.verificadaServidor, true);
   assert.equal(result.sintaxis.valida, false);
   assert.ok(result.nota <= 3);
+  assert.equal(result.requiereRevision, true);
 });
 
 test("reconoce una solución estructural válida", () => {
@@ -25,4 +26,19 @@ test("reconoce una solución estructural válida", () => {
   assert.equal(result.sintaxis.valida, true);
   assert.ok(result.nota >= 7);
   assert.ok(result.criterios.some(item => item.id === "requisitos"));
+  assert.equal(result.versionEvaluador, "server-ast-v2");
+  assert.ok(result.confianza > 0.65);
+  assert.ok(Number.isFinite(result.metricas.confianza));
+});
+
+test("no acepta requisitos simulados solo en comentarios o textos", () => {
+  const result = analyzeCode("sec-5", `
+    // if (promedio >= 6) { console.log("aprobado"); } else { console.log("revisar"); }
+    const respuesta = "if else";
+    console.log(respuesta);
+  `);
+  assert.equal(result.sintaxis.valida, true);
+  assert.ok(result.nota < 7);
+  assert.equal(result.requiereRevision, true);
+  assert.ok(result.conceptos.some(item => item.nombre === "if" && item.cumple === false));
 });

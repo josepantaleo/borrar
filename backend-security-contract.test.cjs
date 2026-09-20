@@ -18,6 +18,10 @@ assert.match(backend, /runTransaction/, "Las cuotas deben reservarse mediante tr
 assert.match(backend, /backendUsage/, "Las cuotas deben persistirse fuera del documento editable del alumno.");
 assert.match(backend, /resultadosVerificados/, "La evaluación debe persistir un resultado protegido.");
 assert.match(evaluator, /acorn\.parse/, "El servidor debe analizar sintaxis sin ejecutar código no confiable.");
+assert.match(evaluator, /versionEvaluador:\s*"server-ast-v2"/, "El evaluador debe usar el contrato AST v2.");
+assert.match(evaluator, /astTokenPresent/, "Los requisitos deben detectarse desde el AST, no solo por texto.");
+assert.match(evaluator, /confianza/, "La evaluación debe informar confianza del análisis.");
+assert.match(evaluator, /requiereRevision/, "La evaluación debe indicar si requiere revisión docente.");
 assert.doesNotMatch(evaluator, /\beval\s*\(|new\s+Function\s*\(|\bvm\./, "El evaluador no debe ejecutar código del alumno.");
 assert.match(rules, /match \/backendUsage\/\{uid\}\/\{document=\*\*\}/, "Las cuotas deben estar bloqueadas al cliente.");
 assert.match(rules, /match \/estudiantes\/\{uid\}\/evaluacionesServidor\/\{sectionId\}/, "Las evaluaciones verificadas deben tener reglas explícitas.");

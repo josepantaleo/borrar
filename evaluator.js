@@ -58,6 +58,52 @@ function tokenPresent(source, token) {
   return new RegExp(`\\b${String(token).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(source);
 }
 
+function astTokenPresent(ast, token, identifiers) {
+  let found = false;
+  walk.simple(ast, {
+    VariableDeclaration(node) {
+      if (node.kind === token) found = true;
+    },
+    LogicalExpression(node) {
+      if (node.operator === token) found = true;
+    },
+    IfStatement(node) {
+      if (token === "if" || (token === "else" && node.alternate)) found = true;
+    },
+    ForStatement() {
+      if (token === "for") found = true;
+    },
+    CallExpression(node) {
+      const callee = node.callee;
+      if (token === "console.log" &&
+          callee?.type === "MemberExpression" &&
+          !callee.computed &&
+          callee.object?.type === "Identifier" &&
+          callee.object.name === "console" &&
+          callee.property?.name === "log") found = true;
+      if (token === "JSON.parse" &&
+          callee?.type === "MemberExpression" &&
+          !callee.computed &&
+          callee.object?.name === "JSON" &&
+          callee.property?.name === "parse") found = true;
+      if (callee?.type === "MemberExpression" && !callee.computed &&
+          callee.property?.name === token) found = true;
+      if (callee?.type === "Identifier" && callee.name === token) found = true;
+    },
+    NewExpression(node) {
+      if (node.callee?.type === "Identifier" && node.callee.name === token) found = true;
+    },
+    MemberExpression(node) {
+      if (!node.computed && node.property?.type === "Identifier" &&
+          node.property.name === token) found = true;
+    },
+    Identifier(node) {
+      if (node.name === token) found = true;
+    }
+  });
+  return found || identifiers?.has(token) === true;
+}
+
 function analyzeCode(sectionId, code) {
   const challenge = getChallenge(sectionId);
   if (!challenge) {
@@ -102,7 +148,7 @@ function analyzeCode(sectionId, code) {
   }));
   const tokenEvidence = challenge.requiredTokens.map(token => ({
     requirement: token,
-    passed: tokenPresent(source, token) || identifiers.has(token)
+    passed: astTokenPresent(ast, token, identifiers)
   }));
   const allEvidence = [...nodeEvidence, ...tokenEvidence];
   const passedRequirements = allEvidence.filter(item => item.passed).length;
@@ -128,12 +174,16 @@ function analyzeCode(sectionId, code) {
   const hasPendingMarkers = /\b(TODO|FIXME)\b|completar|tu c[oó]digo/i.test(source);
   const usesVar = /\bvar\b/.test(source);
   const longLines = source.split(/\r?\n/).filter(line => line.length > 120).length;
+  const emptyBlocks = (nodeCounts.get("BlockStatement") || 0) === 0;
+  const repeatedDeclarations = variableNames.length - new Set(variableNames).size;
   const qualityRatio = clamp(
     0.35 +
     namingRatio * 0.35 +
     (usesVar ? 0 : 0.1) +
     (longLines ? 0 : 0.1) +
-    (hasPendingMarkers ? 0 : 0.1),
+    (hasPendingMarkers ? 0 : 0.1) +
+    (emptyBlocks ? -0.1 : 0) +
+    (repeatedDeclarations > 0 ? -0.05 : 0),
     0,
     1
   );
@@ -155,14 +205,21 @@ function analyzeCode(sectionId, code) {
     score = Math.min(score, 7);
     limits.push("Persisten marcadores de código pendiente.");
   }
+  if (emptyBlocks) {
+    limits.push("No se detectaron bloques de instrucciones completos.");
+  }
   score = round(clamp(score, 1, 10), 1);
 
   const missing = allEvidence.filter(item => !item.passed).map(item => item.requirement);
+  const confidence = round(clamp((requirementRatio * 0.65) + (qualityRatio * 0.2) + 0.15, 0, 1), 3);
+  const requiereRevision = confidence < 0.65 || requirementRatio < 0.6 || hasPendingMarkers || score < 6;
   return {
     nota: score,
     porcentaje: round(score * 10, 1),
     verificadaServidor: true,
-    versionEvaluador: "server-ast-v1",
+    versionEvaluador: "server-ast-v2",
+    confianza: confidence,
+    requiereRevision,
     criterios: [
       {
         id: "sintaxis",
@@ -199,6 +256,8 @@ function analyzeCode(sectionId, code) {
     limites: limits,
     advertencias: [
       "Evaluación automática del servidor: no ejecuta código no confiable y requiere confirmación docente.",
+      `Confianza del análisis: ${round(confidence * 100, 1)}%.`,
+      ...(requiereRevision ? ["Se recomienda revisión docente antes de confirmar la nota."] : []),
       ...limits
     ],
     sintaxis: { valida: true, error: "" },
@@ -222,7 +281,8 @@ function analyzeCode(sectionId, code) {
       calidad: round(qualityRatio, 3),
       comportamiento: 0,
       referencia: round(requirementRatio, 3),
-      nombresExigidos: round(requirementRatio, 3)
+      nombresExigidos: round(requirementRatio, 3),
+      confianza: confidence
     }
   };
 }
@@ -232,7 +292,9 @@ function buildEmptyEvaluation(challenge, reason) {
     nota: 1,
     porcentaje: 10,
     verificadaServidor: true,
-    versionEvaluador: "server-ast-v1",
+    versionEvaluador: "server-ast-v2",
+    confianza: 0,
+    requiereRevision: true,
     criterios: [],
     fortalezas: [],
     mejoras: [reason],
@@ -241,7 +303,7 @@ function buildEmptyEvaluation(challenge, reason) {
     sintaxis: { valida: false, error: reason },
     ejecucion: { intentada: false, ok: false, salida: "", salidaEsperada: "", similitudSalida: 0, error: reason },
     conceptos: challenge.concepts.map(nombre => ({ nombre, cumple: false, evidencia: "Sin código para analizar." })),
-    metricas: { requisitos: 0, calidad: 0, comportamiento: 0, referencia: 0, nombresExigidos: 0 }
+    metricas: { requisitos: 0, calidad: 0, comportamiento: 0, referencia: 0, nombresExigidos: 0, confianza: 0 }
   };
 }
 

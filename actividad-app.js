@@ -10829,7 +10829,7 @@
                   : 'La fórmula se completará al entregar código y preguntas.';
               const estadosDetalle = [
                   evaluacionCodigoTieneError(evaluacionCodigo, r) ? 'errores' : '',
-                  (!finalizadas[sec.id] || r.notaPreguntas === undefined || notaAutomatica === undefined) ? 'pendientes' : '',
+                  (!finalizadas[sec.id] || r.notaPreguntas === undefined || notaAutomatica === null) ? 'pendientes' : '',
                   tieneNotaDocente ? 'modificadas' : '',
                   finalizadas[sec.id] ? 'finalizadas' : '',
                   notaFinal === null ? 'sin-nota' : '',
@@ -10865,7 +10865,7 @@
                           <div class="teacher-detail-stat"><small>Estado</small><strong>${estado}</strong></div>
                           <div class="teacher-detail-stat"><small>Nota del código (70%)</small><strong>${r.notaCodigo !== undefined ? `${r.notaCodigo}/10` : 'Pendiente'}</strong></div>
                           <div class="teacher-detail-stat"><small>Nota de preguntas (30%)</small><strong>${r.notaPreguntas !== undefined ? `${r.notaPreguntas}/10` : 'Pendiente'}</strong></div>
-                          <div class="teacher-detail-stat"><small>Calificación automática</small><strong>${notaAutomatica !== undefined ? `${notaAutomatica}/10` : 'Pendiente'}</strong></div>
+                          <div class="teacher-detail-stat"><small>Calificación automática</small><strong>${notaAutomatica !== null ? `${notaAutomatica}/10` : 'Pendiente'}</strong></div>
                           <div class="teacher-detail-stat ${tieneNotaDocente ? 'teacher-grade-adjusted' : ''}"><small>Nota vigente</small><strong>${notaFinal !== null ? `${notaFinal}/10` : 'Pendiente'}</strong></div>
                           <div class="teacher-detail-stat"><small>Tiempo restante</small><strong>${formatearTiempoProfesor(tiempos[sec.id] ?? 2400)}</strong></div>
                           <div class="teacher-detail-stat"><small>Consultas de nota</small><strong>${Number(previews[sec.id] || 0)}/3</strong></div>

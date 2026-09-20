@@ -37,6 +37,11 @@ const checks = [
       app.includes("obtenerNotaAutomaticaModulo") &&
       app.includes("resultado?.notaFinal ?? resultado?.notaIA")
   ],
+  [
+    "null no se muestra como nota",
+    app.includes("notaAutomatica !== null ? `${notaAutomatica}/10` : 'Pendiente'") &&
+      app.includes("notaAutomatica === null) ? 'pendientes' : ''")
+  ],
   ["compatibilidad con nota docente anterior", app.includes("ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota")],
   ["rúbrica configurable por desafío", app.includes("criteriosRubrica-") && app.includes("agregarCriterioRubrica")],
   ["comentarios y evidencia por criterio", app.includes("comentarioDocente") && app.includes("evidenciaAsociada")],
