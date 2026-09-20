@@ -1115,6 +1115,69 @@
           return notaCodigo;
       }
 
+      function formatearNotaJustificacion(valor) {
+          const nota = normalizarNotaModulo(valor);
+          return nota === null ? "Pendiente" : `${nota.toFixed(1)}/10`;
+      }
+
+      function generarJustificacionNotaAutomatica(d, sectionId) {
+          const sec = seccionesData.find(item => item.id === sectionId) || {};
+          const resultado = d?.historialResultados?.[sectionId] || {};
+          const resultadoServidor = d?.resultadosVerificados?.[sectionId] || {};
+          const evaluacion = resultadoServidor.evaluacionCodigo || resultado.evaluacionCodigo || {};
+          const notaCodigo = obtenerNotaCodigoVerificada(resultadoServidor) ??
+              normalizarNotaModulo(resultado.notaCodigo ?? evaluacion.nota);
+          const notaPreguntas = normalizarNotaModulo(resultado.notaPreguntas);
+          const notaAutomatica = obtenerNotaAutomaticaModulo(resultado, resultadoServidor);
+          const confianza = Number(evaluacion.confianza ?? evaluacion.metricas?.confianza);
+          const criterios = Array.isArray(evaluacion.criterios) ? evaluacion.criterios : [];
+          const limites = Array.isArray(evaluacion.limites) ? evaluacion.limites : [];
+          const analista = resultado.analista && typeof resultado.analista === "object"
+              ? resultado.analista
+              : null;
+          const lineas = [
+              `Justificación de nota automática - ${sec.title || sectionId}`,
+              "",
+              `Nota automática del módulo: ${formatearNotaJustificacion(notaAutomatica)}`,
+              `Código evaluado por servidor: ${formatearNotaJustificacion(notaCodigo)} (70%)`,
+              `Preguntas del analista: ${formatearNotaJustificacion(notaPreguntas)} (30%)`
+          ];
+          if (notaCodigo !== null && notaPreguntas !== null) {
+              lineas.push(`Fórmula: (${notaCodigo.toFixed(1)} × 0,70) + (${notaPreguntas.toFixed(1)} × 0,30) = ${formatearNotaJustificacion(notaAutomatica)}`);
+          } else {
+              lineas.push("Fórmula pendiente: falta entregar código verificado o responder las preguntas del analista.");
+          }
+          lineas.push("");
+          lineas.push(`Confianza del análisis: ${Number.isFinite(confianza) ? `${Math.round(confianza * 100)}%` : "Pendiente"}`);
+          lineas.push(evaluacion.requiereRevision === true
+              ? "Estado: requiere revisión docente antes de confirmar la nota."
+              : "Estado: sin alerta automática de revisión; queda sujeta a confirmación docente.");
+          if (criterios.length) {
+              lineas.push("", "Criterios del evaluador:");
+              criterios.forEach(criterio => {
+                  lineas.push(`- ${criterio.nombre || criterio.id || "Criterio"}: ${criterio.puntos}/${criterio.peso} (${criterio.estado || "sin estado"}). ${criterio.evidencia || ""}`.trim());
+              });
+          }
+          if (analista) {
+              lineas.push("", `Analista de preguntas: ${Number(analista.puntosObtenidos || 0)}/${Number(analista.maxPuntos || 0)} puntos, ${Number(analista.porcentaje || 0)}%.`);
+              lineas.push(`Viabilidad: ${analista.viabilidad || "Pendiente"}. Excelencia: ${analista.excelencia || "Pendiente"}.`);
+          }
+          if (limites.length) {
+              lineas.push("", "Límites aplicados:");
+              limites.forEach(limite => lineas.push(`- ${limite}`));
+          }
+          return lineas.join("\n");
+      }
+
+      function mostrarJustificacionNotaAutomaticaProfesor(indice, sectionId) {
+          const d = estudiantesProfesor[indice];
+          if (!d || !sectionId) {
+              alert("No se encontraron datos suficientes para justificar la nota automática.");
+              return;
+          }
+          alert(generarJustificacionNotaAutomatica(d, sectionId));
+      }
+
       function obtenerNotaVigenteModuloEstudiante(sectionId) {
           const resultado = historialResultados[sectionId] || {};
           const resultadoServidor = resultadosVerificadosEstudiante[sectionId] || {};
@@ -10872,6 +10935,11 @@
                       </div>
                       <div style="padding:.65rem;border-radius:6px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.25);margin-bottom:.8rem;">
                           <strong>Cálculo de esta actividad:</strong> ${escapeHtml(formulaActividad)}
+                          <div style="margin-top:.55rem">
+                              <button class="btn btn-secondary" type="button" onclick="mostrarJustificacionNotaAutomaticaProfesor(${indice}, '${sec.id}')">
+                                  <i class="fa-solid fa-circle-info"></i> Justificar nota automática
+                              </button>
+                          </div>
                       </div>
                       <div class="teacher-challenge-grade-editor">
                           <div class="teacher-challenge-grade-heading">

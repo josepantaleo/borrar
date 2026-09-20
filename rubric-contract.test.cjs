@@ -42,6 +42,14 @@ const checks = [
     app.includes("notaAutomatica !== null ? `${notaAutomatica}/10` : 'Pendiente'") &&
       app.includes("notaAutomatica === null) ? 'pendientes' : ''")
   ],
+  [
+    "justificación visible de nota automática",
+    app.includes("mostrarJustificacionNotaAutomaticaProfesor") &&
+      app.includes("Justificar nota automática") &&
+      app.includes("Fórmula:") &&
+      app.includes("Criterios del evaluador:") &&
+      app.includes("Confianza del análisis:")
+  ],
   ["compatibilidad con nota docente anterior", app.includes("ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota")],
   ["rúbrica configurable por desafío", app.includes("criteriosRubrica-") && app.includes("agregarCriterioRubrica")],
   ["comentarios y evidencia por criterio", app.includes("comentarioDocente") && app.includes("evidenciaAsociada")],
