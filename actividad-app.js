@@ -1169,13 +1169,120 @@
           return lineas.join("\n");
       }
 
+      function obtenerFilasJustificacionNotaAutomatica(d, sectionId) {
+          const resultado = d?.historialResultados?.[sectionId] || {};
+          const resultadoServidor = d?.resultadosVerificados?.[sectionId] || {};
+          const evaluacion = resultadoServidor.evaluacionCodigo || resultado.evaluacionCodigo || {};
+          const notaCodigo = obtenerNotaCodigoVerificada(resultadoServidor) ??
+              normalizarNotaModulo(resultado.notaCodigo ?? evaluacion.nota);
+          const notaPreguntas = normalizarNotaModulo(resultado.notaPreguntas);
+          const notaAutomatica = obtenerNotaAutomaticaModulo(resultado, resultadoServidor);
+          const confianza = Number(evaluacion.confianza ?? evaluacion.metricas?.confianza);
+          const filas = [
+              ["Nota automática del módulo", formatearNotaJustificacion(notaAutomatica), "Resultado usado para el módulo"],
+              ["Código evaluado por servidor", formatearNotaJustificacion(notaCodigo), "Peso 70%"],
+              ["Preguntas del analista", formatearNotaJustificacion(notaPreguntas), "Peso 30%"],
+              ["Confianza del análisis", Number.isFinite(confianza) ? `${Math.round(confianza * 100)}%` : "Pendiente", evaluacion.requiereRevision === true ? "Requiere revisión docente" : "Sin alerta automática"]
+          ];
+          if (notaCodigo !== null && notaPreguntas !== null) {
+              filas.push(["Fórmula aplicada", `(${notaCodigo.toFixed(1)} × 0,70) + (${notaPreguntas.toFixed(1)} × 0,30) = ${formatearNotaJustificacion(notaAutomatica)}`, "Código + preguntas"]);
+          } else {
+              filas.push(["Fórmula aplicada", "Pendiente", "Falta código verificado o respuestas del analista"]);
+          }
+          return {
+              filas,
+              criterios: Array.isArray(evaluacion.criterios) ? evaluacion.criterios : [],
+              limites: Array.isArray(evaluacion.limites) ? evaluacion.limites : [],
+              texto: generarJustificacionNotaAutomatica(d, sectionId)
+          };
+      }
+
       function mostrarJustificacionNotaAutomaticaProfesor(indice, sectionId) {
           const d = estudiantesProfesor[indice];
           if (!d || !sectionId) {
               alert("No se encontraron datos suficientes para justificar la nota automática.");
               return;
           }
-          alert(generarJustificacionNotaAutomatica(d, sectionId));
+          const justificacion = obtenerFilasJustificacionNotaAutomatica(d, sectionId);
+          const texto = justificacion.texto;
+          const existente = document.getElementById("justificacionNotaAutomaticaModal");
+          existente?.remove();
+
+          const modal = document.createElement("div");
+          modal.id = "justificacionNotaAutomaticaModal";
+          modal.className = "modal-overlay active";
+          modal.setAttribute("role", "dialog");
+          modal.setAttribute("aria-modal", "true");
+          modal.setAttribute("aria-labelledby", "justificacionNotaAutomaticaTitulo");
+          modal.innerHTML = `
+              <div class="modal-box ai-grade-justification-box" tabindex="-1">
+                  <div class="ai-grade-justification-header">
+                      <div>
+                          <span class="student-progress-eyebrow">Auditoría de evaluación</span>
+                          <h3 id="justificacionNotaAutomaticaTitulo">
+                              <i class="fa-solid fa-scale-balanced"></i> Justificación de la nota automática
+                          </h3>
+                          <p>Revisá la fórmula, la evidencia y las alertas antes de confirmar una nota.</p>
+                      </div>
+                      <button type="button" class="btn btn-secondary" data-close-justificacion aria-label="Cerrar justificación">
+                          <i class="fa-solid fa-xmark"></i>
+                      </button>
+                  </div>
+                  <div class="ai-grade-justification-table-wrap">
+                      <table class="ai-grade-justification-table">
+                          <thead><tr><th>Elemento</th><th>Valor</th><th>Interpretación</th></tr></thead>
+                          <tbody>${justificacion.filas.map(fila => `<tr><th scope="row">${escapeHtml(fila[0])}</th><td>${escapeHtml(fila[1])}</td><td>${escapeHtml(fila[2])}</td></tr>`).join("")}</tbody>
+                      </table>
+                  </div>
+                  ${justificacion.criterios.length ? `<details class="ai-grade-justification-section" open><summary>Criterios del evaluador</summary><div class="ai-grade-criteria-list">${justificacion.criterios.map(criterio => `<article><strong>${escapeHtml(criterio.nombre || criterio.id || "Criterio")}</strong><span>${escapeHtml(`${criterio.puntos}/${criterio.peso} · ${criterio.estado || "sin estado"}`)}</span><p>${escapeHtml(criterio.evidencia || "")}</p></article>`).join("")}</div></details>` : ""}
+                  ${justificacion.limites.length ? `<details class="ai-grade-justification-section"><summary>Límites aplicados (${justificacion.limites.length})</summary><ul>${justificacion.limites.map(limite => `<li>${escapeHtml(limite)}</li>`).join("")}</ul></details>` : ""}
+                  <label class="ai-grade-justification-copy-label" for="aiGradeJustificationCopy">Texto completo para copiar</label>
+                  <textarea id="aiGradeJustificationCopy" class="ai-grade-justification-text" readonly aria-label="Justificación completa">${escapeHtml(texto)}</textarea>
+                  <div class="ai-grade-justification-actions">
+                      <span class="ai-grade-justification-status" role="status"></span>
+                      <div class="btn-group">
+                          <button type="button" class="btn btn-secondary" data-copy-justificacion>
+                              <i class="fa-solid fa-copy"></i> Copiar
+                          </button>
+                          <button type="button" class="btn btn-primary" data-close-justificacion>
+                              <i class="fa-solid fa-check"></i> Cerrar
+                          </button>
+                      </div>
+                  </div>
+              </div>`;
+          document.body.appendChild(modal);
+
+          const cerrar = () => {
+              document.removeEventListener("keydown", manejarTecla);
+              modal.remove();
+          };
+          const manejarTecla = event => {
+              if (event.key === "Escape") cerrar();
+          };
+          const area = modal.querySelector(".ai-grade-justification-text");
+          const estado = modal.querySelector(".ai-grade-justification-status");
+          modal.querySelectorAll("[data-close-justificacion]").forEach(boton => {
+              boton.addEventListener("click", cerrar);
+          });
+          modal.addEventListener("click", event => {
+              if (event.target === modal) cerrar();
+          });
+          modal.querySelector("[data-copy-justificacion]")?.addEventListener("click", async () => {
+              try {
+                  await navigator.clipboard.writeText(texto);
+                  if (estado) estado.textContent = "Justificación copiada.";
+              } catch (_) {
+                  area?.focus();
+                  area?.select();
+                  if (estado) estado.textContent = "No se pudo copiar automáticamente. Seleccioná el texto y copiá manualmente.";
+              }
+          });
+          document.addEventListener("keydown", manejarTecla);
+          requestAnimationFrame(() => {
+              modal.querySelector(".ai-grade-justification-box")?.focus();
+              area?.focus();
+              area?.select();
+          });
       }
 
       function obtenerNotaVigenteModuloEstudiante(sectionId) {
@@ -6740,11 +6847,14 @@
               }
               if (evento.type === 'drop') return 'pegar';
               if (evento.type === 'beforeinput') {
-                  return {
+                  const accionPorTipo = {
                       insertFromPaste: 'pegar',
                       insertFromDrop: 'pegar',
                       deleteByCut: 'cortar'
-                  }[evento.inputType] || '';
+                  }[evento.inputType];
+                  if (accionPorTipo) return accionPorTipo;
+                  if (evento.inputType === 'insertText' && String(evento.data || '').length >= 80) return 'pegar';
+                  return '';
               }
               if (evento.type === 'keydown') {
                   const tecla = String(evento.key || '').toLowerCase();
@@ -6807,7 +6917,9 @@
           });
 
           document.addEventListener('beforeinput', evento => {
-              if (!['insertFromPaste', 'insertFromDrop', 'deleteByCut'].includes(evento.inputType)) return;
+              const insercionExterna = ['insertFromPaste', 'insertFromDrop', 'deleteByCut'].includes(evento.inputType) ||
+                  (evento.inputType === 'insertText' && String(evento.data || '').length >= 80);
+              if (!insercionExterna) return;
               bloquearEvento(evento);
           }, true);
 

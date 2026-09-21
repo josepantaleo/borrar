@@ -1288,6 +1288,213 @@ body.teacher-light-mode #accionesEstudianteModal .btn-secondary:hover,
 body.teacher-light-mode #historialPestanasModal .btn-secondary:hover{
   background:#cbd5e1;
 }
+
+.ai-grade-justification-box{
+  width:min(860px,94vw);
+  max-height:min(86vh,760px);
+  display:flex;
+  flex-direction:column;
+  gap:.9rem;
+  padding:1.15rem;
+}
+.ai-grade-justification-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:1rem;
+}
+.ai-grade-justification-header h3{
+  margin:.2rem 0 .35rem;
+  color:var(--text-main);
+}
+.ai-grade-justification-header p{
+  margin:0;
+  color:var(--text-muted);
+  font-size:.82rem;
+}
+.ai-grade-justification-table-wrap{
+  overflow:auto;
+  max-height:34vh;
+  border:1px solid rgba(56,189,248,.28);
+  border-radius:7px;
+  background:rgba(15,23,42,.42);
+}
+.ai-grade-justification-table{
+  width:100%;
+  min-width:640px;
+  border-collapse:collapse;
+  font-size:.82rem;
+}
+.ai-grade-justification-table th,
+.ai-grade-justification-table td{
+  padding:.62rem .7rem;
+  border-bottom:1px solid rgba(148,163,184,.18);
+  text-align:left;
+  vertical-align:top;
+}
+.ai-grade-justification-table thead th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:#0f2a43;
+  color:#e0f2fe;
+  font-weight:700;
+}
+.ai-grade-justification-table tbody th{
+  width:30%;
+  color:#bae6fd;
+  font-weight:650;
+}
+.ai-grade-justification-table tbody tr:last-child th,
+.ai-grade-justification-table tbody tr:last-child td{
+  border-bottom:0;
+}
+.ai-grade-justification-section{
+  border:1px solid rgba(148,163,184,.22);
+  border-radius:7px;
+  padding:.65rem .8rem;
+  background:rgba(15,23,42,.28);
+}
+.ai-grade-justification-section summary{
+  cursor:pointer;
+  color:#bae6fd;
+  font-weight:650;
+}
+.ai-grade-justification-section > ul{
+  margin:.6rem 0 0 1.1rem;
+  padding:0;
+  color:var(--text-muted);
+  font-size:.8rem;
+}
+.ai-grade-criteria-list{
+  display:grid;
+  gap:.55rem;
+  margin-top:.65rem;
+}
+.ai-grade-criteria-list article{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:.25rem .75rem;
+  padding:.55rem .65rem;
+  border-left:3px solid #38bdf8;
+  border-radius:4px;
+  background:rgba(30,41,59,.5);
+}
+.ai-grade-criteria-list article strong{
+  color:#e0f2fe;
+}
+.ai-grade-criteria-list article span{
+  color:#7dd3fc;
+  font-size:.76rem;
+  white-space:nowrap;
+}
+.ai-grade-criteria-list article p{
+  grid-column:1 / -1;
+  margin:0;
+  color:var(--text-muted);
+  font-size:.78rem;
+}
+.ai-grade-justification-copy-label{
+  margin:.1rem 0 -.35rem;
+  color:var(--text-muted);
+  font-size:.76rem;
+  font-weight:650;
+}
+.ai-grade-justification-text{
+  width:100%;
+  min-height:360px;
+  flex:1;
+  resize:vertical;
+  padding:.85rem;
+  border:1px solid rgba(56,189,248,.35);
+  border-radius:7px;
+  background:rgba(15,23,42,.72);
+  color:#e2e8f0;
+  font:500 .82rem/1.55 "Fira Code",ui-monospace,SFMono-Regular,monospace;
+  white-space:pre-wrap;
+}
+.ai-grade-justification-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  flex-wrap:wrap;
+}
+.ai-grade-justification-status{
+  min-height:1.2rem;
+  color:#7dd3fc;
+  font-size:.78rem;
+}
+body.teacher-light-mode .ai-grade-justification-text{
+  background:#f8fafc;
+  color:#0f172a;
+  border-color:#7dd3fc;
+}
+body.teacher-light-mode .ai-grade-justification-status{
+  color:#0369a1;
+}
+body.teacher-light-mode .ai-grade-justification-table-wrap,
+body.teacher-light-mode .ai-grade-justification-section{
+  background:#f8fafc;
+  border-color:#94a3b8;
+}
+body.teacher-light-mode .ai-grade-justification-table thead th{
+  background:#dbeafe;
+  color:#0f172a;
+}
+body.teacher-light-mode .ai-grade-justification-table tbody th{
+  color:#075985;
+}
+body.teacher-light-mode .ai-grade-criteria-list article{
+  background:#fff;
+  border-left-color:#0284c7;
+}
+body.teacher-light-mode .ai-grade-criteria-list article strong{
+  color:#0f172a;
+}
+body.teacher-light-mode .ai-grade-criteria-list article span{
+  color:#0369a1;
+}
+@media(max-width:700px){
+  .ai-grade-justification-box{
+    width:calc(100vw - 1rem);
+    max-height:calc(100dvh - 1rem);
+    padding:.85rem;
+  }
+  .ai-grade-justification-text{
+    min-height:48vh;
+    font-size:.75rem;
+  }
+  .ai-grade-justification-table-wrap{
+    max-height:30vh;
+  }
+  .ai-grade-justification-table{
+    min-width:560px;
+    font-size:.75rem;
+  }
+  .ai-grade-justification-table th,
+  .ai-grade-justification-table td{
+    padding:.5rem .55rem;
+  }
+  .ai-grade-criteria-list article{
+    grid-template-columns:1fr;
+  }
+  .ai-grade-criteria-list article span{
+    white-space:normal;
+  }
+  .ai-grade-justification-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .ai-grade-justification-actions .btn-group{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .ai-grade-justification-actions .btn{
+    justify-content:center;
+  }
+}
 body.teacher-light-mode #panelProfesorModal .acciones-principales-cell .btn{
   background:#64748b;
   color:#fff;
@@ -5262,6 +5469,39 @@ body.teacher-light-mode .teacher-detail-quick-filters button.is-active{
   min-width:0;
   width:100%;
   box-sizing:border-box;
+}
+#panelProfesorModal #filtrosPanelProfesor select{
+  color-scheme:dark;
+  min-height:2.55rem;
+  padding:.52rem .65rem;
+  border:1px solid rgba(125,211,252,.32);
+  border-radius:7px;
+  background-color:#0f172a;
+  color:#e2e8f0;
+  line-height:1.2;
+}
+#panelProfesorModal #filtrosPanelProfesor select:hover{
+  border-color:rgba(125,211,252,.62);
+}
+#panelProfesorModal #filtrosPanelProfesor select:focus-visible{
+  outline:2px solid rgba(56,189,248,.75);
+  outline-offset:2px;
+  border-color:#38bdf8;
+  box-shadow:0 0 0 3px rgba(14,165,233,.15);
+}
+#panelProfesorModal #filtrosPanelProfesor select option{
+  background:#0f172a;
+  color:#e2e8f0;
+}
+body.teacher-light-mode #panelProfesorModal #filtrosPanelProfesor select{
+  color-scheme:light;
+  border-color:#94a3b8;
+  background-color:#fff;
+  color:#0f172a;
+}
+body.teacher-light-mode #panelProfesorModal #filtrosPanelProfesor select option{
+  background:#fff;
+  color:#0f172a;
 }
 #panelProfesorModal .teacher-icon-legend{
   grid-template-columns:auto repeat(6,minmax(120px,1fr)) !important;

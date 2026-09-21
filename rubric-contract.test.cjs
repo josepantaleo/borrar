@@ -50,6 +50,29 @@ const checks = [
       app.includes("Criterios del evaluador:") &&
       app.includes("Confianza del análisis:")
   ],
+  [
+    "modal copiable de justificación",
+    app.includes("justificacionNotaAutomaticaModal") &&
+      app.includes("data-copy-justificacion") &&
+      app.includes("navigator.clipboard.writeText") &&
+      css.includes(".ai-grade-justification-box") &&
+      css.includes(".ai-grade-justification-text")
+  ],
+  [
+    "tabla legible de justificaciÃ³n",
+    app.includes("obtenerFilasJustificacionNotaAutomatica") &&
+      app.includes("ai-grade-justification-table") &&
+      app.includes("ai-grade-justification-copy-label") &&
+      css.includes(".ai-grade-justification-table") &&
+      css.includes(".ai-grade-criteria-list")
+  ],
+  [
+    "protecciÃ³n anti pegado reforzada",
+    app.includes("insertText") &&
+      app.includes("length >= 80") &&
+      app.includes("registrarIntento") &&
+      app.includes("registrarIntentosPortapapelesFirebase")
+  ],
   ["compatibilidad con nota docente anterior", app.includes("ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota")],
   ["rúbrica configurable por desafío", app.includes("criteriosRubrica-") && app.includes("agregarCriterioRubrica")],
   ["comentarios y evidencia por criterio", app.includes("comentarioDocente") && app.includes("evidenciaAsociada")],
