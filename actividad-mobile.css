@@ -26,19 +26,6 @@
     line-height: 1.2;
   }
 
-  .firebase-status,
-  .firebase-last-sync {
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.35;
-  }
-
-  .firebase-last-sync {
-    display: block;
-    margin-top: .2rem;
-  }
-
   .modal-overlay {
     width: 100%;
     height: 100dvh;
@@ -177,34 +164,6 @@
     width: 100%;
     justify-content: center;
   }
-
-  .learning-path-trigger { width: 100%; min-width: 0; }
-  .learning-path-modal { padding: 0; }
-  .learning-path-modal-box {
-    width: 100% !important;
-    max-width: 100vw !important;
-    min-height: 100dvh;
-    max-height: 100dvh !important;
-    margin: 0;
-    border-radius: 0;
-  }
-  .learning-path-modal-header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    padding: .75rem;
-  }
-  .learning-path-modal-heading p { display: none; }
-  .learning-path-content { max-height: calc(100dvh - 72px); padding: .7rem; }
-  .learning-path-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .learning-path-filters { grid-template-columns: minmax(0, 1fr); }
-  .learning-path-item { grid-template-columns: 36px minmax(0, 1fr); }
-  .learning-path-item > .btn {
-    grid-column: 1 / -1;
-    width: 100%;
-    justify-content: center;
-  }
-  .learning-path-item-heading { display: grid; }
 }
 
 @media (max-width: 430px) {

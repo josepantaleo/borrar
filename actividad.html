@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
@@ -15,9 +15,9 @@
       href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;700&display=swap"
       rel="stylesheet"
     />
-  <link rel="stylesheet" href="actividad-base.css?v=20260919-2" />
-  <link rel="stylesheet" href="actividad-mobile.css?v=20260919-2" />
-  <link rel="stylesheet" href="mejoras-seguimiento.css?v=20260919-2" />
+    <link rel="stylesheet" href="actividad-base.css?v=20260925-2" />
+    <link rel="stylesheet" href="mejoras-seguimiento.css?v=20261002-5" />
+    <link rel="stylesheet" href="actividad-mobile.css?v=20260926-1" />
     <style>
       .skip-link {
         position: fixed;
@@ -240,7 +240,7 @@
       }
     </style>
     <!-- Firebase Authentication + Firestore (modular browser SDK) -->
-<script type="module" src="actividad-firebase.js?v=20260919-2"></script>
+      <script type="module" src="actividad-firebase.js?v=20261001-2"></script>
   </head>
   <body onload="initApp()">
     <a class="skip-link" href="#contenidoPrincipal">Saltar al contenido principal</a>
@@ -252,7 +252,7 @@
         <div id="localFileNotice" style="display:none;margin:.8rem 0;padding:.7rem;border:1px solid #f59e0b;border-radius:6px;background:rgba(245,158,11,.12);color:#fde68a;font-size:.82rem;line-height:1.45;">
           Para usar Google, abrí esta página desde <strong>http://localhost:5500/actividad.html</strong>. Firebase no permite iniciar sesión desde un archivo local.
         </div>
-        <button type="button" class="btn btn-google" style="width:100%; justify-content:center; font-size:1rem; padding:.8rem 1rem;" onclick="iniciarSesionGoogle()">
+        <button class="btn btn-google" style="width:100%; justify-content:center; font-size:1rem; padding:.8rem 1rem;" onclick="iniciarSesionGoogle()">
           <i class="fa-brands fa-google"></i> Ingresar como alumno
         </button>
         <div style="display:flex;align-items:center;gap:.7rem;margin:1rem 0;color:var(--text-muted);font-size:.8rem;">
@@ -260,10 +260,10 @@
           <span>DOCENTES</span>
           <span style="height:1px;background:var(--border);flex:1;"></span>
         </div>
-        <button type="button" class="btn btn-warning" style="width:100%;justify-content:center;font-size:1rem;padding:.8rem 1rem;" onclick="ingresarComoDocente(this)">
+        <button class="btn btn-warning" style="width:100%;justify-content:center;font-size:1rem;padding:.8rem 1rem;" onclick="ingresarComoDocente(this)">
           <i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente
         </button>
-        <button type="button" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:.75rem;" onclick="cerrarSesionGoogle()">
+        <button class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:.75rem;" onclick="cerrarSesionGoogle()">
           <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión / cambiar cuenta
         </button>
         <div id="firebaseConfigWarning" style="display:none; margin-top:1rem; color:#fca5a5; font-size:.8rem;">Firebase no está configurado todavía.</div>
@@ -312,52 +312,27 @@
           <button class="btn btn-secondary student-tabs-summary-trigger" id="btnAbrirResumenPestanas" type="button" onclick="abrirResumenPestanasEstudiante()" aria-haspopup="dialog" aria-controls="resumenPestanasEstudianteModal">
             <i class="fa-solid fa-window-restore"></i><span>Mi resumen de pestañas</span>
           </button>
-          <button type="button" class="btn btn-secondary" id="btnJustificarSalida" style="display:none;font-size:.75rem;padding:.4rem .8rem" onclick="abrirJustificacionUltimaSalida()">
+          <button class="btn btn-primary" id="btnVerMisNotas" type="button" onclick="abrirProgresoEstudiante()" aria-haspopup="dialog" aria-controls="progresoEstudianteModal">
+            <i class="fa-solid fa-chart-line"></i><span>Ver mis notas</span>
+          </button>
+          <button class="btn btn-secondary" id="btnJustificarSalida" style="display:none;font-size:.75rem;padding:.4rem .8rem" onclick="abrirJustificacionUltimaSalida()">
             <i class="fa-solid fa-comment"></i> Justificar última
           </button>
 
           <!-- Botones protegidos del profesor -->
-          <button type="button"
+          <button
             class="btn btn-warning teacher-only"
             style="font-size: 0.75rem; padding: 0.4rem 0.8rem"
             onclick="solicitarAccionProfesor('pausar_global')"
           >
             <i class="fa-solid fa-pause"></i> Pausa Global Profe
           </button>
-          <button type="button"
+          <button
             class="btn btn-danger teacher-only"
             style="font-size: 0.75rem; padding: 0.4rem 0.8rem"
             onclick="solicitarAccionProfesor('reset_contador_salidas')"
           >
             <i class="fa-solid fa-rotate-right"></i> Reiniciar contador
-          </button>
-          <button
-            class="btn student-progress-trigger"
-            id="btnAbrirProgresoEstudiante"
-            type="button"
-            onclick="abrirProgresoEstudiante()"
-            aria-haspopup="dialog"
-            aria-controls="progresoEstudianteModal"
-          >
-            <span class="student-progress-trigger-icon" aria-hidden="true"><i class="fa-solid fa-chart-column"></i></span>
-            <span class="student-progress-trigger-copy">
-              <strong>Mi progreso y calificaciones</strong>
-              <small id="resumenBotonProgreso">Ver avance, notas y recomendaciones</small>
-            </span>
-            <i class="fa-solid fa-chevron-right student-progress-trigger-arrow" aria-hidden="true"></i>
-          </button>
-          <button class="btn learning-path-trigger"
-            id="btnAbrirRutaAprendizaje"
-            type="button"
-            onclick="abrirRutaAprendizaje()"
-            aria-haspopup="dialog"
-            aria-controls="rutaAprendizajeModal">
-            <span class="learning-path-trigger-icon" aria-hidden="true"><i class="fa-solid fa-route"></i></span>
-            <span>
-              <strong>Ruta de aprendizaje</strong>
-              <small id="resumenBotonRuta">Ver desafío actual y próximos pasos</small>
-            </span>
-            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
           </button>
           <div class="progress-wrapper">
             <span class="progress-label" id="progressText">Progreso: 0%</span>
@@ -374,16 +349,15 @@
           <div class="firebase-account">
             <img id="firebaseUserPhoto" src="" alt="Google" style="display:none;">
             <div><strong id="firebaseUserName">Sin sesión</strong><div class="email" id="firebaseUserEmail"></div></div>
-            <span id="firebaseSaveStatus" class="firebase-status online" role="status" aria-live="polite">● Guardado local</span>
-            <small id="firebaseLastSync" class="firebase-last-sync" aria-live="polite">Última sincronización: todavía no confirmada</small>
+            <span id="firebaseSaveStatus" class="firebase-status online">● Sincronización activa</span>
           </div>
           <div class="btn-group">
-            <button type="button" class="btn btn-success" onclick="guardarAhoraFirebase()"><i class="fa-solid fa-cloud-arrow-up"></i> Guardar ahora</button>
-            <button type="button" class="btn btn-warning" id="btnIngresoDocente" onclick="ingresarComoDocente(this)"><i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente</button>
-            <button type="button" class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('editor_desafios')"><i class="fa-solid fa-puzzle-piece"></i> Editor de desafíos</button>
-            <button type="button" class="btn btn-primary teacher-only" onclick="solicitarAccionProfesor('panel_profesor')"><i class="fa-solid fa-chalkboard-user"></i> Panel Profesor</button>
-            <button type="button" class="btn btn-warning teacher-only teacher-session-only" onclick="cerrarAccesoDocenteTemporal()"><i class="fa-solid fa-user-lock"></i> Cerrar acceso docente</button>
-            <button type="button" class="btn btn-danger" onclick="cerrarSesionGoogle()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
+            <button class="btn btn-success" onclick="guardarAhoraFirebase()"><i class="fa-solid fa-cloud-arrow-up"></i> Guardar ahora</button>
+            <button class="btn btn-primary" type="button" onclick="editarMisDatos()"><i class="fa-solid fa-user-pen"></i> Editar mis datos</button>
+            <button class="btn btn-warning" id="btnIngresoDocente" onclick="ingresarComoDocente(this)"><i class="fa-solid fa-chalkboard-user"></i> Ingresar como docente</button>
+    
+            <button class="btn btn-warning teacher-only teacher-session-only" onclick="cerrarAccesoDocenteTemporal()"><i class="fa-solid fa-user-lock"></i> Cerrar acceso docente</button>
+            <button class="btn btn-danger" onclick="cerrarSesionGoogle()"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</button>
           </div>
         </div>
 
@@ -407,7 +381,7 @@
           <label for="studentTurno">Turno</label>
           <select id="studentTurno" required><option value="">Seleccionar turno</option><option>Mañana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select>
         </div>
-        <button type="button" class="btn btn-danger" onclick="reiniciarSesionEstudiante()">
+        <button class="btn btn-danger" onclick="reiniciarSesionEstudiante()">
           <i class="fa-solid fa-user-xmark"></i> Nuevo Estudiante
         </button>
       </div>
@@ -441,8 +415,8 @@
             <i class="fa-solid fa-code-branch"></i> Código subido · v1.0
           </span>
           <div class="teacher-panel-toolbar">
-            <button type="button" class="btn btn-success" onclick="iniciarClaseDesdeInterfaz(this)"><i class="fa-solid fa-play"></i> Iniciar clase</button>
-            <button type="button" class="btn btn-danger" onclick="finalizarClaseDesdeInterfaz(this)"><i class="fa-solid fa-stop"></i> Finalizar clase</button>
+            <button class="btn btn-success" onclick="iniciarClaseDesdeInterfaz(this)"><i class="fa-solid fa-play"></i> Iniciar clase</button>
+            <button class="btn btn-danger" onclick="finalizarClaseDesdeInterfaz(this)"><i class="fa-solid fa-stop"></i> Finalizar clase</button>
             <button class="btn btn-success" id="btnIniciarJitsiGrupal" type="button" onclick="abrirSelectorJitsiGrupal()" title="Seleccionar curso, división y turno para iniciar una videollamada grupal">
               <i class="fa-solid fa-users-viewfinder"></i> Iniciar Jitsi grupal
             </button>
@@ -470,8 +444,8 @@
             <button class="btn btn-primary" id="btnMensajeDocente" type="button" onclick="abrirMensajeriaDocente()" title="Enviar un aviso en pantalla a todos, a un grupo o a un estudiante">
               <i class="fa-solid fa-bullhorn"></i> Enviar mensaje
             </button>
-            <button type="button" class="btn btn-primary" onclick="abrirEditorDesafiosFirebase()"><i class="fa-solid fa-puzzle-piece"></i> Editar desafíos</button>
-            <button type="button" class="btn btn-secondary teacher-panel-close" onclick="cerrarPanelProfesor()" aria-label="Cerrar panel" title="Cerrar panel"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn btn-primary" onclick="abrirEditorDesafiosFirebase()"><i class="fa-solid fa-puzzle-piece"></i> Editar desafíos</button>
+            <button class="btn btn-secondary teacher-panel-close" onclick="cerrarPanelProfesor()" aria-label="Cerrar panel" title="Cerrar panel"><i class="fa-solid fa-xmark"></i></button>
           </div>
         </div>
         <div class="teacher-panel-content">
@@ -605,6 +579,30 @@
             <p style="color:var(--text-muted);margin:0">No hay solicitudes pendientes.</p>
           </div>
         </section>
+        <section id="solicitudesColaboracionProfesor" class="pending-requests-panel" aria-labelledby="solicitudesColaboracionTitulo" style="margin-top:1rem">
+          <div class="pending-requests-header">
+            <div class="pending-requests-title">
+              <i class="fa-solid fa-hand"></i>
+              <h3 id="solicitudesColaboracionTitulo" style="margin:0;color:inherit">Solicitudes de colaboración</h3>
+              <span id="contadorSolicitudesColaboracion" class="pending-count">0</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.65rem">
+            <div id="resumenSolicitudesColaboracion" style="color:var(--text-muted);font-size:.82rem">
+              No hay solicitudes de colaboración pendientes.
+            </div>
+            <button id="btnEliminarSolicitudesColaboracionPendientes" class="btn btn-secondary" type="button" hidden>
+              <i class="fa-solid fa-trash-can"></i> Eliminar pendientes
+            </button>
+          </div>
+          <div id="diagnosticoSolicitudesColaboracion" role="status" aria-live="polite"
+            style="margin-bottom:.65rem;padding:.5rem .65rem;border:1px solid rgba(148,163,184,.25);border-radius:6px;color:var(--text-muted);font-size:.76rem">
+            Comprobando autenticación y conexión con Firestore…
+          </div>
+          <div id="listaSolicitudesColaboracionProfesor" class="pending-requests-grid">
+            <p style="color:var(--text-muted);margin:0">No hay solicitudes de colaboración pendientes.</p>
+          </div>
+        </section>
         <details open style="margin-top:1rem;padding:.8rem;border:1px solid rgba(16,185,129,.32);border-radius:8px;background:rgba(16,185,129,.06)">
           <summary style="cursor:pointer;color:#a7f3d0;font-weight:700">
             <i class="fa-solid fa-user-shield"></i> Docentes autorizados
@@ -702,6 +700,8 @@
             <option value="riesgo-bajo">Riesgo bajo</option>
               </select></label>
               <label>Nota definitiva<select id="filtroNotaProfesor" aria-label="Filtrar por nota definitiva confirmada"><option value="">Todas las notas</option><option value="sin-nota">Pendientes de confirmación</option><option value="0-3.9">0–3,9</option><option value="4-5.9">4–5,9</option><option value="6-6.9">6–6,9</option><option value="7-8.9">7–8,9</option><option value="9-10">9–10</option></select></label>
+              <label>Desafíos reabiertos<select id="filtroReaperturasProfesor" aria-label="Filtrar por desafíos reabiertos"><option value="">Todos los estudiantes</option><option value="con-reaperturas">Con desafíos reabiertos</option><option value="sin-reaperturas">Sin desafíos reabiertos</option></select></label>
+              <label>Fecha de reapertura<select id="filtroFechaReaperturaProfesor" aria-label="Filtrar por fecha de reapertura"><option value="">Cualquier fecha</option><option value="hoy">Reabiertos hoy</option><option value="7d">Últimos 7 días</option><option value="antiguas">Más antiguas</option></select></label>
               <label>Descuento<select id="filtroDescuentoProfesor" aria-label="Filtrar por descuento de puntos">
             <option value="">Todos los descuentos</option>
             <option value="con-descuento">Con descuento</option>
@@ -739,7 +739,7 @@
             <option value="salidas-desc">Pestanas: mayor primero</option>
             <option value="portapapeles-asc">Portapapeles: menor primero</option>
             <option value="portapapeles-desc">Portapapeles: mayor primero</option>
-            <option value="alertas-desc">Alertas primero</option>
+            <option value="intentos-asc">Intentos de desafíos: menor primero</option><option value="intentos-desc">Intentos de desafíos: mayor primero</option><option value="reapertura-asc">Última reapertura: antigua primero</option><option value="reapertura-desc">Última reapertura: reciente primero</option><option value="alertas-desc">Alertas primero</option>
               </select></label>
               <button class="btn btn-secondary teacher-online-filter" id="btnSoloEnLineaProfesor" type="button" onclick="alternarFiltroSoloEnLineaProfesor()" aria-pressed="false" title="Mostrar solamente estudiantes con actividad en los últimos 2 minutos"><i class="fa-solid fa-signal"></i> Solo en línea</button>
               <button class="btn btn-success" type="button" onclick="exportarCursoProfesorPDF()" title="Exportar el informe completo del curso, división y turno seleccionados"><i class="fa-solid fa-file-pdf"></i> PDF completo del grupo</button>
@@ -754,18 +754,8 @@
           Las actividades pendientes no se incluyen. El descuento genera una nota calculada; el docente puede modificarla y la nota definitiva solo se publica cuando la confirma.
         </div>
         <div id="resumenProfesor" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-bottom:1rem;"></div>
-        <section id="tableroCursoProfesor" class="course-dashboard" aria-labelledby="tableroCursoProfesorTitulo">
-          <div class="course-dashboard-heading">
-            <div><h3 id="tableroCursoProfesorTitulo"><i class="fa-solid fa-table-columns"></i> Tablero general del curso</h3><p id="tableroCursoProfesorEstado">Esperando datos autorizados del curso...</p></div>
-            <div class="course-dashboard-actions"><button id="btnExportarTableroCurso" class="btn btn-secondary" type="button" title="Exportar estudiantes visibles en CSV"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button></div>
-          </div>
-          <div id="tableroCursoResumen" class="course-dashboard-summary" aria-live="polite"></div>
-          <div id="tableroCursoFiltros" class="course-dashboard-filters"></div>
-          <div id="tableroCursoTabla" class="course-dashboard-table-wrap"></div>
-          <div id="tableroCursoDetalle" class="course-dashboard-detail" hidden></div>
-        </section>
         <div id="resumenConsultasIAProfesor" style="margin-bottom:1rem;"></div>
-        <div class="teacher-table-scroll"><table style="width:100%;border-collapse:collapse;"><thead><tr><th data-actions-column="true">Acciones</th><th>Descuento</th><th>Estudiante</th><th>Email</th><th>Curso</th><th>Div.</th><th>Turno</th><th>Estado</th><th>Progreso</th><th>Nota definitiva</th><th>Cambios de pestaña</th><th>Desbloqueos</th></tr></thead><tbody id="tablaProfesorBody"></tbody></table></div>
+        <div class="teacher-table-scroll"><table style="width:100%;border-collapse:collapse;"><thead><tr><th data-actions-column="true">Acciones</th><th>Descuento</th><th>Estudiante</th><th>Email</th><th>Curso</th><th>Div.</th><th>Turno</th><th>Estado</th><th>Progreso</th><th>Nota definitiva</th><th>Cambios de pestaña</th><th>Última reapertura</th><th>Desbloqueos</th></tr></thead><tbody id="tablaProfesorBody"></tbody></table></div>
         <p id="estadoPanelProfesor" style="margin-top:1rem;color:var(--text-muted);font-size:.8rem;"></p>
         </div>
       </div>
@@ -921,7 +911,7 @@
         <div style="font-size:3rem;margin-bottom:.6rem;"><i class="fa-solid fa-hourglass-start"></i></div>
         <h2 id="classStartTitle">Esperando el inicio de la clase</h2>
         <p id="classStartMessage">El docente habilitará las actividades. Mantené esta pestaña abierta.</p>
-        <button type="button" class="btn btn-warning" style="margin-top:1rem;" onclick="ingresarComoDocente(this)">
+        <button class="btn btn-warning" style="margin-top:1rem;" onclick="ingresarComoDocente(this)">
           <i class="fa-solid fa-chalkboard-user"></i> Soy docente
         </button>
         <div style="margin-top:1rem;color:#fbbf24;font-size:.85rem;">
@@ -933,7 +923,7 @@
     <!-- Detalle integral de un estudiante para el profesor -->
     <div class="modal-overlay" id="detalleEstudianteProfesorModal" role="dialog" aria-modal="true" aria-labelledby="detalleEstudianteProfesorTitle">
       <div class="modal-box" style="max-width:1200px;width:96vw;max-height:92vh;overflow:auto;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+        <div class="teacher-detail-student-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
           <div>
             <h3 id="detalleEstudianteProfesorTitle"><i class="fa-solid fa-user-graduate"></i> Detalle del estudiante</h3>
             <p id="detalleEstudianteProfesorSubtitulo">Información completa de actividades y respuestas.</p>
@@ -951,7 +941,7 @@
             <button class="btn btn-primary" id="btnActualizarDetalleEstudianteProfesor" type="button" onclick="actualizarDetalleEstudianteProfesor()" title="Consultar nuevamente este estudiante en Firebase">
               <i class="fa-solid fa-rotate"></i> Actualizar datos
             </button>
-            <button type="button" class="btn btn-secondary" onclick="cerrarDetalleEstudianteProfesor()">Cerrar</button>
+            <button class="btn btn-secondary" onclick="cerrarDetalleEstudianteProfesor()">Cerrar</button>
           </div>
         </div>
         <div id="detalleEstudianteProfesorContenido"></div>
@@ -1154,8 +1144,8 @@
           <textarea id="detalleJustificacionSalida" style="min-height:100px;padding:.7rem;border-radius:6px;background:var(--bg-dark);color:white;border:1px solid var(--border)"></textarea>
         </div>
         <div class="modal-actions" style="margin-top:1rem">
-          <button type="button" class="btn btn-secondary" onclick="cerrarJustificacionSalida()">Cancelar</button>
-          <button type="button" class="btn btn-primary" onclick="guardarJustificacionSalida()">Guardar justificación</button>
+          <button class="btn btn-secondary" onclick="cerrarJustificacionSalida()">Cancelar</button>
+          <button class="btn btn-primary" onclick="guardarJustificacionSalida()">Guardar justificación</button>
         </div>
       </div>
     </div>
@@ -1191,7 +1181,7 @@
       <div class="modal-box" style="max-width:1250px;width:96vw;max-height:92vh;overflow:auto;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
           <div><h3>🧩 Editor de los 19 Desafíos en Firebase</h3><p style="color:var(--text-muted);margin:.3rem 0;">Editá contenido, rúbrica y reglas de IA sin modificar el HTML.</p></div>
-          <button type="button" class="btn btn-secondary" onclick="cerrarEditorDesafiosFirebase()">Cerrar</button>
+          <button class="btn btn-secondary" onclick="cerrarEditorDesafiosFirebase()">Cerrar</button>
         </div>
         <div class="editor-desafios-layout">
           <div class="editor-desafios-sidebar">
@@ -1215,7 +1205,7 @@
           Ctrl + Alt + Shift + P
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="cerrarModalPassword()">
+          <button class="btn btn-secondary" onclick="cerrarModalPassword()">
             Cancelar
           </button>
         </div>
@@ -1230,7 +1220,7 @@
             <div>
               <span class="student-progress-eyebrow">Panel personal</span>
               <h2 id="informeVisualEstudianteTitulo">Mi progreso y calificaciones</h2>
-              <p>Avance general, notas por desafío y recomendaciones personales.</p>
+              <p>Gráfico online de notas, mapa de color y recomendaciones personales.</p>
             </div>
           </div>
           <div class="student-progress-modal-actions">
@@ -1238,7 +1228,7 @@
               <i class="fa-solid fa-rotate"></i><span>Actualizar</span>
             </button>
             <button class="btn btn-success student-progress-pdf" type="button" onclick="exportarResultadosPDF()" title="Descargar reporte PDF" aria-label="Descargar reporte PDF">
-              <i class="fa-solid fa-file-arrow-down"></i><span>PDF</span>
+              <i class="fa-solid fa-file-arrow-down"></i><span>Descargar PDF</span>
             </button>
             <button class="btn student-progress-modal-close" type="button" onclick="cerrarProgresoEstudiante()" aria-label="Cerrar progreso y calificaciones" title="Cerrar">
               <span aria-hidden="true">×</span>
@@ -1251,62 +1241,31 @@
       </div>
     </div>
 
-    <div class="modal-overlay learning-path-modal" id="rutaAprendizajeModal" role="dialog" aria-modal="true" aria-labelledby="rutaAprendizajeTitulo">
-      <div class="modal-box learning-path-modal-box" tabindex="-1">
-        <header class="learning-path-modal-header">
-          <div class="learning-path-modal-heading">
-            <span class="learning-path-heading-icon" aria-hidden="true"><i class="fa-solid fa-route"></i></span>
-            <div>
-              <span class="student-progress-eyebrow">Trayecto personal</span>
-              <h2 id="rutaAprendizajeTitulo">Mi ruta de aprendizaje</h2>
-              <p>Consultá tu avance, los prerrequisitos y las recomendaciones sin interrumpir el desafío actual.</p>
-            </div>
-          </div>
-          <button class="btn student-progress-modal-close" type="button" onclick="cerrarRutaAprendizaje()" aria-label="Cerrar ruta de aprendizaje" title="Cerrar">
-            <span aria-hidden="true">×</span>
-          </button>
-        </header>
-        <section id="rutaAprendizajeContenido" class="learning-path-content" aria-live="polite">
-          <div class="learning-path-empty">Preparando tu ruta de aprendizaje...</div>
-        </section>
-      </div>
-    </div>
-
-    <!-- Barra Inferior Global para Exportar PDF -->
-    <div class="export-bar">
-      <div class="export-info">
-        <i class="fa-solid fa-file-pdf" style="color: var(--primary)"></i>
-        <span
-          >Incluye mapa de calor, recomendaciones personalizadas, gráficos de avance y notas, tabla por desafío, código y resultados.
-          La protección del archivo puede variar según el navegador.</span
-        >
-      </div>
-      <button type="button" class="btn btn-success" onclick="exportarResultadosPDF()">
-        <i class="fa-solid fa-file-arrow-down"></i> Descargar reporte (.PDF)
+    <div id="alertaColaboracionFlotante" class="collaboration-floating-alert" role="alert" aria-live="assertive" hidden>
+      <button type="button" class="collaboration-floating-alert-main" onclick="abrirPanelProfesor(); marcarAlertaColaboracionAtendida();" aria-label="Abrir solicitudes de colaboración">
+        <span class="collaboration-floating-alert-hand" aria-hidden="true"><i class="fa-solid fa-hand"></i></span>
+        <span class="collaboration-floating-alert-copy">
+          <strong id="tituloAlertaColaboracionFlotante">🖐️ SOLICITUD DE COLABORACIÓN</strong>
+          <span id="textoAlertaColaboracionFlotante">Un estudiante necesita tu ayuda</span>
+        </span>
+        <span id="contadorAlertaColaboracionFlotante" class="collaboration-floating-alert-count">1</span>
+      </button>
+      <button type="button" class="collaboration-floating-alert-close" onclick="ocultarAlertaColaboracionFlotante()" aria-label="Cerrar aviso">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
       </button>
     </div>
-
-  <script src="actividad-network-status.js?v=20260919-2"></script>
-  <script src="actividad-utils.js?v=20260919-2"></script>
-  <script src="actividad-pdf-loader.js?v=20260919-2"></script>
-  <script src="actividad-app.js?v=20260919-2"></script>
-  <script src="panel-profesor.js?v=20260919-2"></script>
-  <script src="actividad-cooperacion.js?v=20260919-2"></script>
-  <script src="mejoras-seguimiento.js?v=20260919-2"></script>
+    <div class="student-floating-timer" id="studentFloatingTimer" aria-live="polite" aria-label="Tiempo restante del desafío" hidden>
+      <i class="fa-solid fa-stopwatch" aria-hidden="true"></i>
+      <span class="student-floating-timer-label" id="studentFloatingTimerModule">Desafío activo</span>
+      <strong class="student-floating-timer-value" id="studentFloatingTimerValue">40:00</strong>
+    </div>
+    <script src="actividad-network-status.js?v=20260914-9"></script>
+    <script src="actividad-utils.js?v=20260914-9"></script>
+    <script src="actividad-pdf-loader.js?v=20260914-9"></script>
+      <script src="actividad-app.js?v=20261002-17"></script>
+    <script src="panel-profesor.js?v=20260914-9"></script>
+      <script src="actividad-cooperacion.js?v=20260914-9"></script>
+      <script src="mejoras-seguimiento.js?v=20261001-1"></script>
+      <script src="actividad-pedagogia.js?v=20261002-1"></script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

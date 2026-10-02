@@ -1,0 +1,27 @@
+CAMBIO: EDICIÓN DE DATOS PERSONALES DESDE EL PANEL DOCENTE
+
+El Panel Profesor permite modificar, por estudiante:
+- Nombre y Apellido
+- Curso
+- División
+- Turno
+
+Funcionamiento:
+1. El docente abre el detalle de un estudiante.
+2. En "Datos personales" puede usar "Modificar datos del estudiante".
+3. También aparece "Modificar datos personales" directamente en Acciones.
+4. Los cambios se guardan en Firestore en estudiantes/{UID}, dentro de:
+   estudiante: { nombre, curso, division, turno }
+5. La operación exige una cuenta docente autorizada.
+6. El guardado usa merge=true, por lo que no reemplaza progreso, respuestas,
+   códigos, notas, cronómetros, historial ni demás datos del estudiante.
+
+Archivos principales:
+- actividad-app.js: interfaz y formulario docente.
+- actividad-firebase.js: escritura segura en Firestore y autorización docente.
+
+
+CORRECCIÓN 28/09/2026
+El botón 'Modificar datos' ahora se inserta directamente en la columna ACCIONES de cada estudiante. La versión anterior lo buscaba en el último TD de la tabla y podía no mostrarse.
+
+Uso: Actividad.html → Panel docente → ACCIONES → Modificar datos.

@@ -45,14 +45,8 @@
     timer = setTimeout(() => { nodo.hidden = true; }, 4500);
   }
 
-  window.addEventListener("offline", () => {
-    actualizar(false);
-    window.dispatchEvent(new CustomEvent("app-network-offline"));
-  });
-  window.addEventListener("online", () => {
-    actualizar(true);
-    window.dispatchEvent(new CustomEvent("app-network-online"));
-  });
+  window.addEventListener("offline", () => actualizar(false));
+  window.addEventListener("online", () => actualizar(true));
   window.addEventListener("load", () => {
     if (navigator.onLine === false) actualizar(false);
   }, { once: true });

@@ -1,8 +1,8 @@
-﻿import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
       import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-      import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, collection, collectionGroup, query, orderBy, limit, onSnapshot, getDocs, increment, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+      import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, deleteDoc, serverTimestamp, collection, collectionGroup, query, orderBy, limit, onSnapshot, getDocs, increment, runTransaction, writeBatch } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
       import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check.js";
-      import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-functions.js";
+      import { getAI, getTemplateGenerativeModel, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-ai.js";
       import * as Y from "https://cdn.jsdelivr.net/npm/yjs@13.6.31/+esm";
       import {
         Compartment,
@@ -21,7 +21,7 @@
         autocompletion,
         completionKeymap,
         startCompletion
-} from "./codemirror-bundle.js?v=20260919-2";
+} from "./codemirror-bundle.js?v=20260914-9";
 
       window.CodeMirror6 = {
         Compartment,
@@ -44,7 +44,7 @@
 
       // ============================================================
       // PEGA AQUÍ LA CONFIGURACIÓN DE TU PROYECTO FIREBASE
-      // Firebase Console -> Configuración del proyecto -> Tus apps -> Web
+      // Firebase Console -> Configuraci??n del proyecto -> Tus apps -> Web
       // ============================================================
   const firebaseConfig = {
     apiKey: "AIzaSyA9Xvz6_NoyWIcl2gU2rLYsNzj_6uwB3hA",
@@ -57,9 +57,10 @@
   };
 
       // Esta clave identifica el sitio ante reCAPTCHA Enterprise y es pública.
-      // No pegues aquí claves de Gemini, Vertex AI, cuentas de servicio ni secretos.
+      // No pegues aqu?? claves de Gemini, Vertex AI, cuentas de servicio ni secretos.
       const APP_CHECK_RECAPTCHA_ENTERPRISE_SITE_KEY = "6Ld7l5stAAAAABjs2OrNxeDMaKZ6oAGERjopw3U9";
-      const FIREBASE_FUNCTIONS_REGION = "southamerica-east1";
+      const FIREBASE_AI_TEMPLATE_ID = "tutor-javascript-ipem146-v1-0-0";
+      const FIREBASE_AI_MODEL_NAME = "gemini-2.5-flash";
       const VERSION_SCRIPT = (() => {
         try {
           const src = [...document.scripts].find(script => /actividad-app\.js(?:\?|$)/.test(script.src || ""));
@@ -69,7 +70,7 @@
         }
       })();
       window.VERSION_SCRIPT_FIREBASE = VERSION_SCRIPT;
-      // Versión funcional del código que se sube y se revisa en ambos modos.
+      // Versi??n funcional del c??digo que se sube y se revisa en ambos modos.
       const VERSION_CODIGO_SUBIDO = "1.0";
       window.VERSION_CODIGO_SUBIDO = VERSION_CODIGO_SUBIDO;
 
@@ -83,13 +84,13 @@
       window.PRIMARY_TEACHER_ADMIN_EMAIL = PRIMARY_TEACHER_ADMIN_EMAIL;
       window.INITIAL_TEACHER_EMAILS = INITIAL_TEACHER_EMAILS;
       // La lista visible se actualiza desde Firestore. El administrador principal
-      // queda fijo como raíz de confianza para recuperar y gestionar accesos.
+      // queda fijo como ra??z de confianza para recuperar y gestionar accesos.
       window.TEACHER_EMAILS = TEACHER_EMAILS;
       let auth = null, db = null, googleProvider = null;
       let teacherAuth = null, teacherDb = null, teacherProvider = null;
-      let functions = null;
-      let callableTutorSeguro = null;
-      let callableEvaluacionSegura = null;
+      let firebaseAITemplateModel = null;
+      let firebaseAIDirectModel = null;
+      let firebaseAIInitError = "";
       let teacherPersistenceReady = Promise.resolve();
 
       if (firebaseConfigured) {
@@ -102,26 +103,41 @@
               isTokenAutoRefreshEnabled: true
             });
           } catch (error) {
-            console.warn("Firebase App Check no pudo inicializarse; se continuará sin bloquear el acceso.", error);
+            console.warn("Firebase App Check no pudo inicializarse; se continuar?? sin bloquear el acceso.", error);
             window.firebaseAppCheckError = error?.message || String(error);
+          }
+          try {
+            const ai = getAI(app, { backend: new GoogleAIBackend() });
+            firebaseAITemplateModel = getTemplateGenerativeModel(ai);
+            firebaseAIDirectModel = getGenerativeModel(ai, {
+              model: FIREBASE_AI_MODEL_NAME,
+              generationConfig: {
+                temperature: 0.25,
+                topP: 0.85,
+                maxOutputTokens: 700
+              }
+            });
+          } catch (error) {
+            console.warn("Firebase AI Logic no pudo inicializarse; se usar?? el tutor local.", error);
           }
         }
         auth = getAuth(app);
         db = getFirestore(app);
-        functions = getFunctions(app, FIREBASE_FUNCTIONS_REGION);
-        callableTutorSeguro = httpsCallable(functions, "consultarTutorSeguro", {
-          timeout: 60000,
-          limitedUseAppCheckTokens: true
-        });
-        callableEvaluacionSegura = httpsCallable(functions, "evaluarEntregaSegura", {
-          timeout: 30000,
-          limitedUseAppCheckTokens: true
+        enableIndexedDbPersistence(db).catch(error => {
+          if (error?.code !== "failed-precondition" && error?.code !== "unimplemented") {
+            console.warn("No se pudo activar la persistencia offline de Firestore:", error);
+          }
         });
         googleProvider = new GoogleAuthProvider();
         googleProvider.setCustomParameters({ prompt: "select_account" });
         const teacherApp = initializeApp(firebaseConfig, "teacherAuthorization");
         teacherAuth = getAuth(teacherApp);
         teacherDb = getFirestore(teacherApp);
+        enableIndexedDbPersistence(teacherDb).catch(error => {
+          if (error?.code !== "failed-precondition" && error?.code !== "unimplemented") {
+            console.warn("No se pudo activar la persistencia offline docente:", error);
+          }
+        });
         teacherProvider = new GoogleAuthProvider();
         teacherProvider.setCustomParameters({ prompt: "select_account" });
         teacherPersistenceReady = setPersistence(teacherAuth, browserSessionPersistence).catch(error => {
@@ -142,59 +158,51 @@
         window.firebaseConfigError = "Hay valores REEMPLAZAR_ en firebaseConfig.";
       }
 
-      window.firebaseAIRealConfigurada = Boolean(callableTutorSeguro);
-      window.firebaseBackendSeguroConfigurado = Boolean(callableTutorSeguro && callableEvaluacionSegura);
+      window.firebaseAIRealConfigurada = Boolean(firebaseAITemplateModel || firebaseAIDirectModel);
       window.consultarTutorIAFirebase = async function(payload = {}) {
-        if (!callableTutorSeguro) {
-          throw new Error("El backend seguro todavía no está configurado.");
+        if (!firebaseAITemplateModel && !firebaseAIDirectModel) {
+          throw new Error("Firebase AI Logic todav??a no est?? configurado.");
         }
         const user = auth?.currentUser;
         if (!user) {
-          throw new Error("El estudiante debe iniciar sesión para consultar la IA.");
+          throw new Error("El estudiante debe iniciar sesi??n para consultar la IA.");
         }
         const textoSeguro = (valor, limite) => String(valor || "").slice(0, limite);
         const parametros = {
-            classId: textoSeguro(payload.classId, 120),
-            sectionId: textoSeguro(payload.sectionId, 40),
+            nombreModulo: textoSeguro(payload.nombreModulo, 180),
+            consigna: textoSeguro(payload.consigna, 1800),
             pregunta: textoSeguro(payload.pregunta, 500),
             modo: textoSeguro(payload.modo, 40),
-            nivel: Math.max(1, Math.min(6, Number(payload.nivel) || 1)),
             codigo: textoSeguro(payload.codigo, 5000),
+            conceptos: textoSeguro(payload.conceptos, 800),
             diagnosticoLocal: textoSeguro(payload.diagnosticoLocal, 1200),
             historialReciente: textoSeguro(payload.historialReciente, 1800)
         };
-        const response = await callableTutorSeguro(parametros);
-        const texto = String(response?.data?.answer || "").trim();
-        if (!texto) throw new Error("La IA no devolvió una respuesta utilizable.");
-        window.ultimaCuotaTutorServidor = response?.data?.quota || null;
-        if (response?.data?.quota && payload.sectionId) {
-          const usadas = Number(response.data.quota.used);
-          if (Number.isFinite(usadas)) {
-            localStorage.setItem(`ai_usage_${String(payload.sectionId).slice(0, 40)}`, String(usadas));
-          }
-        }
+        const instrucciones = [
+          "Sos un tutor de JavaScript para estudiantes de nivel secundario.",
+          "Respondé en español rioplatense, con tono claro y respetuoso.",
+          "Ayud?? con pistas progresivas; no entregues la soluci??n completa ni c??digo listo para copiar.",
+          "Us?? el diagn??stico local y el c??digo del estudiante para se�alar un �nico pr??ximo paso verificable.",
+          `M??dulo: ${parametros.nombreModulo}`,
+          `Consigna: ${parametros.consigna}`,
+          `Modo: ${parametros.modo}`,
+          `Pregunta: ${parametros.pregunta}`,
+          `C??digo del estudiante:\n${parametros.codigo}`,
+          `Conceptos esperados: ${parametros.conceptos}`,
+          `Diagn??stico local: ${parametros.diagnosticoLocal}`,
+          `Historial reciente:\n${parametros.historialReciente}`
+        ].join("\n\n");
+        const response = firebaseAITemplateModel
+          ? await firebaseAITemplateModel.generateContent(FIREBASE_AI_TEMPLATE_ID, parametros)
+          : await firebaseAIDirectModel.generateContent(instrucciones);
+        const texto = String(
+          response?.response?.text?.() ||
+          response?.text?.() ||
+          response?.candidates?.[0]?.content?.parts?.map(p => p?.text || "").join("") ||
+          ""
+        ).trim();
+        if (!texto) throw new Error("La IA no devolvi?? una respuesta utilizable.");
         return texto;
-      };
-
-      window.evaluarCodigoServidorFirebase = async function(payload = {}) {
-        if (!callableEvaluacionSegura) {
-          throw new Error("El evaluador seguro todavía no está configurado.");
-        }
-        const user = auth?.currentUser;
-        if (!user) {
-          throw new Error("El estudiante debe iniciar sesión para entregar.");
-        }
-        const response = await callableEvaluacionSegura({
-          classId: String(payload.classId || "").slice(0, 120),
-          sectionId: String(payload.sectionId || "").slice(0, 40),
-          codigo: String(payload.codigo || "").slice(0, 12000)
-        });
-        const data = response?.data || {};
-        if (!data.evaluation?.verificadaServidor || !data.evaluationId) {
-          throw new Error("El servidor no devolvió una evaluación verificable.");
-        }
-        window.ultimaCuotaEvaluacionServidor = data.quota || null;
-        return data;
       };
 
       window.firebaseAuthReady = new Promise(resolve => {
@@ -284,7 +292,7 @@
           };
           return autorizado;
         } catch (error) {
-          console.warn("No se pudo verificar la autorización docente:", error);
+          console.warn("No se pudo verificar la autorizaci??n docente:", error);
           window.estadoAutorizacionDocente = {
             autorizado: false,
             correo: correoNormalizado(user),
@@ -320,14 +328,14 @@
             const estado = window.estadoAutorizacionDocente || {};
             alert(estado.correoVerificado === false
               ? "La cuenta seleccionada no tiene el correo verificado y no puede autorizarse como docente."
-              : `La cuenta ${estado.correo || 'seleccionada'} no está autorizada como docente.`);
+              : `La cuenta ${estado.correo || 'seleccionada'} no est?? autorizada como docente.`);
             return false;
           }
           window.firebaseTeacherUser = credential.user;
           window.dispatchEvent(new CustomEvent("firebase-teacher-auth-changed", { detail: credential.user }));
           return true;
         } catch (error) {
-          console.error("Error de autorización docente:", error);
+          console.error("Error de autorizaci??n docente:", error);
           if (error?.code !== "auth/popup-closed-by-user") {
             alert(mensajeErrorAutenticacion(error, "autorizar la cuenta docente"));
           }
@@ -337,7 +345,7 @@
 
       window.cerrarAutorizacionDocenteFirebase = async function() {
         if (!teacherAuth?.currentUser) {
-          alert("No hay una autorización docente temporal activa.");
+          alert("No hay una autorizaci??n docente temporal activa.");
           return false;
         }
         try {
@@ -354,8 +362,8 @@
           window.dispatchEvent(new CustomEvent("firebase-teacher-auth-changed", { detail: null }));
           return true;
         } catch (error) {
-          console.error("Error cerrando la autorización docente:", error);
-          alert("No se pudo cerrar la autorización docente temporal.");
+          console.error("Error cerrando la autorizaci??n docente:", error);
+          alert("No se pudo cerrar la autorizaci??n docente temporal.");
           return false;
         }
       };
@@ -404,7 +412,7 @@
           const referencia = doc(database, "docentesAutorizados", email);
           const existente = await getDoc(referencia);
           if (existente.exists()) continue;
-          const nombre = email === PRIMARY_TEACHER_ADMIN_EMAIL ? "Administración institucional" : "Docente autorizado";
+          const nombre = email === PRIMARY_TEACHER_ADMIN_EMAIL ? "Administraci??n institucional" : "Docente autorizado";
           const nuevo = {
             email,
             nombre,
@@ -638,7 +646,11 @@
           window.ultimoDocumentoEstudianteFirebase = datos;
           if (datos.finalizadas && typeof datos.finalizadas === "object") {
             window.dispatchEvent(new CustomEvent("actividades-desbloqueadas-estudiante", {
-              detail: { finalizadas: datos.finalizadas, desbloqueo: datos.desbloqueoActividades || null }
+              detail: {
+                finalizadas: datos.finalizadas,
+                desbloqueo: datos.desbloqueoActividades || null,
+                intentosDesafio: datos.intentosDesafio || {}
+              }
             }));
           }
           const colaboracion = datos.colaboracionDocente || {};
@@ -647,7 +659,6 @@
             if (editorColaborativo && editorColaborativo.dataset.crdtActivo !== "true" && document.activeElement !== editorColaborativo && !editorColaborativo.__codeMirrorView?.hasFocus && editorColaborativo.value !== colaboracion.codigo) {
               editorColaborativo.value = colaboracion.codigo;
               editorColaborativo.__syncCodeMirror?.(colaboracion.codigo);
-              setLocalStorage(`draft_editor-${colaboracion.sectionId}`, colaboracion.codigo);
               if (typeof actualizarMetricasEditor === "function") actualizarMetricasEditor(colaboracion.sectionId);
               if (typeof actualizarEstadoEditorEstudiante === "function") actualizarEstadoEditorEstudiante(colaboracion.sectionId, "saved", `Actualizado por ${colaboracion.actualizadoPor || "docente"}`);
             }
@@ -662,8 +673,8 @@
             window.__programacionDocentePanel = panel;
           }
           if (window.__programacionDocentePanel) {
-            const estado = { pendiente: "Pendiente", en_curso: "En curso", revisar: "Revisar", completada: "Completada" }[programacion?.estado] || "Sin programación";
-            window.__programacionDocentePanel.innerHTML = programacion ? `<div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center"><strong><i class="fa-solid fa-clipboard-list"></i> Programación docente</strong><span style="font-size:.7rem;color:#7dd3fc">${estado}</span></div><h3 style="margin:.55rem 0 .35rem;font-size:1rem">${String(programacion.titulo || "Actividad asignada").replace(/[<>&"]/g, "")}</h3><p style="margin:0;white-space:pre-wrap;font-size:.78rem;line-height:1.45">${String(programacion.instrucciones || "").replace(/[<>&"]/g, "")}</p>${programacion.fechaEntrega ? `<small style="display:block;margin-top:.55rem;color:#fbbf24"><i class="fa-solid fa-calendar"></i> Entrega: ${String(programacion.fechaEntrega).replace(/[<>&"]/g, "")}</small>` : ""}<div id="comentariosDocenteEstudiantePanel" style="margin-top:.75rem;padding-top:.65rem;border-top:1px solid rgba(148,163,184,.2)"><strong style="display:block;font-size:.75rem;color:#bae6fd;margin-bottom:.4rem"><i class="fa-solid fa-comments"></i> Comentarios del docente</strong><div id="comentariosDocenteEstudianteLista"><small style="color:#94a3b8">Cargando comentarios...</small></div></div>` : "";
+            const estado = { pendiente: "Pendiente", en_curso: "En curso", revisar: "Revisar", completada: "Completada" }[programacion?.estado] || "Sin programaci??n";
+            window.__programacionDocentePanel.innerHTML = programacion ? `<div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center"><strong><i class="fa-solid fa-clipboard-list"></i> Programaci??n docente</strong><span style="font-size:.7rem;color:#7dd3fc">${estado}</span></div><h3 style="margin:.55rem 0 .35rem;font-size:1rem">${String(programacion.titulo || "Actividad asignada").replace(/[<>&"]/g, "")}</h3><p style="margin:0;white-space:pre-wrap;font-size:.78rem;line-height:1.45">${String(programacion.instrucciones || "").replace(/[<>&"]/g, "")}</p>${programacion.fechaEntrega ? `<small style="display:block;margin-top:.55rem;color:#fbbf24"><i class="fa-solid fa-calendar"></i> Entrega: ${String(programacion.fechaEntrega).replace(/[<>&"]/g, "")}</small>` : ""}<div id="comentariosDocenteEstudiantePanel" style="margin-top:.75rem;padding-top:.65rem;border-top:1px solid rgba(148,163,184,.2)"><strong style="display:block;font-size:.75rem;color:#bae6fd;margin-bottom:.4rem"><i class="fa-solid fa-comments"></i> Comentarios del docente</strong><div id="comentariosDocenteEstudianteLista"><small style="color:#94a3b8">Cargando comentarios...</small></div></div>` : "";
             window.__programacionDocentePanel.hidden = !programacion;
           }
           window.dispatchEvent(new CustomEvent("estado-cuenta-estudiante", {
@@ -740,9 +751,9 @@
               const texto = String(item.texto || "").replace(/[<>&"]/g, "");
               const autor = String(item.autor || "Docente").replace(/[<>&"]/g, "");
               const fecha = item.creadoEn?.toDate ? item.creadoEn.toDate().toLocaleString("es-AR") : "Ahora";
-              return `<article style="padding:.45rem .5rem;margin-top:.35rem;border-radius:6px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.16)"><p style="margin:0;font-size:.73rem;line-height:1.4;white-space:pre-wrap">${texto}</p><small style="display:block;margin-top:.25rem;color:#94a3b8;font-size:.6rem">${autor} · ${fecha}</small></article>`;
+              return `<article style="padding:.45rem .5rem;margin-top:.35rem;border-radius:6px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.16)"><p style="margin:0;font-size:.73rem;line-height:1.4;white-space:pre-wrap">${texto}</p><small style="display:block;margin-top:.25rem;color:#94a3b8;font-size:.6rem">${autor} ?? ${fecha}</small></article>`;
             }).join("")
-          : '<small style="color:#94a3b8">Todavía no hay comentarios.</small>';
+          : '<small style="color:#94a3b8">Todav??a no hay comentarios.</small>';
       });
 
       window.iniciarClaseFirebase = async function() {
@@ -763,15 +774,15 @@
           return true;
         } catch (error) {
           console.error("Error iniciando la clase:", error);
-          alert("No se pudo iniciar la clase. Verificá las reglas de Firestore.");
+          alert("No se pudo iniciar la clase. Verific?? las reglas de Firestore.");
           return false;
         }
       };
 
-      window.finalizarClaseFirebase = async function() {
+      window.finalizarClaseFirebase = async function(omitirConfirmacion = false) {
         const autorizado = await window.autorizarDocenteFirebase?.();
         if (!autorizado) return false;
-        if (!confirm("Se bloquearán las actividades y se detendrán los cronómetros de todos los estudiantes conectados. ¿Finalizar la clase?")) {
+        if (!omitirConfirmacion && !confirm("Se bloquear??n las actividades y se detendr??n los cron??metros de todos los estudiantes conectados. ??Finalizar la clase?")) {
           return false;
         }
         const { user, database } = contextoDocenteFirebase();
@@ -781,12 +792,15 @@
             iniciada: false,
             finalizadaEn: serverTimestamp(),
             finalizadaPor: user.email || user.displayName || user.uid,
+            finalizadaConfirmada: true,
+            finalizadaConfirmadaEn: serverTimestamp(),
+            finalizadaConfirmadaPor: user.email || user.displayName || user.uid,
             zonaHoraria: "America/Argentina/Buenos_Aires"
           }, { merge: true });
           return true;
         } catch (error) {
           console.error("Error finalizando la clase:", error);
-          alert("No se pudo finalizar la clase. Verificá las reglas de Firestore.");
+          alert("No se pudo finalizar la clase. Verific?? las reglas de Firestore.");
           return false;
         }
       };
@@ -800,7 +814,7 @@
           const referencia = doc(database, "controlClase", idClaseActual());
           const estadoActual = await getDoc(referencia);
           if (!estadoActual.exists() || estadoActual.data()?.iniciada !== true) {
-            alert("Primero iniciá la clase. Después podrás pausar, continuar o reiniciar los cronómetros.");
+            alert("Primero inici?? la clase. Despu�s podr??s pausar, continuar o reiniciar los cron??metros.");
             return false;
           }
           const payload = {
@@ -818,19 +832,19 @@
           await setDoc(referencia, payload, { merge: true });
           return true;
         } catch (error) {
-          console.error("Error controlando los cronómetros:", error);
-          alert("No se pudo actualizar el cronómetro. Verificá las reglas de Firestore.");
+          console.error("Error controlando los cron??metros:", error);
+          alert("No se pudo actualizar el cron??metro. Verific?? las reglas de Firestore.");
           return false;
         }
       };
 
       window.iniciarSesionGoogle = async function() {
         if (!firebaseConfigured) {
-          alert("Firebase todavía no está configurado. Reemplaza los valores REEMPLAZAR_ en la configuración del archivo.");
+          alert("Firebase todav??a no est?? configurado. Reemplaza los valores REEMPLAZAR_ en la configuraci??n del archivo.");
           return;
         }
         if (window.location.protocol === "file:") {
-          alert("Esta página está abierta como archivo local. Para ingresar con Google, abrila desde:\n\nhttp://localhost:5500/actividad.html");
+          alert("Esta p??gina est?? abierta como archivo local. Para ingresar con Google, abrila desde:\n\nhttp://localhost:5500/actividad.html");
           return;
         }
         try {
@@ -861,10 +875,10 @@
           await Promise.all(sesionesActivas);
         } catch (error) {
           console.error("Error cerrando las sesiones de Firebase:", error);
-          alert("No se pudo cerrar la sesión completamente. Intenta nuevamente.");
+          alert("No se pudo cerrar la sesi??n completamente. Intenta nuevamente.");
           return;
         }
-        // El estado local está aislado por UID. No se comparte con otra cuenta.
+        // El estado local est?? aislado por UID. No se comparte con otra cuenta.
         // Firebase conserva el avance definitivo en Firestore.
         localStorage.removeItem('firebase_active_uid');
         firebaseStorageUid = null;
@@ -896,7 +910,7 @@
             await setDoc(ref, { ...recuperacion, actualizadoEn: serverTimestamp() }, { merge: true });
             Object.assign(datos, recuperacion);
           } catch (error) {
-            console.warn("No se pudo recuperar automáticamente el perfil antiguo:", error);
+            console.warn("No se pudo recuperar autom??ticamente el perfil antiguo:", error);
           }
         }
         return datos;
@@ -907,7 +921,7 @@
         if (!user) {
           window.ultimoErrorGuardadoFirebase = {
             code: "auth-required",
-            message: "No hay una sesión autenticada.",
+            message: "No hay una sesi??n autenticada.",
             projectId: firebaseConfig.projectId
           };
           return false;
@@ -915,37 +929,52 @@
         if (!db) {
           window.ultimoErrorGuardadoFirebase = {
             code: "firebase-not-initialized",
-            message: "Firestore no está inicializado.",
+            message: "Firestore no est?? inicializado.",
             projectId: firebaseConfig.projectId
           };
           return false;
         }
         try {
+          if (typeof user.reload === "function") {
+            await user.reload();
+          }
+          await user.getIdToken(true);
+          const usuarioActual = window.firebaseCurrentUser || user;
+          if (usuarioActual.emailVerified !== true) {
+            const error = new Error("La cuenta de Google todavía no tiene el correo verificado.");
+            error.code = "auth/email-not-verified";
+            throw error;
+          }
           const ref = doc(db, "estudiantes", user.uid);
-          await runTransaction(db, async transaction => {
-            const snapshot = await transaction.get(ref);
-            const remoto = snapshot.exists() ? snapshot.data() : {};
-            const versionRemota = Math.max(0, Number(remoto?.versionLocal) || 0);
-            const incluyeVersion = Object.prototype.hasOwnProperty.call(payload || {}, "versionLocal");
-            const versionLocal = Math.max(0, Number(payload?.versionLocal) || 0);
-            if (incluyeVersion && versionRemota > versionLocal) {
-              const conflicto = new Error("Existe una version remota mas nueva.");
-              conflicto.code = "sync-conflict";
-              conflicto.remoteVersion = versionRemota;
-              conflicto.localVersion = versionLocal;
-              throw conflicto;
+          const existente = await getDoc(ref);
+          if (existente.exists()) {
+            const datosExistentes = existente.data() || {};
+            if (datosExistentes.uid && datosExistentes.uid !== user.uid) {
+              const error = new Error("El documento del estudiante pertenece a otro UID.");
+              error.code = "student/uid-mismatch";
+              throw error;
             }
-            transaction.set(ref, {
-              ...payload,
-              uid: user.uid,
-              email: user.email || "",
-              emailVerificado: user.emailVerified === true,
-              nombreGoogle: user.displayName || "",
-              fotoGoogle: user.photoURL || "",
-              actualizadoEn: serverTimestamp()
-            }, { merge: true });
-          });
-          window.ultimoErrorGuardadoFirebase = null;
+            if (datosExistentes.email && usuarioActual.email &&
+                datosExistentes.email.toLowerCase() !== usuarioActual.email.toLowerCase()) {
+              const error = new Error("El correo del documento no coincide con la cuenta actual.");
+              error.code = "student/email-mismatch";
+              throw error;
+            }
+            if (datosExistentes.emailVerificado === true && usuarioActual.emailVerified !== true) {
+              const error = new Error("El token actual no confirma el correo verificado.");
+              error.code = "auth/email-claim-stale";
+              throw error;
+            }
+          }
+          await setDoc(ref, {
+            ...payload,
+            uid: user.uid,
+            email: usuarioActual.email || "",
+            emailVerificado: usuarioActual.emailVerified === true,
+            nombreGoogle: usuarioActual.displayName || "",
+            fotoGoogle: usuarioActual.photoURL || "",
+            actualizadoEn: serverTimestamp()
+          }, { merge: true });
           return true;
         } catch (error) {
           console.error("Firebase save error:", error);
@@ -956,9 +985,8 @@
             uid: user.uid,
             email: user.email || '',
             emailVerified: user.emailVerified === true,
-            operation: "create-or-update-student",
-            remoteVersion: Number(error?.remoteVersion) || 0,
-            localVersion: Number(error?.localVersion) || 0
+            payloadKeys: Object.keys(payload || {}),
+            operation: "create-or-update-student"
           };
           return false;
         }
@@ -1065,7 +1093,7 @@
           const snapshot = await getDocs(query(referencia, orderBy("fechaEpoch", "desc"), limit(Math.min(200, Math.max(1, Number(limite) || 100)))));
           return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
         } catch (error) {
-          console.warn("No se pudo cargar la auditoría de portapapeles:", error);
+          console.warn("No se pudo cargar la auditor??a de portapapeles:", error);
           return [];
         }
       };
@@ -1108,7 +1136,7 @@
       }
       window.mostrarAlertaMensajeRecibido = mostrarAlertaMensajeRecibido;
 
-      // Señal liviana e independiente del progreso y del código completo.
+      // Señal liviana e independiente del progreso y del c�?digo completo.
       // Permite que el panel docente detecte al estudiante aunque no haya un guardado pendiente.
       window.actualizarControlEstudianteFirebase = async function(estado = {}) {
         const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
@@ -1210,7 +1238,7 @@
             error: error?.code || error?.message || "Error de presencia",
             ultimoLatido: Date.now()
           });
-          console.warn("No se pudo actualizar la señal de conexión del estudiante:", error);
+          console.warn("No se pudo actualizar la señal de conexi�?n del estudiante:", error);
           return false;
         }
       };
@@ -1336,7 +1364,7 @@
           }, { merge: true });
           return true;
         } catch (error) {
-          console.error("No se pudo guardar el código colaborativo:", error);
+          console.error("No se pudo guardar el c??digo colaborativo:", error);
           return false;
         }
       };
@@ -1409,22 +1437,25 @@
               ? estudiante.data()?.estadoCuenta
               : "sin_registro";
             if (estadoCuenta !== "activo") {
-              return `Firestore rechazó la decisión porque la cuenta figura como "${estadoCuenta || "pendiente"}". El docente debe aprobar o reactivar la cuenta.`;
+              return `Firestore rechaz?? la decisi??n porque la cuenta figura como "${estadoCuenta || "pendiente"}". El docente debe aprobar o reactivar la cuenta.`;
             }
           } catch (_) {}
-          return "Firestore rechazó la decisión. Las reglas publicadas no coinciden con esta versión: publicá el archivo reglas.txt actualizado en Firebase.";
+          return "Firestore rechaz?? la decisi??n. Las reglas publicadas no coinciden con esta versi??n: public?? el archivo reglas.txt actualizado en Firebase.";
         }
         if (codigo.includes("unavailable") || codigo.includes("network") || navigator.onLine === false) {
-          return "No hay conexión con Firebase. Verificá Internet e intentá nuevamente.";
+          return "No hay conexi??n con Firebase. Verific?? Internet e intent?? nuevamente.";
         }
         const detalle = String(error?.message || codigo || "error desconocido").slice(0, 240);
-        return `No se pudo registrar la decisión: ${detalle}`;
+        return `No se pudo registrar la decisi??n: ${detalle}`;
       }
 
       async function iniciarSesionCodigoCRDT({ uid, sectionId, codigoInicial = "", rol = "estudiante" }) {
         if (!uid || !sectionId) throw new Error("crdt-invalid-target");
-        if (rol === "docente" && !(await window.autorizarDocenteFirebase?.())) {
-          throw new Error("teacher-not-authorized");
+        if (rol === "docente") {
+          const usuarioDocente = window.firebaseTeacherUser || window.firebaseCurrentUser;
+          if (!usuarioDocente || !(await verificarUsuarioDocente(usuarioDocente))) {
+            throw new Error("teacher-not-authorized");
+          }
         }
         const contexto = rol === "docente"
           ? contextoDocenteFirebase()
@@ -1438,7 +1469,8 @@
         const texto = documento.getText("codigo");
         const clienteId = `${rol}-${user.uid}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
         const metaRef = doc(database, "estudiantes", uid, "colaboracionCodigo", sectionId);
-        const actualizacionesRef = collection(database, "estudiantes", uid, "colaboracionCodigo", sectionId, "actualizaciones");
+         const actualizacionesRef = collection(database, "estudiantes", uid, "colaboracionCodigo", sectionId, "actualizaciones");
+         const versionesRef = collection(database, "estudiantes", uid, "colaboracionCodigo", sectionId, "versiones");
         const presenciaRef = doc(database, "estudiantes", uid, "colaboracionCodigo", sectionId, "presencia", clienteId);
         const mensajesRef = collection(database, "estudiantes", uid, "colaboracionCodigo", sectionId, "mensajes");
         const vistos = new Set();
@@ -1457,23 +1489,13 @@
         });
         let modoCooperacionActual = normalizarModoCooperacion({});
         let cola = [];
-        let temporizador = null;
+         let temporizador = null;
+         let ultimaVersionEn = 0;
+         let ultimoCodigoVersion = "";
         let destruida = false;
-        const colaRespaldoClave = `cooperation_pending:${rol}:${uid}:${sectionId}:${user.uid}`;
-        const persistirColaPendiente = () => {
-          try {
-            if (!cola.length) {
-              localStorage.removeItem(colaRespaldoClave);
-              return;
-            }
-            localStorage.setItem(colaRespaldoClave, JSON.stringify({
-              update: cola.length ? bytesABase64(Y.mergeUpdates(cola)) : "",
-              guardadoEn: Date.now()
-            }));
-          } catch (error) {
-            console.warn("No se pudo respaldar localmente la cola cooperativa:", error);
-          }
-        };
+        // La cola vive solo en memoria: Firestore es la fuente de verdad.
+        // No se usa localStorage para código, actualizaciones ni credenciales.
+        const persistirColaPendiente = () => {};
 
         const notificar = (estado, detalle = "") => estadoListeners.forEach(fn => fn({ estado, detalle }));
         const notificarPresencia = participantes => {
@@ -1509,17 +1531,6 @@
           const update = datosIniciales.update;
           if (update) Y.applyUpdate(documento, base64ABytes(update), ORIGEN_FIRESTORE_CRDT);
         });
-        try {
-          const respaldo = JSON.parse(localStorage.getItem(colaRespaldoClave) || "null");
-          if (respaldo?.update) {
-            const updateRecuperado = base64ABytes(respaldo.update);
-            Y.applyUpdate(documento, updateRecuperado, { tipo: "local-recovery", rol });
-            cola.push(updateRecuperado);
-          }
-        } catch (error) {
-          console.warn("No se pudo recuperar la cola cooperativa local:", error);
-        }
-
         const publicarCola = async () => {
           temporizador = null;
           if (destruida || !cola.length) return true;
@@ -1527,8 +1538,9 @@
           cola = [];
           const id = `${Date.now()}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
           notificar("syncing", "Sincronizando cambios");
-          try {
-            const loteFirestore = writeBatch(database);
+           let actualizacionConfirmada = false;
+           try {
+             const loteFirestore = writeBatch(database);
             loteFirestore.set(doc(actualizacionesRef, id), {
               id,
               uid,
@@ -1544,15 +1556,53 @@
               actualizadoEn: serverTimestamp(),
               actualizadoPor: user.email || user.uid
             }, { merge: true });
-            await loteFirestore.commit();
-            localStorage.removeItem(colaRespaldoClave);
-            notificar("synced", "Cambios sincronizados");
+             await loteFirestore.commit();
+             actualizacionConfirmada = true;
+             const codigoActual = texto.toString().slice(0, 30000);
+             if (
+               codigoActual !== ultimoCodigoVersion &&
+               (Date.now() - ultimaVersionEn >= 8000 || Math.abs(codigoActual.length - ultimoCodigoVersion.length) >= 120)
+             ) {
+               const versionId = `${Date.now()}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
+               try {
+                 await setDoc(doc(versionesRef, versionId), {
+                   id: versionId,
+                   uid,
+                   sectionId,
+                   version: versionId,
+                   codigo: codigoActual,
+                   autorUid: user.uid,
+                   autorEmail: user.email || "",
+                   rol,
+                   creadoEn: serverTimestamp(),
+                   actualizadoPor: user.email || user.uid
+                 });
+               } catch (versionError) {
+                 console.warn("La actualización CRDT se guardó, pero no se pudo registrar la versión histórica:", versionError);
+               }
+               ultimaVersionEn = Date.now();
+               ultimoCodigoVersion = codigoActual;
+             }
+             if (rol === "docente") {
+               const codigoDocente = codigoActual;
+              const guardadoDocente = await window.guardarCodigoColaborativoDocenteFirebase?.(uid, sectionId, codigoDocente);
+               if (guardadoDocente === false) {
+                 console.warn("La actualización CRDT se guardó, pero no se pudo actualizar la copia de seguimiento docente.");
+               }
+            }
+            notificar("synced", rol === "docente"
+              ? "Código del estudiante actualizado y sincronizado"
+              : "Cambios sincronizados");
             return true;
           } catch (error) {
-            console.error("No se pudo publicar la actualización CRDT:", error);
-            cola.unshift(lote);
-            persistirColaPendiente();
-            notificar("error", "Cambios pendientes; se reintentarán");
+            console.error("No se pudo publicar la actualizaci??n CRDT:", error);
+            if (!actualizacionConfirmada) {
+               cola.unshift(lote);
+               const codigoError = error?.code ? ` (${error.code})` : "";
+               notificar("error", `Cambios pendientes; se reintentar??n${codigoError}`);
+             } else {
+               notificar("synced", "Código sincronizado; quedó pendiente un registro secundario");
+             }
             return false;
           }
          };
@@ -1562,7 +1612,7 @@
           cola.push(update);
           persistirColaPendiente();
           clearTimeout(temporizador);
-          temporizador = setTimeout(publicarCola, 90);
+           temporizador = setTimeout(publicarCola, 650);
         });
 
         const detenerActualizaciones = onSnapshot(actualizacionesRef, snapshot => {
@@ -1580,7 +1630,7 @@
           });
         }, error => {
           console.error("Error escuchando actualizaciones CRDT:", error);
-          notificar("error", "Conexión colaborativa interrumpida");
+          notificar("error", "Conexi??n colaborativa interrumpida");
         });
 
         let detenerPresencia = null;
@@ -1624,8 +1674,14 @@
           const modoAnterior = modoCooperacionActual;
           modoCooperacionActual = normalizarModoCooperacion(datos);
           modoCooperacionListeners.forEach(fn => fn({ ...modoCooperacionActual }));
-          const aceptada = modoCooperacionActual.consentimiento === "aceptado" &&
-            modoCooperacionActual.activa;
+          if (modoCooperacionActual.consentimiento === "aceptado" && modoCooperacionActual.activa) {
+            window.dispatchEvent(new CustomEvent("colaboracion-aceptada", {
+              detail: { uid, sectionId, rol }
+            }));
+          }
+           const aceptada = rol === "docente"
+             ? true
+             : modoCooperacionActual.consentimiento === "aceptado" && modoCooperacionActual.activa;
           if (aceptada) {
             iniciarEscuchaPresencia();
             void actualizarPresencia({}, true);
@@ -1635,7 +1691,7 @@
           }
           if (
             aceptada &&
-            !modoCooperacionActual.pausada &&
+            (rol === "docente" || !modoCooperacionActual.pausada) &&
             (modoAnterior.pausada || modoAnterior.consentimiento !== "aceptado") &&
             cola.length
           ) {
@@ -1647,15 +1703,16 @@
           metaRef,
           snapshot => notificarModoCooperacion(snapshot.exists() ? snapshot.data() : {}),
           error => {
-            console.error("Error escuchando el modo de cooperación:", error);
+            console.error("Error escuchando el modo de cooperaci??n:", error);
             notificar("error", "No se pudo consultar el consentimiento");
           }
         );
 
         let ultimaPresenciaPublicada = "";
         const actualizarPresencia = (cursor = {}, forzar = false) => {
-          const cooperacionAceptada = modoCooperacionActual.consentimiento === "aceptado" &&
-            modoCooperacionActual.activa;
+           const cooperacionAceptada = rol === "docente"
+             ? true
+             : modoCooperacionActual.consentimiento === "aceptado" && modoCooperacionActual.activa;
           if (!cooperacionAceptada) {
             return deleteDoc(presenciaRef).catch(() => {});
           }
@@ -1683,6 +1740,12 @@
           await actualizarPresencia();
         }
         const latido = setInterval(() => actualizarPresencia({}, true), 20000);
+        const vaciarAntesDeSalir = () => { void publicarCola(); };
+        const vaciarAlOcultarse = () => {
+          if (document.visibilityState === "hidden") vaciarAntesDeSalir();
+        };
+        window.addEventListener("pagehide", vaciarAntesDeSalir);
+        document.addEventListener("visibilitychange", vaciarAlOcultarse);
         const sesion = {
           clave,
           documento,
@@ -1704,36 +1767,138 @@
              return { ...modoCooperacionActual };
            },
            async solicitarCooperacion(objetivo = "") {
-            if (rol !== "docente") return false;
-            const descripcion = String(objetivo || "Acompañamiento docente sobre la actividad actual").trim().slice(0, 500);
-            await setDoc(metaRef, {
-              modoCooperacionActiva: true,
-              edicionCooperativaPausada: false,
-              estadoConsentimiento: "aceptado",
-               objetivoCooperacion: descripcion,
-               solicitadoPor: user.displayName || user.email || "Docente",
-               solicitudEn: serverTimestamp(),
-              respondidoEn: serverTimestamp(),
-              respondidoPor: user.email || user.uid,
-               motivoRechazo: "",
-               actualizadoEn: serverTimestamp(),
-               actualizadoPor: user.email || user.uid
-             }, { merge: true });
+             if (rol !== "docente" && user.uid !== uid) return false;
+             const descripcion = String(objetivo || "Acompañamiento docente sobre la actividad actual").trim().slice(0, 500);
+             const solicitudRef = doc(database, "solicitudesColaboracion", `${uid}_${sectionId}`);
+             const historialRef = doc(collection(solicitudRef, "historial"));
+             const solicitanteRol = rol === "docente" ? "docente" : "estudiante";
+             await runTransaction(database, async transaction => {
+               const metaSnapshot = await transaction.get(metaRef);
+               const solicitudSnapshot = await transaction.get(solicitudRef);
+               const meta = metaSnapshot.exists() ? metaSnapshot.data() : {};
+               const solicitud = solicitudSnapshot.exists() ? solicitudSnapshot.data() : {};
+               const estudianteSnapshot = await transaction.get(doc(database, "estudiantes", uid));
+               const codigoBase = estudianteSnapshot.exists()
+                 ? String(estudianteSnapshot.data()?.codigos?.[sectionId] || "")
+                 : "";
+               const semillaInicial = () => {
+                 const temporal = new Y.Doc();
+                 temporal.getText("codigo").insert(0, codigoBase);
+                 return bytesABase64(Y.encodeStateAsUpdate(temporal));
+               };
+               const estadoActual = meta.estadoConsentimiento || solicitud.estado || "sin_solicitud";
+               if (estadoActual === "pendiente" ||
+                   (estadoActual === "aceptado" && meta.modoCooperacionActiva === true &&
+                    meta.edicionCooperativaPausada === false)) {
+                 throw new Error("Ya existe una solicitud pendiente o una colaboración activa.");
+               }
+               if (!["sin_solicitud", "rechazado", "finalizado"].includes(estadoActual)) {
+                 throw new Error("La colaboración no admite una nueva solicitud en su estado actual.");
+               }
+               const payload = {
+                 id: `${uid}_${sectionId}`,
+                 uid,
+                 sectionId,
+                 objetivo: descripcion,
+                 solicitadoPor: user.displayName || user.email || (rol === "docente" ? "Docente" : "Estudiante"),
+                 solicitanteRol,
+                 solicitudEn: serverTimestamp(),
+                 estado: "pendiente",
+                 respondidoEn: null,
+                 respondidoPor: "",
+                 motivoRechazo: "",
+                 finalizadaEn: null,
+                 actualizadoEn: serverTimestamp()
+               };
+               transaction.set(solicitudRef, payload, { merge: true });
+               transaction.set(metaRef, {
+                 ...(metaSnapshot.exists() ? {} : {
+                   semilla: semillaInicial(),
+                   creadoEn: serverTimestamp(),
+                   creadoPor: user.email || user.uid
+                 }),
+                 uid,
+                 sectionId,
+                 modoCooperacionActiva: false,
+                 edicionCooperativaPausada: true,
+                 estadoConsentimiento: "pendiente",
+                 objetivoCooperacion: descripcion,
+                 solicitadoPor: payload.solicitadoPor,
+                 solicitanteRol,
+                 solicitudEn: serverTimestamp(),
+                 respondidoEn: null,
+                 respondidoPor: "",
+                 motivoRechazo: "",
+                 actualizadoEn: serverTimestamp(),
+                 actualizadoPor: user.email || user.uid
+               }, { merge: true });
+               transaction.set(historialRef, {
+                 solicitudId: historialRef.id,
+                 uid,
+                 sectionId,
+                 objetivo: descripcion,
+                 solicitadoPor: payload.solicitadoPor,
+                 solicitanteRol,
+                 solicitudEn: serverTimestamp(),
+                 estado: "pendiente",
+                 respondidoEn: null,
+                 respondidoPor: "",
+                 motivoRechazo: "",
+                 finalizadaEn: null,
+                 registradoEn: serverTimestamp()
+               });
+             });
              return true;
            },
            async responderCooperacion(aceptar, motivo = "") {
              if (rol !== "estudiante" || user.uid !== uid) return false;
              const aceptada = aceptar === true;
-             await setDoc(metaRef, {
-               modoCooperacionActiva: aceptada,
-               edicionCooperativaPausada: !aceptada,
-               estadoConsentimiento: aceptada ? "aceptado" : "rechazado",
-               respondidoEn: serverTimestamp(),
-               respondidoPor: user.email || user.displayName || user.uid,
-               motivoRechazo: aceptada ? "" : String(motivo || "").trim().slice(0, 300),
-               actualizadoEn: serverTimestamp(),
-               actualizadoPor: user.email || user.uid
-             }, { merge: true });
+             const solicitudRef = doc(database, "solicitudesColaboracion", `${uid}_${sectionId}`);
+             const historialRef = doc(collection(solicitudRef, "historial"));
+             await runTransaction(database, async transaction => {
+               const metaSnapshot = await transaction.get(metaRef);
+               const solicitudSnapshot = await transaction.get(solicitudRef);
+               if (!metaSnapshot.exists() ||
+                   metaSnapshot.data().estadoConsentimiento !== "pendiente" ||
+                   metaSnapshot.data().solicitanteRol !== "docente" ||
+                   (solicitudSnapshot.exists() && solicitudSnapshot.data().estado !== "pendiente")) {
+                 throw new Error("La solicitud ya fue respondida o no está dirigida al estudiante.");
+               }
+               const estado = aceptada ? "aceptado" : "rechazado";
+               const rechazo = aceptada ? "" : String(motivo || "").trim().slice(0, 300);
+               transaction.update(metaRef, {
+                 modoCooperacionActiva: aceptada,
+                 edicionCooperativaPausada: !aceptada,
+                 estadoConsentimiento: estado,
+                 respondidoEn: serverTimestamp(),
+                 respondidoPor: user.email || user.displayName || user.uid,
+                 motivoRechazo: rechazo,
+                 actualizadoEn: serverTimestamp(),
+                 actualizadoPor: user.email || user.uid
+               });
+               transaction.update(solicitudRef, {
+                 estado,
+                 respondidoEn: serverTimestamp(),
+                 respondidoPor: user.email || user.displayName || user.uid,
+                 motivoRechazo: rechazo,
+                 actualizadoEn: serverTimestamp()
+               });
+               transaction.set(historialRef, {
+                 solicitudId: historialRef.id,
+                 uid,
+                 sectionId,
+                 objetivo: metaSnapshot.data().objetivoCooperacion || "",
+                 solicitadoPor: metaSnapshot.data().solicitadoPor || "",
+                 solicitanteRol: "docente",
+                 solicitudEn: metaSnapshot.data().solicitudEn || null,
+                 estado,
+                 respondidoEn: serverTimestamp(),
+                 respondidoPor: user.email || user.displayName || user.uid,
+                 motivoRechazo: rechazo,
+                 finalizadaEn: null,
+                 registradoEn: serverTimestamp()
+               });
+             });
              return true;
            },
            async establecerPausaCooperacion(pausada) {
@@ -1747,13 +1912,25 @@
            },
            async finalizarCooperacion() {
              if (rol !== "docente") return false;
-             await setDoc(metaRef, {
-               modoCooperacionActiva: false,
-               edicionCooperativaPausada: true,
-               estadoConsentimiento: "finalizado",
-               actualizadoEn: serverTimestamp(),
-               actualizadoPor: user.email || user.uid
-             }, { merge: true });
+             await runTransaction(database, async transaction => {
+               const snapshot = await transaction.get(metaRef);
+               if (!snapshot.exists() || snapshot.data().estadoConsentimiento !== "aceptado") {
+                 throw new Error("Solo se puede finalizar una colaboración aceptada.");
+               }
+               transaction.update(metaRef, {
+                 modoCooperacionActiva: false,
+                 edicionCooperativaPausada: true,
+                 estadoConsentimiento: "finalizado",
+                 actualizadoEn: serverTimestamp(),
+                 actualizadoPor: user.email || user.uid
+               });
+               const solicitudRef = doc(database, "solicitudesColaboracion", `${uid}_${sectionId}`);
+               transaction.update(solicitudRef, {
+                 estado: "finalizado",
+                 finalizadaEn: serverTimestamp(),
+                 actualizadoEn: serverTimestamp()
+               });
+             });
              return true;
            },
            escucharMensajes(fn) {
@@ -1824,13 +2001,12 @@
           async destroy() {
             if (destruida) return;
             const sincronizada = await this.flush();
-            if (!sincronizada || cola.length) {
-              persistirColaPendiente();
-              return false;
-            }
+            if (!sincronizada || cola.length) return false;
             destruida = true;
             clearInterval(latido);
-             detenerActualizaciones();
+            window.removeEventListener("pagehide", vaciarAntesDeSalir);
+            document.removeEventListener("visibilitychange", vaciarAlOcultarse);
+            detenerActualizaciones();
              detenerEscuchaPresencia();
              detenerModoCooperacion();
             documento.destroy();
@@ -1840,7 +2016,7 @@
           }
         };
         sesionesCodigoCRDT.set(clave, sesion);
-        notificar("synced", "Colaboración activa");
+        notificar("synced", "Colaboraci??n activa");
         return sesion;
       }
 
@@ -1860,7 +2036,7 @@
         if (sesion.rol === "estudiante") {
           quitarModoCooperacion = sesion.onModoCooperacion(modo => {
             const aceptada = modo.consentimiento === "aceptado" && modo.activa;
-            actualizarBloqueoEditorEstudiante(sectionId, aceptada && modo.pausada);
+             actualizarBloqueoEditorEstudiante(sectionId, false);
           });
         }
         let temporizadorAutorCambio = null;
@@ -1872,7 +2048,7 @@
           const iconoCambio = document.createElement("i");
           iconoCambio.className = `fa-solid ${esDocente ? "fa-chalkboard-user" : "fa-user-graduate"}`;
           const textoCambio = document.createElement("span");
-          textoCambio.textContent = `Cambio de ${esDocente ? "docente" : "alumno"}${nombre ? ` · ${String(nombre).split("@")[0]}` : ""}`;
+          textoCambio.textContent = `Cambio de ${esDocente ? "docente" : "alumno"}${nombre ? ` ?? ${String(nombre).split("@")[0]}` : ""}`;
           autorCambioElemento.replaceChildren(iconoCambio, textoCambio);
           textarea.classList.add(esDocente ? "crdt-change-teacher" : "crdt-change-student");
           temporizadorAutorCambio = setTimeout(() => {
@@ -1890,7 +2066,6 @@
           const posicion = Math.min(siguiente.length, inicio);
           textarea.setSelectionRange(posicion, Math.min(siguiente.length, fin));
           if (sesion.rol === "estudiante") {
-            setLocalStorage(`draft_editor-${sectionId}`, siguiente);
             actualizarMetricasEditor(sectionId);
             programarGuardadoFirebase();
           }
@@ -1923,7 +2098,6 @@
         };
         textarea.value = sesion.texto.toString();
         if (sesion.rol === "estudiante") {
-          setLocalStorage(`draft_editor-${sectionId}`, textarea.value);
           actualizarMetricasEditor(sectionId);
         }
         textarea.dataset.crdtActivo = "true";
@@ -1940,7 +2114,7 @@
         const presenciaElemento = document.createElement("span");
         presenciaElemento.className = "collaboration-presence";
         presenciaElemento.setAttribute("aria-live", "polite");
-        presenciaElemento.setAttribute("aria-label", "Participantes del modo cooperación");
+        presenciaElemento.setAttribute("aria-label", "Participantes del modo cooperaci??n");
         if (estadoElemento) {
           estadoElemento.insertAdjacentElement("afterend", presenciaElemento);
         } else {
@@ -1964,11 +2138,11 @@
             persona.className = `collaboration-presence-person${item.inactivo ? " is-idle" : ""}`;
             const nombre = item.propio ? "Vos" : String(item.nombre || "Participante");
             const rol = item.rol === "docente" ? "Docente" : "Estudiante";
-            persona.title = `${nombre} · ${rol} · ${item.inactivo ? "señal demorada" : "en línea"}`;
+            persona.title = `${nombre} ?? ${rol} ?? ${item.inactivo ? "se�al demorada" : "en l??nea"}`;
             const punto = document.createElement("i");
             punto.className = "fa-solid fa-circle";
             const etiqueta = document.createElement("span");
-            etiqueta.textContent = `${nombre} · ${rol}`;
+            etiqueta.textContent = `${nombre} ?? ${rol}`;
             persona.append(punto, etiqueta);
             presenciaElemento.appendChild(persona);
           });
@@ -1985,7 +2159,7 @@
         chatElemento.className = "collaboration-chat";
         chatElemento.innerHTML = `
           <button class="collaboration-chat-toggle" type="button" aria-expanded="false">
-            <span><i class="fa-solid fa-comments"></i> Mensajes de cooperación</span>
+            <span><i class="fa-solid fa-comments"></i> Mensajes de cooperaci??n</span>
             <span>
               <span class="collaboration-chat-unread" hidden>0</span>
               <i class="fa-solid fa-chevron-down"></i>
@@ -1996,7 +2170,7 @@
             <div class="collaboration-chat-quick"></div>
             <div class="collaboration-chat-tools">
               <button class="collaboration-chat-tool collaboration-chat-cite" type="button" title="Citar el texto seleccionado en el editor">
-                <i class="fa-solid fa-code"></i><span>Citar líneas</span>
+                <i class="fa-solid fa-code"></i><span>Citar l??neas</span>
               </button>
               <button class="collaboration-chat-tool collaboration-chat-sound" type="button" aria-pressed="false" title="Activar sonido para mensajes nuevos">
                 <i class="fa-solid fa-volume-xmark"></i><span>Sonido</span>
@@ -2007,13 +2181,13 @@
               <button type="button" aria-label="Quitar cita" title="Quitar cita"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <form class="collaboration-chat-composer">
-              <textarea maxlength="600" rows="2" placeholder="Escribí un mensaje sobre esta actividad…" aria-label="Mensaje de cooperación"></textarea>
+              <textarea maxlength="600" rows="2" placeholder="Escrib?? un mensaje sobre esta actividad�" aria-label="Mensaje de cooperaci??n"></textarea>
               <button class="btn btn-primary collaboration-chat-send" type="submit" title="Enviar mensaje" aria-label="Enviar mensaje">
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
             </form>
             <div class="collaboration-chat-footer">
-              <span class="collaboration-chat-status">Enter para enviar · Shift+Enter para nueva línea</span>
+              <span class="collaboration-chat-status">Enter para enviar ?? Shift+Enter para nueva l??nea</span>
               <span class="collaboration-chat-counter">0/600</span>
             </div>
           </div>`;
@@ -2096,7 +2270,7 @@
           cantidadNoLeidos = 0;
           actualizarNoLeidos();
           void sesion.actualizarEstadoMensajes(mensajesActuales, true).catch(error => {
-            console.error("No se pudieron marcar los mensajes como leídos:", error);
+            console.error("No se pudieron marcar los mensajes como le??dos:", error);
           });
         };
         const revisarVisibilidadChat = () => {
@@ -2128,7 +2302,7 @@
           if (!mensajes.length) {
             const vacio = document.createElement("div");
             vacio.className = "collaboration-chat-empty";
-            vacio.textContent = "Todavía no hay mensajes en esta actividad.";
+            vacio.textContent = "Todav??a no hay mensajes en esta actividad.";
             chatMensajes.appendChild(vacio);
             return;
           }
@@ -2156,8 +2330,8 @@
               const lineaInicio = Math.max(1, Number(mensaje.cita.lineaInicio) || 1);
               const lineaFin = Math.max(lineaInicio, Number(mensaje.cita.lineaFin) || lineaInicio);
               citaTitulo.textContent = lineaInicio === lineaFin
-                ? `Línea ${lineaInicio}`
-                : `Líneas ${lineaInicio}-${lineaFin}`;
+                ? `L??nea ${lineaInicio}`
+                : `L??neas ${lineaInicio}-${lineaFin}`;
               const citaTexto = document.createElement("span");
               citaTexto.textContent = String(mensaje.cita.texto || "");
               cita.append(citaTitulo, citaTexto);
@@ -2171,7 +2345,7 @@
               const entregado = Boolean(mensaje[campoEntregado]);
               const estado = document.createElement("div");
               estado.className = `collaboration-chat-message-status${leido ? " is-read" : ""}`;
-              estado.innerHTML = `<i class="fa-solid ${leido ? "fa-check-double" : entregado ? "fa-check-double" : "fa-check"}"></i><span>${leido ? "Leído" : entregado ? "Entregado" : "Enviado"}</span>`;
+              estado.innerHTML = `<i class="fa-solid ${leido ? "fa-check-double" : entregado ? "fa-check-double" : "fa-check"}"></i><span>${leido ? "Le??do" : entregado ? "Entregado" : "Enviado"}</span>`;
               elemento.appendChild(estado);
             }
             chatMensajes.appendChild(elemento);
@@ -2227,14 +2401,14 @@
           const lineaFin = lineaInicio + codigo.slice(inicio, fin).split("\n").length - 1;
           const textoCitado = codigo.slice(inicio, fin).trimEnd().slice(0, 1200);
           if (!textoCitado) {
-            mostrarEstadoChat("Seleccioná una línea de código para citar", "is-error");
+            mostrarEstadoChat("Seleccion?? una l??nea de c??digo para citar", "is-error");
             textarea.focus();
             return;
           }
           citaPendiente = { lineaInicio, lineaFin, texto: textoCitado };
           chatCitaTitulo.textContent = lineaInicio === lineaFin
-            ? `Citando línea ${lineaInicio}`
-            : `Citando líneas ${lineaInicio}-${lineaFin}`;
+            ? `Citando l??nea ${lineaInicio}`
+            : `Citando l??neas ${lineaInicio}-${lineaFin}`;
           chatCitaCodigo.textContent = textoCitado;
           chatCita.hidden = false;
           chatEntrada.focus();
@@ -2253,8 +2427,8 @@
         });
 
         const respuestasRapidas = sesion.rol === "docente"
-          ? ["Revisá esta línea", "Probá nuevamente", "Está correcto", "Explicame esta parte"]
-          : ["Necesito ayuda", "Ya lo corregí", "¿Está bien así?", "No entiendo el error"];
+          ? ["Revis?? esta l??nea", "Prob?? nuevamente", "Est?? correcto", "Explicame esta parte"]
+          : ["Necesito ayuda", "Ya lo correg??", "??Est?? bien as???", "No entiendo el error"];
         respuestasRapidas.forEach(textoRapido => {
           const boton = document.createElement("button");
           boton.type = "button";
@@ -2280,7 +2454,7 @@
           const contenido = chatEntrada.value.trim();
           if (!contenido || chatEnviar.disabled) return;
           if (Date.now() - ultimoEnvioMensaje < 800) {
-            mostrarEstadoChat("Esperá un momento antes de enviar otro mensaje", "is-error");
+            mostrarEstadoChat("Esper?? un momento antes de enviar otro mensaje", "is-error");
             return;
           }
           ultimoEnvioMensaje = Date.now();
@@ -2295,7 +2469,7 @@
             mostrarEstadoChat("Mensaje enviado");
           } catch (error) {
             console.error("No se pudo enviar el mensaje colaborativo:", error);
-            mostrarEstadoChat("No se pudo enviar. Intentá nuevamente.", "is-error");
+            mostrarEstadoChat("No se pudo enviar. Intent?? nuevamente.", "is-error");
           } finally {
             chatEnviar.disabled = false;
             chatEntrada.disabled = false;
@@ -2343,11 +2517,18 @@
         const sec = seccionesData.find(item => item.id === sectionId);
         const textarea = sec ? document.getElementById(`editor-${sec.id}`) : null;
         if (!sec || !textarea || (textarea.disabled && textarea.dataset.cooperationLocked !== "true")) return;
+        const metaSnapshot = await getDoc(doc(db, "estudiantes", user.uid, "colaboracionCodigo", sec.id));
+        const meta = metaSnapshot.exists() ? metaSnapshot.data() : {};
+        if (meta.estadoConsentimiento !== "aceptado" ||
+            meta.modoCooperacionActiva !== true ||
+            meta.edicionCooperativaPausada === true) {
+          return;
+        }
         const activa = window.__sesionCRDTEstudianteActiva;
         if (activa?.uid === user.uid && activa.sectionId === sec.id && activa.sesion) return;
         if (activa?.sesion) {
           const cerrada = await activa.sesion.destroy().catch(error => {
-            console.warn("No se pudo cerrar la sesión cooperativa anterior:", error);
+            console.warn("No se pudo cerrar la sesi??n cooperativa anterior:", error);
             return false;
           });
           if (cerrada === false) {
@@ -2373,7 +2554,7 @@
           window.__sesionCRDTEstudianteActiva = { uid: user.uid, sectionId: sec.id, textarea, sesion };
         } catch (error) {
           console.error(`No se pudo iniciar CRDT en ${sec.id}:`, error);
-          if (estado) estado.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Colaboración no disponible';
+          if (estado) estado.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Colaboraci??n no disponible';
         }
       };
       window.addEventListener("seccion-estudiante-cambiada", () => {
@@ -2381,6 +2562,17 @@
           void window.iniciarColaboracionCRDTEstudiante?.();
         }, 0);
       });
+      window.addEventListener("firebase-auth-changed", () => {
+        window.setTimeout(() => {
+          void window.iniciarColaboracionCRDTEstudiante?.();
+        }, 250);
+      });
+      const reintentarCRDTEstudiante = () => {
+        if (window.__sesionCRDTEstudianteActiva?.sesion) return;
+        if (window.firebaseCurrentUser) void window.iniciarColaboracionCRDTEstudiante?.();
+      };
+      const intervaloReintentoCRDT = window.setInterval(reintentarCRDTEstudiante, 1500);
+      window.addEventListener("pagehide", () => window.clearInterval(intervaloReintentoCRDT), { once: true });
 
       function contextoChatColaborativoFirebase(rolSolicitado = "") {
         if (rolSolicitado === "docente" && window.firebaseTeacherUser && teacherDb) {
@@ -2422,6 +2614,7 @@
                 : "sin_solicitud",
               objetivo: String(datos.objetivoCooperacion || ""),
               solicitadoPor: String(datos.solicitadoPor || ""),
+              solicitanteRol: datos.solicitanteRol === "docente" ? "docente" : "estudiante",
               solicitudEn: datos.solicitudEn || null,
               respondidoEn: datos.respondidoEn || null
             }, null);
@@ -2440,25 +2633,382 @@
         if (!user || !db || !uid || !sectionId || user.uid !== uid) return false;
         try {
           const referencia = doc(db, "estudiantes", uid, "colaboracionCodigo", sectionId);
-          const snapshot = await getDoc(referencia);
-          if (!snapshot.exists() || snapshot.data()?.estadoConsentimiento !== "pendiente") return false;
           const aceptada = aceptar === true;
-          await setDoc(referencia, {
-            modoCooperacionActiva: aceptada,
-            edicionCooperativaPausada: !aceptada,
-            estadoConsentimiento: aceptada ? "aceptado" : "rechazado",
-            respondidoEn: serverTimestamp(),
-            respondidoPor: user.email || user.displayName || user.uid,
-            motivoRechazo: aceptada ? "" : String(motivo || "").trim().slice(0, 300),
-            actualizadoEn: serverTimestamp(),
-            actualizadoPor: user.email || user.uid
-          }, { merge: true });
+          const solicitudRef = doc(db, "solicitudesColaboracion", `${uid}_${sectionId}`);
+          const historialRef = doc(collection(solicitudRef, "historial"));
+          await runTransaction(db, async transaction => {
+            const metaSnapshot = await transaction.get(referencia);
+            const solicitudSnapshot = await transaction.get(solicitudRef);
+            if (!metaSnapshot.exists() ||
+                metaSnapshot.data()?.estadoConsentimiento !== "pendiente" ||
+                metaSnapshot.data()?.solicitanteRol !== "docente" ||
+                (solicitudSnapshot.exists() && solicitudSnapshot.data()?.estado !== "pendiente")) {
+              throw new Error("La solicitud ya fue respondida o no está dirigida al estudiante.");
+            }
+            const estado = aceptada ? "aceptado" : "rechazado";
+            const rechazo = aceptada ? "" : String(motivo || "").trim().slice(0, 300);
+            transaction.update(referencia, {
+              modoCooperacionActiva: aceptada,
+              edicionCooperativaPausada: !aceptada,
+              estadoConsentimiento: estado,
+              respondidoEn: serverTimestamp(),
+              respondidoPor: user.email || user.displayName || user.uid,
+              motivoRechazo: rechazo,
+              actualizadoEn: serverTimestamp(),
+              actualizadoPor: user.email || user.uid
+            });
+            transaction.update(solicitudRef, {
+              estado,
+              respondidoEn: serverTimestamp(),
+              respondidoPor: user.email || user.displayName || user.uid,
+              motivoRechazo: rechazo,
+              actualizadoEn: serverTimestamp()
+            });
+            transaction.set(historialRef, {
+              solicitudId: historialRef.id,
+              uid,
+              sectionId,
+              objetivo: metaSnapshot.data()?.objetivoCooperacion || "",
+              solicitadoPor: metaSnapshot.data()?.solicitadoPor || "",
+              solicitanteRol: "docente",
+              solicitudEn: metaSnapshot.data()?.solicitudEn || null,
+              estado,
+              respondidoEn: serverTimestamp(),
+              respondidoPor: user.email || user.displayName || user.uid,
+              motivoRechazo: rechazo,
+              finalizadaEn: null,
+              registradoEn: serverTimestamp()
+            });
+          });
           return true;
         } catch (error) {
           console.error("No se pudo responder la solicitud de cooperacion:", error);
           window.ultimoErrorCooperacion = {
             code: error?.code || "",
             message: await describirErrorDecisionCooperacion(error, user)
+          };
+          return false;
+        }
+      };
+
+      window.responderCooperacionDocenteFirebase = async function({
+        uid,
+        sectionId,
+        aceptar,
+        motivo = ""
+      } = {}) {
+        const contexto = contextoDocenteFirebase();
+        const user = contexto?.user || window.firebaseCurrentUser || await window.firebaseAuthReady;
+        const database = contexto?.database || db;
+        if (!user || !database || !uid || !sectionId ||
+            !(await verificarUsuarioDocente(user))) return false;
+        try {
+          const referencia = doc(database, "estudiantes", uid, "colaboracionCodigo", sectionId);
+          const aceptada = aceptar === true;
+          const solicitudRef = doc(database, "solicitudesColaboracion", `${uid}_${sectionId}`);
+          const historialRef = doc(collection(solicitudRef, "historial"));
+          await runTransaction(database, async transaction => {
+            const metaSnapshot = await transaction.get(referencia);
+            const solicitudSnapshot = await transaction.get(solicitudRef);
+            if (!metaSnapshot.exists() ||
+                metaSnapshot.data()?.estadoConsentimiento !== "pendiente" ||
+                metaSnapshot.data()?.solicitanteRol !== "estudiante" ||
+                (solicitudSnapshot.exists() && solicitudSnapshot.data()?.estado !== "pendiente")) {
+              throw new Error("La solicitud ya fue respondida o no está dirigida al docente.");
+            }
+            const estado = aceptada ? "aceptado" : "rechazado";
+            const rechazo = aceptada ? "" : String(motivo || "").trim().slice(0, 300);
+            transaction.update(referencia, {
+              modoCooperacionActiva: aceptada,
+              edicionCooperativaPausada: !aceptada,
+              estadoConsentimiento: estado,
+              respondidoEn: serverTimestamp(),
+              respondidoPor: user.email || user.displayName || user.uid,
+              motivoRechazo: rechazo,
+              actualizadoEn: serverTimestamp(),
+              actualizadoPor: user.email || user.uid
+            });
+            transaction.update(solicitudRef, {
+              estado,
+              respondidoEn: serverTimestamp(),
+              respondidoPor: user.email || user.displayName || user.uid,
+              motivoRechazo: rechazo,
+              actualizadoEn: serverTimestamp()
+            });
+            transaction.set(historialRef, {
+              solicitudId: historialRef.id,
+              uid,
+              sectionId,
+              objetivo: metaSnapshot.data()?.objetivoCooperacion || "",
+              solicitadoPor: metaSnapshot.data()?.solicitadoPor || "",
+              solicitanteRol: "estudiante",
+              solicitudEn: metaSnapshot.data()?.solicitudEn || null,
+              estado,
+              respondidoEn: serverTimestamp(),
+              respondidoPor: user.email || user.displayName || user.uid,
+              motivoRechazo: rechazo,
+              finalizadaEn: null,
+              registradoEn: serverTimestamp()
+            });
+          });
+          return true;
+        } catch (error) {
+          console.error("No se pudo responder la solicitud docente de cooperacion:", error);
+          window.ultimoErrorCooperacion = {
+            code: error?.code || "",
+            message: error?.message || "No se pudo actualizar la solicitud."
+          };
+          return false;
+        }
+      };
+
+      window.registrarSolicitudColaboracionFirebase = async function({
+        uid,
+        sectionId,
+        objetivo = "",
+        solicitadoPor = ""
+      } = {}) {
+        const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
+        if (!user || !db || !uid || user.uid !== uid || !sectionId) return false;
+        const descripcion = String(objetivo || "Necesito ayuda para revisar mi c\u00f3digo.").trim().slice(0, 500);
+        const id = `${uid}_${sectionId}`;
+        try {
+          const solicitudRef = doc(db, "solicitudesColaboracion", id);
+          const metaRef = doc(db, "estudiantes", uid, "colaboracionCodigo", sectionId);
+          const historialRef = doc(collection(solicitudRef, "historial"));
+          await runTransaction(db, async transaction => {
+            const solicitudSnapshot = await transaction.get(solicitudRef);
+            const metaSnapshot = await transaction.get(metaRef);
+            const solicitud = solicitudSnapshot.exists() ? solicitudSnapshot.data() : {};
+            const meta = metaSnapshot.exists() ? metaSnapshot.data() : {};
+            const estudianteSnapshot = await transaction.get(doc(db, "estudiantes", uid));
+            const codigoBase = estudianteSnapshot.exists()
+              ? String(estudianteSnapshot.data()?.codigos?.[sectionId] || "")
+              : "";
+            const semillaInicial = () => {
+              const temporal = new Y.Doc();
+              temporal.getText("codigo").insert(0, codigoBase);
+              return bytesABase64(Y.encodeStateAsUpdate(temporal));
+            };
+            const estadoActual = meta.estadoConsentimiento || solicitud.estado || "sin_solicitud";
+            if (estadoActual === "pendiente" ||
+                (estadoActual === "aceptado" && meta.modoCooperacionActiva === true &&
+                 meta.edicionCooperativaPausada === false)) {
+              throw new Error("Ya existe una solicitud pendiente o una colaboración activa.");
+            }
+            if (!["sin_solicitud", "rechazado", "finalizado"].includes(estadoActual)) {
+              throw new Error("La colaboración no admite una nueva solicitud en su estado actual.");
+            }
+            const nombre = String(solicitadoPor || user.displayName || user.email || "Estudiante").slice(0, 254);
+            transaction.set(solicitudRef, {
+              id,
+              uid,
+              sectionId,
+              objetivo: descripcion,
+              solicitadoPor: nombre,
+              solicitanteRol: "estudiante",
+              solicitudEn: serverTimestamp(),
+              estado: "pendiente",
+              respondidoEn: null,
+              respondidoPor: "",
+              motivoRechazo: "",
+              finalizadaEn: null,
+              actualizadoEn: serverTimestamp()
+            }, { merge: true });
+            transaction.set(metaRef, {
+              ...(metaSnapshot.exists() ? {} : {
+                   semilla: semillaInicial(),
+                   creadoEn: serverTimestamp(),
+                   creadoPor: user.email || user.uid
+                 }),
+                 uid,
+              sectionId,
+              modoCooperacionActiva: false,
+              edicionCooperativaPausada: true,
+              estadoConsentimiento: "pendiente",
+              objetivoCooperacion: descripcion,
+              solicitadoPor: nombre,
+              solicitanteRol: "estudiante",
+              solicitudEn: serverTimestamp(),
+              respondidoEn: null,
+              respondidoPor: "",
+              motivoRechazo: "",
+              actualizadoEn: serverTimestamp(),
+              actualizadoPor: user.email || user.uid
+            }, { merge: true });
+            transaction.set(historialRef, {
+              solicitudId: historialRef.id,
+              uid,
+              sectionId,
+              objetivo: descripcion,
+              solicitadoPor: nombre,
+              solicitanteRol: "estudiante",
+              solicitudEn: serverTimestamp(),
+              estado: "pendiente",
+              respondidoEn: null,
+              respondidoPor: "",
+              motivoRechazo: "",
+              finalizadaEn: null,
+              registradoEn: serverTimestamp()
+            });
+          });
+          return true;
+        } catch (error) {
+          window.ultimoErrorCooperacion = {
+            code: error?.code || "",
+            message: error?.message || "No se pudo registrar la solicitud."
+          };
+          return false;
+        }
+      };
+
+      window.obtenerSolicitudesColaboracionDocenteFirebase = async function() {
+        const autorizado = await window.esDocenteAutorizadoFirebase?.();
+        const contexto = contextoDocenteFirebase();
+        if (!autorizado || !contexto.database) {
+          window.ultimoErrorCooperacion = {
+            code: "teacher-not-ready",
+            message: "La autorización docente todavía no está lista."
+          };
+          return [];
+        }
+        try {
+          const snapshot = await getDocs(collection(contexto.database, "solicitudesColaboracion"));
+          const solicitudesTodas = snapshot.docs
+            .map(item => ({ id: item.id, ...item.data() }))
+            .filter(item => item.uid && item.sectionId);
+          // La bandeja docente solo debe mostrar solicitudes realmente pendientes.
+          // Las aceptadas/rechazadas/finalizadas quedan fuera de la bandeja activa.
+          const solicitudes = solicitudesTodas.filter(item => item.estado === "pendiente");
+          window.ultimoEstadoSolicitudesColaboracion = {
+            coleccion: "solicitudesColaboracion",
+            leidas: snapshot.size,
+            pendientes: solicitudes.length,
+            proyecto: firebaseConfig.projectId,
+            usuario: contexto.user?.email || contexto.user?.uid || ""
+          };
+          return solicitudes;
+        } catch (error) {
+          window.ultimoErrorCooperacion = { code: error?.code || "", message: error?.message || "No se pudieron cargar las solicitudes." };
+          return [];
+        }
+      };
+
+      // Elimina una solicitud de colaboración y deja la metadata preparada
+      // para una nueva solicitud. El docente puede limpiar cualquier estado;
+      // el estudiante solamente su propia solicitud pendiente.
+      window.eliminarSolicitudColaboracionDocenteFirebase = async function({
+        uid,
+        sectionId
+      } = {}) {
+        const contexto = contextoDocenteFirebase();
+        const user = contexto?.user || window.firebaseCurrentUser || await window.firebaseAuthReady;
+        const database = contexto?.database || db;
+        if (!user || !database || !uid || !sectionId) return false;
+        try {
+          await user.getIdToken(true);
+          if (!(await verificarUsuarioDocente(user))) {
+            throw new Error("La sesión docente ya no está autorizada. Volvé a iniciar sesión.");
+          }
+          const solicitudRef = doc(database, "solicitudesColaboracion", `${uid}_${sectionId}`);
+          const metaRef = doc(database, "estudiantes", uid, "colaboracionCodigo", sectionId);
+          await runTransaction(database, async transaction => {
+            const solicitudSnapshot = await transaction.get(solicitudRef);
+            const metaSnapshot = await transaction.get(metaRef);
+            const solicitud = solicitudSnapshot.exists() ? solicitudSnapshot.data() : {};
+            const meta = metaSnapshot.exists() ? metaSnapshot.data() : {};
+            const estado = solicitud.estado || meta.estadoConsentimiento || "sin_solicitud";
+            if (!solicitudSnapshot.exists() && !metaSnapshot.exists()) {
+              throw new Error("No existe la solicitud indicada.");
+            }
+            if (solicitudSnapshot.exists() && estado !== "pendiente") {
+              throw new Error("Solo se pueden eliminar solicitudes pendientes.");
+            }
+            if (solicitudSnapshot.exists()) transaction.delete(solicitudRef);
+            if (metaSnapshot.exists()) {
+              transaction.update(metaRef, {
+                modoCooperacionActiva: false,
+                edicionCooperativaPausada: true,
+                estadoConsentimiento: "sin_solicitud",
+                objetivoCooperacion: "",
+                solicitadoPor: "",
+                solicitanteRol: "",
+                solicitudEn: null,
+                respondidoEn: null,
+                respondidoPor: "",
+                motivoRechazo: "",
+                actualizadoEn: serverTimestamp(),
+                actualizadoPor: user.email || user.uid
+              });
+            }
+          });
+          return true;
+        } catch (error) {
+          console.error("No se pudo eliminar la solicitud de cooperacion:", {
+            code: error?.code || "",
+            message: error?.message || "",
+            uid,
+            sectionId
+          });
+          window.ultimoErrorCooperacion = {
+            code: error?.code || "",
+            message: error?.message || "No se pudo eliminar la solicitud."
+          };
+          return false;
+        }
+      };
+
+      window.eliminarSolicitudColaboracionEstudianteFirebase = async function({
+        uid,
+        sectionId
+      } = {}) {
+        const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
+        if (!user || !db || !uid || !sectionId || user.uid !== uid) return false;
+        try {
+          await user.getIdToken(true);
+          const solicitudRef = doc(db, "solicitudesColaboracion", `${uid}_${sectionId}`);
+          const metaRef = doc(db, "estudiantes", uid, "colaboracionCodigo", sectionId);
+          await runTransaction(db, async transaction => {
+            const solicitudSnapshot = await transaction.get(solicitudRef);
+            const metaSnapshot = await transaction.get(metaRef);
+            if (!solicitudSnapshot.exists()) {
+              throw new Error("No existe una solicitud para eliminar.");
+            }
+            const solicitud = solicitudSnapshot.data() || {};
+            const meta = metaSnapshot.exists() ? (metaSnapshot.data() || {}) : {};
+            const estado = solicitud.estado || meta.estadoConsentimiento || "sin_solicitud";
+            if (estado !== "pendiente") {
+              throw new Error("Solo se puede cancelar una solicitud pendiente.");
+            }
+            transaction.delete(solicitudRef);
+            if (metaSnapshot.exists()) {
+              transaction.update(metaRef, {
+                modoCooperacionActiva: false,
+                edicionCooperativaPausada: true,
+                estadoConsentimiento: "sin_solicitud",
+                objetivoCooperacion: "",
+                solicitadoPor: "",
+                solicitanteRol: "",
+                solicitudEn: null,
+                respondidoEn: null,
+                respondidoPor: "",
+                motivoRechazo: "",
+                actualizadoEn: serverTimestamp(),
+                actualizadoPor: user.email || user.uid
+              });
+            }
+          });
+          return true;
+        } catch (error) {
+          console.error("No se pudo cancelar la solicitud de cooperacion:", {
+            code: error?.code || "",
+            message: error?.message || "",
+            uid,
+            sectionId
+          });
+          window.ultimoErrorCooperacion = {
+            code: error?.code || "",
+            message: error?.message || "No se pudo cancelar la solicitud."
           };
           return false;
         }
@@ -2679,7 +3229,7 @@
         const autorizado = await window.autorizarDocenteFirebase?.();
         if (!autorizado || !uid || !sectionId) return { ok: false, error: "Docente no autorizado." };
         const { database } = contextoDocenteFirebase();
-        if (!database) return { ok: false, error: "Firebase no está disponible." };
+        if (!database) return { ok: false, error: "Firebase no est?? disponible." };
         try {
           const referencia = collection(database, "estudiantes", uid, "colaboracionCodigo", sectionId, "mensajes");
           const snapshot = await getDocs(referencia);
@@ -2695,7 +3245,7 @@
           return { ok: true, eliminados };
         } catch (error) {
           console.error("No se pudo vaciar el chat cooperativo:", error);
-          return { ok: false, error: error?.message || "Firebase rechazó la eliminación." };
+          return { ok: false, error: error?.message || "Firebase rechaz?? la eliminaci??n." };
         }
       };
 
@@ -2730,7 +3280,7 @@
           }, { merge: true });
           return true;
         } catch (error) {
-          console.error("No se pudo guardar la programación docente:", error);
+          console.error("No se pudo guardar la programaci??n docente:", error);
           return false;
         }
       };
@@ -2779,7 +3329,7 @@
           const snap = await getDocs(collection(database, "estudiantes", uid, "historialProgramacionDocente"));
           return snap.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (b.guardadoEn?.toMillis?.() || 0) - (a.guardadoEn?.toMillis?.() || 0));
         } catch (error) {
-          console.error("No se pudo cargar el historial de programación:", error);
+          console.error("No se pudo cargar el historial de programaci??n:", error);
           return [];
         }
       };
@@ -2856,7 +3406,7 @@
         if (!user || !database || !uid || !revision) return false;
         try {
           if (!(await verificarUsuarioDocente(user))) {
-            window.ultimoErrorRevisionDocente = { code: "teacher-not-authorized", message: "La cuenta no está autorizada como docente." };
+            window.ultimoErrorRevisionDocente = { code: "teacher-not-authorized", message: "La cuenta no est?? autorizada como docente." };
             return false;
           }
           const estudianteRef = doc(database, "estudiantes", uid);
@@ -2874,26 +3424,21 @@
             const penalizacionAnterior = Math.max(0, Math.min(10, Number(revisionAnterior.penalizacion) || 0));
             const motivoAnterior = String(revisionAnterior.motivo || "").trim();
             const historialResultadosActual = datos.historialResultados || {};
-            const resultadosVerificadosActual = datos.resultadosVerificados || {};
             const notasDesafiosActual = datos.notasDesafiosDocente || {};
             const idsConNota = [...new Set([
               ...Object.keys(historialResultadosActual),
-              ...Object.keys(resultadosVerificadosActual),
               ...Object.keys(notasDesafiosActual)
             ])];
             const notasAcademicas = idsConNota
               .map(sectionId => {
                 const resultado = historialResultadosActual[sectionId] || {};
-                const resultadoServidor = resultadosVerificadosActual[sectionId] || {};
                 const ajuste = datos.notasDesafiosDocente?.[sectionId];
                 const notaDocente = ajuste?.nota === null || ajuste?.nota === undefined || ajuste?.nota === ""
                   ? NaN
                   : Number(ajuste.nota);
                 return Number.isFinite(notaDocente)
                   ? notaDocente
-                  : resultadoServidor.verificadaServidor === true
-                    ? Number(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-                    : NaN;
+                  : Number(resultado?.notaFinal ?? resultado?.notaIA);
               })
               .filter(nota => Number.isFinite(nota));
             const promedioAcademico = notasAcademicas.length
@@ -2955,7 +3500,7 @@
           });
           return true;
         } catch (error) {
-          console.error("Error guardando revisión docente:", error);
+          console.error("Error guardando revisi??n docente:", error);
           window.ultimoErrorRevisionDocente = { code: error?.code || "", message: error?.message || "Error desconocido" };
           return false;
         }
@@ -2970,7 +3515,7 @@
           if (!(await verificarUsuarioDocente(user))) {
             window.ultimoErrorNotaDesafioDocente = {
               code: "teacher-not-authorized",
-              message: "La cuenta no está autorizada como docente."
+              message: "La cuenta no est?? autorizada como docente."
             };
             return false;
           }
@@ -2982,86 +3527,31 @@
             const notasDocente = { ...(datos.notasDesafiosDocente || {}) };
             const ajusteAnterior = notasDocente[sectionId] || null;
             const resultado = datos.historialResultados?.[sectionId] || {};
-            const resultadoServidor = datos.resultadosVerificados?.[sectionId] || {};
-            const normalizarNotaModulo = valor => {
-              const nota = valor === null || valor === undefined || valor === "" ? NaN : Number(valor);
-              return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
-            };
-            const notaCodigoServidor = resultadoServidor.verificadaServidor === true
-              ? normalizarNotaModulo(resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-              : null;
-            const notaCodigoBase = notaCodigoServidor ?? normalizarNotaModulo(resultado.notaCodigo);
-            const notaPreguntas = normalizarNotaModulo(resultado.notaPreguntas);
-            const notaCombinada = normalizarNotaModulo(resultado.notaFinal ?? resultado.notaIA);
-            const notaAutomatica = notaCombinada ?? (
-              notaCodigoBase !== null && notaPreguntas !== null
-                ? normalizarNotaModulo((notaCodigoBase * 0.7) + (notaPreguntas * 0.3))
-                : notaCodigoBase
-            );
-            const notaAnteriorValor = ajusteAnterior?.notaDocente ??
-              ajusteAnterior?.notaFinalCalculada ??
-              ajusteAnterior?.nota;
-            const notaAnteriorDocente = notaAnteriorValor === null ||
-              notaAnteriorValor === undefined ||
-              notaAnteriorValor === ""
+            const notaAutomatica = Number(resultado.notaFinal ?? resultado.notaIA);
+            const notaAnteriorDocente = ajusteAnterior?.nota === null ||
+              ajusteAnterior?.nota === undefined ||
+              ajusteAnterior?.nota === ""
               ? NaN
-              : Number(notaAnteriorValor);
+              : Number(ajusteAnterior.nota);
             const valorAnterior = Number.isFinite(notaAnteriorDocente)
               ? notaAnteriorDocente
               : (Number.isFinite(notaAutomatica) ? notaAutomatica : null);
             let valorNuevo = null;
             let motivoNuevo = String(cambio.motivo || "").trim().slice(0, 1000);
-            const normalizarRubrica = rubrica => {
-              const criterios = Array.isArray(rubrica?.criterios) ? rubrica.criterios : [];
-              return {
-                version: 1,
-                criterios: criterios.slice(0, 20).map(item => {
-                  const maximo = Math.max(0, Math.min(100, Number(item?.puntajeMaximo) || 0));
-                  return {
-                    criterio: String(item?.criterio || "").trim().slice(0, 120),
-                    descripcion: String(item?.descripcion || "").trim().slice(0, 500),
-                    puntajeMaximo: maximo,
-                    puntajeObtenido: Math.max(0, Math.min(maximo, Number(item?.puntajeObtenido) || 0)),
-                    comentarioDocente: String(item?.comentarioDocente || "").trim().slice(0, 1000),
-                    evidenciaAsociada: String(item?.evidenciaAsociada || "").trim().slice(0, 500)
-                  };
-                }).filter(item => item.criterio || item.descripcion)
-              };
-            };
-            const rubricaNueva = normalizarRubrica(cambio.rubrica);
             if (cambio.restaurar === true) {
               delete notasDocente[sectionId];
-              valorNuevo = notaAutomatica;
-              motivoNuevo = motivoNuevo || "Restauración de la calificación automática";
+              valorNuevo = Number.isFinite(notaAutomatica) ? notaAutomatica : null;
+              motivoNuevo = motivoNuevo || "Restauraci??n de la calificaci??n autom??tica";
             } else {
-              const maximoRubrica = rubricaNueva.criterios.reduce(
-                (suma, item) => suma + Number(item.puntajeMaximo || 0),
-                0
-              );
-              const obtenidoRubrica = rubricaNueva.criterios.reduce(
-                (suma, item) => suma + Number(item.puntajeObtenido || 0),
-                0
-              );
-              const notaCalculadaRubrica = maximoRubrica > 0
-                ? Number((obtenidoRubrica * 10 / maximoRubrica).toFixed(1))
-                : NaN;
-              const nota = Number.isFinite(notaCalculadaRubrica)
-                ? notaCalculadaRubrica
-                : Number(cambio.nota);
+              const nota = Number(cambio.nota);
               if (!Number.isFinite(nota) || nota < 0 || nota > 10) {
                 throw new Error("invalid-challenge-grade");
               }
               valorNuevo = Number(nota.toFixed(1));
               notasDocente[sectionId] = {
                 nota: valorNuevo,
-                notaDocente: valorNuevo,
-                notaFinalCalculada: valorNuevo,
                 motivo: motivoNuevo,
-                notaAutomatica,
-                rubrica: rubricaNueva.criterios.length
-                  ? { ...rubricaNueva, fechaCorreccion: serverTimestamp() }
-                  : null,
-                fechaCorreccion: serverTimestamp(),
+                notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
                 modificadaPor: user.email || user.displayName || user.uid,
                 modificadaPorUid: user.uid,
                 modificadaEn: serverTimestamp()
@@ -3095,23 +3585,13 @@
               tipo: cambio.restaurar === true ? "restauracion" : "modificacion",
               valorAnterior,
               valorNuevo,
-              notaAutomatica,
+              notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
               motivo: motivoNuevo,
               rubricaAnterior: ajusteAnterior?.rubrica || null,
-              rubricaNueva: rubricaNueva.criterios.length
-                ? { ...rubricaNueva, fechaCorreccion: serverTimestamp() }
-                : null,
-              intento: {
-                notaIA: Number.isFinite(Number(resultadoServidor.evaluacionCodigo?.nota))
-                  ? Number(resultadoServidor.evaluacionCodigo.nota)
-                  : null,
-                notaFinal: Number.isFinite(Number(resultadoServidor.notaCodigo))
-                  ? Number(resultadoServidor.notaCodigo)
-                  : null,
-                codigo: String(resultadoServidor.codigo || resultado.codigo || "").slice(0, 20000),
-                salida: String(resultado.salida || "").slice(0, 5000),
-                evaluadoEn: String(resultado.fecha || resultado.evaluadoEn || "")
-              },
+              rubricaNueva: cambio.restaurar === true ? null : (cambio.rubrica || null),
+              intento: resultado.intento && typeof resultado.intento === "object"
+                ? resultado.intento
+                : {},
               docente: user.email || "",
               docenteUid: user.uid,
               cambiadoEn: serverTimestamp()
@@ -3119,7 +3599,7 @@
           });
           return true;
         } catch (error) {
-          console.error("Error guardando nota docente del desafío:", error);
+          console.error("Error guardando nota docente del desaf??o:", error);
           window.ultimoErrorNotaDesafioDocente = {
             code: error?.code || "",
             message: error?.message || "Error desconocido"
@@ -3128,7 +3608,7 @@
         }
       };
 
-      window.desbloquearActividadesEstudianteFirebase = async function(uid, sectionId = "") {
+      window.desbloquearActividadesEstudianteFirebase = async function(uid, sectionId = "", motivo = "") {
         const contexto = contextoDocenteFirebase();
         const user = contexto.user || await window.firebaseAuthReady;
         const database = contexto.database;
@@ -3140,16 +3620,38 @@
             if (!snapshot.exists()) throw new Error("student-not-found");
             const datos = snapshot.data();
             const finalizadas = { ...(datos.finalizadas || {}) };
+            const intentosDesafio = { ...(datos.intentosDesafio || {}) };
+            const historialDesbloqueosDesafios = Array.isArray(datos.historialDesbloqueosDesafios)
+              ? datos.historialDesbloqueosDesafios.slice(-99)
+              : [];
             const ids = Array.isArray(sectionId) ? sectionId.filter(Boolean).map(String) : (sectionId ? [String(sectionId)] : []);
-            if (ids.length) ids.forEach(id => delete finalizadas[id]);
-            else Object.keys(finalizadas).forEach(id => delete finalizadas[id]);
+            const idsDesbloqueados = ids.length ? ids : Object.keys(finalizadas);
+            idsDesbloqueados.forEach(id => {
+              delete finalizadas[id];
+              intentosDesafio[id] = Number(intentosDesafio[id] || 1) + 1;
+            });
+            const ahoraIso = new Date().toISOString();
+            const motivoFinal = String(motivo || "Nuevo intento autorizado por el docente").slice(0, 500);
+            const registros = idsDesbloqueados.map(id => ({
+              seccion: id,
+              intento: intentosDesafio[id],
+              motivo: motivoFinal,
+              por: user.email || user.displayName || user.uid,
+              porUid: user.uid,
+              fecha: ahoraIso
+            }));
             transaction.set(estudianteRef, {
               finalizadas,
+              intentosDesafio,
+              historialDesbloqueosDesafios: [...historialDesbloqueosDesafios, ...registros].slice(-100),
               desbloqueoActividades: {
                 id: `${Date.now()}-${uid}`,
                 seccion: ids.length ? ids : "todas",
+                secciones: idsDesbloqueados,
                 por: user.email || user.displayName || user.uid,
                 porUid: user.uid,
+                motivo: motivoFinal,
+                intentosDesafio,
                 en: serverTimestamp()
               },
               actualizadoEn: serverTimestamp()
@@ -3183,7 +3685,7 @@
               return fechaB - fechaA;
             });
         } catch (error) {
-          console.error("Error consultando historial de notas por desafío:", error);
+          console.error("Error consultando historial de notas por desaf??o:", error);
           window.ultimoErrorHistorialNotasDesafios = {
             code: error?.code || "",
             message: error?.message || "Error desconocido"
@@ -3229,10 +3731,6 @@
           avisoSinConexionSegundos: Math.max(15, Math.min(600, Number(configuracion?.avisoSinConexionSegundos) || 30)),
           alertaSinConexionSegundos: Math.max(60, Math.min(3600, Number(configuracion?.alertaSinConexionSegundos) || 120)),
           retencionDias: Math.max(1, Math.min(3650, Number(configuracion?.retencionDias) || 180)),
-          tutorHabilitado: configuracion?.tutorHabilitado !== false,
-          evaluacionFormal: configuracion?.evaluacionFormal === true,
-          nivelMaximoTutor: Math.max(1, Math.min(6, Number(configuracion?.nivelMaximoTutor) || 6)),
-          limiteConsultasTutor: Math.max(1, Math.min(50, Number(configuracion?.limiteConsultasTutor) || 12)),
           dominiosPermitidos: listaDominios(configuracion?.dominiosPermitidos),
           dominiosAlerta: listaDominios(configuracion?.dominiosAlerta),
           dominiosIgnorados: listaDominios(configuracion?.dominiosIgnorados),
@@ -3256,7 +3754,7 @@
           });
           return true;
         } catch (error) {
-          console.error("Error guardando la configuración de seguimiento:", error);
+          console.error("Error guardando la configuraci??n de seguimiento:", error);
           return false;
         }
       };
@@ -3323,7 +3821,7 @@
           });
           return true;
         } catch (error) {
-          console.error("Error guardando la rúbrica socrática:", error);
+          console.error("Error guardando la rúbrica socr�?tica:", error);
           return false;
         }
       };
@@ -3370,7 +3868,7 @@
             id: `mensaje-${planSeguro.id}`,
             tipo: "refuerzo",
             asunto: `Plan de refuerzo: ${planSeguro.contenido}`,
-            texto: `${planSeguro.indicaciones}\n\nActividad de comprobación: ${planSeguro.actividadObjetivoTitulo}${planSeguro.fechaLimite ? `\nFecha límite: ${planSeguro.fechaLimite}` : ""}`,
+            texto: `${planSeguro.indicaciones}\n\nActividad de comprobaci??n: ${planSeguro.actividadObjetivoTitulo}${planSeguro.fechaLimite ? `\nFecha l??mite: ${planSeguro.fechaLimite}` : ""}`,
             recibido: false,
             leido: false,
             creadoEn: new Date().toISOString(),
@@ -3414,7 +3912,35 @@
           }, { merge: true });
           return true;
         } catch (error) {
-          console.error("Error guardando el estado de la extensión:", error);
+          console.error("Error guardando el estado de la extensi??n:", error);
+          return false;
+        }
+      };
+
+      window.guardarDatosEstudianteDocenteFirebase = async function(uid, datos) {
+        const contexto = contextoDocenteFirebase();
+        const user = contexto.user || await window.firebaseAuthReady;
+        const database = contexto.database;
+        if (!user || !database || !uid || !datos) return false;
+
+        try {
+          if (!(await verificarUsuarioDocente(user))) return false;
+
+          const nombre = String(datos.nombre || "").trim().slice(0, 120);
+          const curso = String(datos.curso || "").trim().slice(0, 40);
+          const division = String(datos.division || "").trim().toUpperCase().slice(0, 10);
+          const turno = String(datos.turno || "").trim().slice(0, 30);
+
+          if (!nombre || !curso || !division || !turno) return false;
+
+          await setDoc(doc(database, "estudiantes", uid), {
+            estudiante: { nombre, curso, division, turno },
+            actualizadoEn: serverTimestamp()
+          }, { merge: true });
+
+          return true;
+        } catch (error) {
+          console.error("Error modificando datos del estudiante por docente:", error);
           return false;
         }
       };
@@ -3425,18 +3951,17 @@
         const database = contexto.database;
         if (!user || !database || !uid || !estadoData) return false;
         try {
-          await setDoc(doc(database, "estudiantes", uid), {
-            estadoCuenta: estadoData.estadoCuenta,
-            bajaMotivo: estadoData.bajaMotivo || "",
-            bajaFecha: estadoData.bajaFecha || null,
-            bajaPor: estadoData.bajaPor || "",
-            rechazoMotivo: estadoData.rechazoMotivo || "",
-            rechazadoEn: estadoData.rechazadoEn || null,
-            rechazadoPor: estadoData.rechazadoPor || "",
-            aprobadoEn: estadoData.aprobadoEn || null,
-            aprobadoPor: estadoData.aprobadoPor || "",
-            actualizadoEn: serverTimestamp()
-          }, { merge: true });
+          const actualizacion = { estadoCuenta: estadoData.estadoCuenta, actualizadoEn: serverTimestamp() };
+          [
+            "bajaMotivo", "bajaFecha", "bajaPor",
+            "rechazoMotivo", "rechazadoEn", "rechazadoPor",
+            "aprobadoEn", "aprobadoPor"
+          ].forEach(campo => {
+            if (Object.prototype.hasOwnProperty.call(estadoData, campo)) {
+              actualizacion[campo] = estadoData[campo];
+            }
+          });
+          await setDoc(doc(database, "estudiantes", uid), actualizacion, { merge: true });
           return true;
         } catch (error) {
           console.error("Error guardando estado de estudiante:", error);
@@ -3448,14 +3973,19 @@
         const contexto = contextoDocenteFirebase();
         const user = contexto.user || await window.firebaseAuthReady;
         if (!user || !contexto.database || !uid) return false;
+        let rutaEnProceso = `estudiantes/${uid}`;
         try {
           if (!(await verificarUsuarioDocente(user))) return false;
           const database = contexto.database;
           const subcoleccionesEstudiante = [
+            "auditoriaPortapapeles",
+            "comentariosDocente",
+            "historialAccesos",
             "historialDesbloqueos",
             "historialDescuentos",
             "historialNotasDesafios",
             "historialPestanas",
+            "historialProgramacionDocente",
             "revisionesPestanas",
             "revisionesPestanasEstudiante",
             "mensajesDocente",
@@ -3464,11 +3994,13 @@
           let documentosAsociadosEliminados = 0;
 
           for (const nombreSubcoleccion of subcoleccionesEstudiante) {
+            rutaEnProceso = `estudiantes/${uid}/${nombreSubcoleccion}`;
             const referencia = collection(database, "estudiantes", uid, nombreSubcoleccion);
             const snapshot = await getDocs(referencia);
             const documentos = snapshot.docs;
 
             for (let inicio = 0; inicio < documentos.length; inicio += 450) {
+              rutaEnProceso = `estudiantes/${uid}/${nombreSubcoleccion} (borrado)`;
               const lote = writeBatch(database);
               documentos.slice(inicio, inicio + 450).forEach(documento => {
                 lote.delete(documento.ref);
@@ -3478,6 +4010,46 @@
             documentosAsociadosEliminados += documentos.length;
           }
 
+          // colaboracionCodigo contiene subcolecciones propias por secci??n.
+          rutaEnProceso = `estudiantes/${uid}/colaboracionCodigo`;
+          const colaboracion = await getDocs(collection(database, "estudiantes", uid, "colaboracionCodigo"));
+          for (const seccion of colaboracion.docs) {
+            for (const nombreSubcoleccion of ["actualizaciones", "presencia", "mensajes", "historialAportes"]) {
+              rutaEnProceso = `estudiantes/${uid}/colaboracionCodigo/${seccion.id}/${nombreSubcoleccion}`;
+              const anidada = await getDocs(collection(
+                database,
+                "estudiantes",
+                uid,
+                "colaboracionCodigo",
+                seccion.id,
+                nombreSubcoleccion
+              ));
+              for (let inicio = 0; inicio < anidada.docs.length; inicio += 450) {
+                rutaEnProceso = `estudiantes/${uid}/colaboracionCodigo/${seccion.id}/${nombreSubcoleccion} (borrado)`;
+                const lote = writeBatch(database);
+                anidada.docs.slice(inicio, inicio + 450).forEach(documento => lote.delete(documento.ref));
+                await lote.commit();
+              }
+              documentosAsociadosEliminados += anidada.docs.length;
+            }
+            rutaEnProceso = `estudiantes/${uid}/colaboracionCodigo/${seccion.id}`;
+            await deleteDoc(seccion.ref);
+          }
+          documentosAsociadosEliminados += colaboracion.docs.length;
+
+          const controlRef = doc(database, "controlEstudiantes", uid);
+          rutaEnProceso = `controlEstudiantes/${uid}/sesiones`;
+          const sesionesSnapshot = await getDocs(collection(database, "controlEstudiantes", uid, "sesiones"));
+          for (let inicio = 0; inicio < sesionesSnapshot.docs.length; inicio += 450) {
+            const lote = writeBatch(database);
+            sesionesSnapshot.docs.slice(inicio, inicio + 450).forEach(documento => lote.delete(documento.ref));
+            await lote.commit();
+          }
+          documentosAsociadosEliminados += sesionesSnapshot.docs.length;
+          rutaEnProceso = `controlEstudiantes/${uid}`;
+          await deleteDoc(controlRef);
+
+          rutaEnProceso = `estudiantes/${uid}`;
           await deleteDoc(doc(database, "estudiantes", uid));
           window.ultimoResumenEliminacionEstudiante = {
             uid,
@@ -3494,7 +4066,8 @@
             uid,
             documentoPrincipalEliminado: false,
             error: error?.message || "Error desconocido",
-            codigo: error?.code || ""
+            codigo: error?.code || "",
+            ruta: rutaEnProceso
           };
           return false;
         }
@@ -3505,7 +4078,7 @@
         if (!autorizado) {
           window.ultimoErrorReinicioSalidas = {
             code: "teacher-not-authorized",
-            message: "No hay una sesión docente autorizada activa."
+            message: "No hay una sesi??n docente autorizada activa."
           };
           return false;
         }
@@ -3534,13 +4107,13 @@
               }, { merge: true });
               window.ultimoErrorReinicioSalidas = {
                 code: "diagnostic-minimal-write-ok",
-                message: "La escritura mínima funcionó; la regla rechazó reinicioSalidas o actualizadoEn.",
+                message: "La escritura m??nima funcion??; la regla rechaz?? reinicioSalidas o actualizadoEn.",
                 email: user?.email || "",
                 emailVerified: user?.emailVerified === true
               };
               return true;
             } catch (errorMinimo) {
-              console.error("También falló la escritura mínima del contador:", errorMinimo);
+              console.error("Tambi�n fall?? la escritura m??nima del contador:", errorMinimo);
               window.ultimoErrorReinicioSalidas = {
                 code: errorMinimo?.code || "",
                 message: errorMinimo?.message || "",
@@ -3588,7 +4161,7 @@
           }, { merge: true });
           return true;
         } catch (error) {
-          console.error("Error controlando el cronómetro individual:", error);
+          console.error("Error controlando el cron??metro individual:", error);
           return false;
         }
       };
@@ -3710,7 +4283,7 @@
           }, { merge: true });
           return true;
         } catch (error) {
-          console.error("Error guardando la configuración Jitsi:", error);
+          console.error("Error guardando la configuraci??n Jitsi:", error);
           return false;
         }
       };
@@ -3723,7 +4296,7 @@
           const snapshot = await getDoc(doc(database, "controlClase", idClaseActual(), "configuracion", "jitsi"));
           return snapshot.exists() ? snapshot.data() : null;
         } catch (error) {
-          console.error("Error cargando la configuración Jitsi:", error);
+          console.error("Error cargando la configuraci??n Jitsi:", error);
           return null;
         }
       };
@@ -3738,7 +4311,7 @@
             if (!snapshot.exists()) return;
             window.dispatchEvent(new CustomEvent("jitsi-configuracion-remota", { detail: snapshot.data() }));
           },
-          error => console.error("Error escuchando configuración Jitsi:", error)
+          error => console.error("Error escuchando configuraci??n Jitsi:", error)
         );
       };
       const JITSI_HISTORY_ENABLED = false;
@@ -3802,7 +4375,7 @@
           return [];
         }
         if (!(await verificarUsuarioDocente(user))) {
-          window.ultimoErrorHistorialJitsi = { code: "not-authorized", message: "La cuenta actual no está autorizada como docente o el correo no está verificado." };
+          window.ultimoErrorHistorialJitsi = { code: "not-authorized", message: "La cuenta actual no est?? autorizada como docente o el correo no est?? verificado." };
           return [];
         }
         try {
@@ -3870,7 +4443,7 @@
         const user = contexto.user || await window.firebaseAuthReady;
         const database = contexto.database;
         if (!user || !database) {
-          return { ok: false, error: "No hay una sesión administrativa activa." };
+          return { ok: false, error: "No hay una sesi??n administrativa activa." };
         }
         if (!usuarioEsAdministradorPrincipal(user)) {
           return { ok: false, error: "Solo el administrador principal puede revisar y eliminar este historial." };
@@ -3900,10 +4473,10 @@
         const user = contexto.user || await window.firebaseAuthReady;
         const database = contexto.database;
         if (!user || !database) {
-          return { ok: false, eliminadas: 0, error: "No hay una sesión administrativa activa." };
+          return { ok: false, eliminadas: 0, error: "No hay una sesi??n administrativa activa." };
         }
         if (!usuarioEsAdministradorPrincipal(user)) {
-          return { ok: false, eliminadas: 0, error: "Solo el administrador principal puede ejecutar esta operación." };
+          return { ok: false, eliminadas: 0, error: "Solo el administrador principal puede ejecutar esta operaci??n." };
         }
         const rutas = [...new Set(
           (Array.isArray(documentos) ? documentos : [])
@@ -3941,14 +4514,14 @@
               auditoriaRegistrada: true
             };
           } catch (errorAuditoria) {
-            console.error("El historial Jitsi se eliminó, pero falló la auditoría administrativa:", errorAuditoria);
+            console.error("El historial Jitsi se elimin??, pero fall?? la auditor??a administrativa:", errorAuditoria);
             return {
               ok: true,
               eliminadas,
               claseId: "*",
               operacionId,
               auditoriaRegistrada: false,
-              advertencia: errorAuditoria?.message || "No se pudo registrar la auditoría."
+              advertencia: errorAuditoria?.message || "No se pudo registrar la auditor??a."
             };
           }
         } catch (error) {
@@ -3957,7 +4530,7 @@
             ok: false,
             eliminadas,
             code: error?.code || "unknown",
-            error: error?.message || "No se pudo completar la eliminación definitiva."
+            error: error?.message || "No se pudo completar la eliminaci??n definitiva."
           };
         }
       };
@@ -3966,7 +4539,7 @@
         const user = contexto.user || await window.firebaseAuthReady;
         const database = contexto.database;
         if (!user || !database || !usuarioEsAdministradorPrincipal(user)) {
-          return { ok: false, eliminadas: 0, error: "Solo el administrador principal puede ejecutar esta operación." };
+          return { ok: false, eliminadas: 0, error: "Solo el administrador principal puede ejecutar esta operaci??n." };
         }
         let eliminadas = 0;
         try {
@@ -4003,7 +4576,7 @@
           }, { merge: true });
           return true;
         } catch (error) {
-          console.error("Error registrando participación Jitsi:", error);
+          console.error("Error registrando participaci??n Jitsi:", error);
           return false;
         }
       };
@@ -4172,7 +4745,7 @@
             tituloOrigen: texto(evento.tituloOrigen, 300),
             seccionOrigen: texto(evento.seccionOrigen, 120),
             seccionTitulo: texto(evento.seccionTitulo, 200),
-            tituloDestino: texto(evento.tituloDestino || "Sin título", 300),
+            tituloDestino: texto(evento.tituloDestino || "Sin t??tulo", 300),
             dominioDestino: texto(evento.dominioDestino || "desconocido", 120),
             salidaEn,
             regresoEn,
@@ -4297,7 +4870,7 @@
               return fechaB - fechaA;
             });
         } catch (error) {
-          console.error("Error consultando auditoría de revisiones:", error);
+          console.error("Error consultando auditor??a de revisiones:", error);
           return [];
         }
       };
@@ -4371,7 +4944,7 @@
           await lote.commit();
           return true;
         } catch (error) {
-          console.error("Error guardando revisión de pestaña:", error);
+          console.error("Error guardando revisi�?n de pestaña:", error);
           window.ultimoErrorRevisionPestana = { code: error?.code || "", message: error?.message || "" };
           return false;
         }
@@ -4383,7 +4956,7 @@
         if (!autorizado) {
           window.ultimoErrorMensajeDocente = {
             code: "docente-no-autorizado",
-            message: "No se pudo validar una sesión docente autorizada."
+            message: "No se pudo validar una sesi??n docente autorizada."
           };
           return { ok: false, enviados: 0 };
         }
@@ -4394,7 +4967,7 @@
         if (!user || !database || !destinatarios.length) {
           window.ultimoErrorMensajeDocente = {
             code: "destinatarios-no-disponibles",
-            message: "No hay una sesión Firebase o destinatarios válidos."
+            message: "No hay una sesi??n Firebase o destinatarios v??lidos."
           };
           return { ok: false, enviados: 0 };
         }
@@ -4411,7 +4984,7 @@
         if (!contenido) {
           window.ultimoErrorMensajeDocente = {
             code: "mensaje-vacio",
-            message: "El contenido del mensaje está vacío."
+            message: "El contenido del mensaje est?? vac??o."
           };
           return { ok: false, enviados: 0 };
         }
@@ -4492,23 +5065,26 @@
             return { ok: false, enviados: 0 };
           }
         }
-      };
-
-      window.marcarMensajeDocenteRecibidoFirebase = async function(mensajeId) {
+      };      window.marcarMensajeDocenteRecibidoFirebase = async function(mensajeId) {
         const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
         if (!user || !db || !mensajeId) return false;
         try {
+          await user.getIdToken();
           await setDoc(doc(db, "estudiantes", user.uid, "mensajesDocente", mensajeId), {
             recibido: true,
             recibidoEn: serverTimestamp()
           }, { merge: true });
+          window.ultimoErrorMensajeDocenteEstudiante = null;
           return true;
         } catch (error) {
           console.error("Error confirmando la recepción del mensaje:", error);
+          window.ultimoErrorMensajeDocenteEstudiante = {
+            code: error?.code || "",
+            message: error?.message || "No se pudo confirmar la recepción del mensaje."
+          };
           return false;
         }
       };
-
       window.escucharMensajesDocenteEstudianteFirebase = async function() {
         const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
         if (!user || !db) return;
@@ -4536,13 +5112,18 @@
         }, error => {
           console.error("Error escuchando mensajes del docente:", error);
         });
-      };
-
-      window.marcarMensajeDocenteLeidoFirebase = async function(mensaje = {}) {
+      };      window.marcarMensajeDocenteLeidoFirebase = async function(mensaje = {}) {
         const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
         const mensajeId = typeof mensaje === "string" ? mensaje : mensaje?.id;
-        if (!user || !db || !mensajeId) return false;
+        if (!user || !db || !mensajeId) {
+          window.ultimoErrorMensajeDocenteEstudiante = {
+            code: "mensaje/sesion-no-disponible",
+            message: "No hay una sesión de estudiante disponible para confirmar el mensaje."
+          };
+          return false;
+        }
         try {
+          await user.getIdToken();
           const cambios = {
             leido: true,
             leidoEn: serverTimestamp()
@@ -4552,13 +5133,17 @@
             cambios.recibidoEn = serverTimestamp();
           }
           await setDoc(doc(db, "estudiantes", user.uid, "mensajesDocente", mensajeId), cambios, { merge: true });
+          window.ultimoErrorMensajeDocenteEstudiante = null;
           return true;
         } catch (error) {
           console.error("Error confirmando la lectura del mensaje:", error);
+          window.ultimoErrorMensajeDocenteEstudiante = {
+            code: error?.code || "",
+            message: error?.message || "No se pudo confirmar la lectura del mensaje."
+          };
           return false;
         }
       };
-
       window.marcarMensajeDocenteCompatibleFirebase = async function(mensaje = {}, estado = "recibido") {
         const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
         if (!user || !db || !mensaje?.id || mensaje.estudianteUid !== user.uid) return false;
@@ -4640,15 +5225,9 @@
         }
       };
 
-      window.__abrirPanelProfesorFirestore = async function() {
+      window.__abrirPanelProfesorFirestore = function() {
         const { database } = contextoDocenteFirebase();
         if (!database) return;
-        if (!(await window.esDocenteAutorizadoFirebase?.())) {
-          window.dispatchEvent(new CustomEvent("profesor-data-error", {
-            detail: "La cuenta actual no está autorizada para consultar los estudiantes."
-          }));
-          return;
-        }
         // Evita duplicar listeners si el panel se abre varias veces antes de
         // que termine el ciclo de renderizado de la interfaz.
         if (window.__profesorPanelActivo && window.__profesorUnsubscribe) return;
@@ -4660,6 +5239,11 @@
         }
         let estudiantesActuales = [];
         let controlesActuales = new Map();
+        let colaboracionesPendientes = new Map();
+        let colaboracionesCRDTPendientes = new Map();
+        let detenerColaboraciones = new Map();
+        let intervaloColaboraciones = null;
+        let detenerSolicitudesDirectas = null;
         let ultimaEmision = "";
         let emisionPendiente = false;
         let cancelado = false;
@@ -4684,8 +5268,32 @@
             const estudiantes = estudiantesActuales.map(item => ({
             ...item.datos,
             uid: item.datos.uid || item.id,
-            __controlEstudiante: controlesActuales.get(item.id) || null
+            __controlEstudiante: controlesActuales.get(item.id) || null,
+            __solicitudesColaboracion: [
+              ...(colaboracionesPendientes.get(item.id) || []),
+              ...(colaboracionesCRDTPendientes.get(item.id) || [])
+            ].filter((solicitud, indice, lista) =>
+              lista.findIndex(otra =>
+                `${otra.uid}/${otra.sectionId}` === `${solicitud.uid}/${solicitud.sectionId}`
+              ) === indice
+            )
             }));
+            const idsEstudiantes = new Set(estudiantes.map(item => item.uid || item.id));
+            const solicitudesSueltas = new Map();
+            [...colaboracionesPendientes.entries(), ...colaboracionesCRDTPendientes.entries()]
+              .forEach(([uid, solicitudes]) => {
+                if (idsEstudiantes.has(uid) || !Array.isArray(solicitudes)) return;
+                solicitudesSueltas.set(uid, solicitudes);
+              });
+            solicitudesSueltas.forEach((solicitudes, uid) => {
+              estudiantes.push({
+                uid,
+                email: solicitudes[0]?.solicitadoPor || "",
+                nombre: solicitudes[0]?.solicitadoPor || "Estudiante",
+                estudiante: { nombre: solicitudes[0]?.solicitadoPor || "Estudiante" },
+                __solicitudesColaboracion: solicitudes
+              });
+            });
             const firma = firmaDatos(estudiantes);
             if (firma === ultimaEmision) return;
             ultimaEmision = firma;
@@ -4698,6 +5306,91 @@
             detail: error?.message || "No se pudo actualizar el panel."
           }));
         };
+        const actualizarListenersColaboracion = () => {
+          const idsActivos = new Set(estudiantesActuales.map(item => item.id).filter(Boolean));
+          detenerColaboraciones.forEach((detener, uid) => {
+            if (idsActivos.has(uid)) return;
+            try { detener(); } catch {}
+            detenerColaboraciones.delete(uid);
+            colaboracionesPendientes.delete(uid);
+            colaboracionesCRDTPendientes.delete(uid);
+          });
+          estudiantesActuales.forEach(item => {
+            const uid = item.id;
+            if (!uid || detenerColaboraciones.has(uid)) return;
+            const referencia = collection(database, "estudiantes", uid, "colaboracionCodigo");
+            const detener = onSnapshot(referencia, snapshot => {
+              const pendientes = snapshot.docs
+                .map(documento => ({
+                  id: documento.id,
+                  uid,
+                  sectionId: documento.id,
+                  ...documento.data()
+                }))
+                .filter(documento => documento.estadoConsentimiento === "pendiente");
+              if (pendientes.length) colaboracionesCRDTPendientes.set(uid, pendientes);
+              else colaboracionesCRDTPendientes.delete(uid);
+              emitirPanel();
+            }, manejarError);
+            detenerColaboraciones.set(uid, detener);
+          });
+        };
+        const refrescarColaboraciones = async () => {
+          if (cancelado || !estudiantesActuales.length) return;
+          await Promise.all(estudiantesActuales.map(async item => {
+            const uid = item.id;
+            if (!uid) return;
+            try {
+              const snapshot = await getDocs(collection(database, "estudiantes", uid, "colaboracionCodigo"));
+              const pendientes = snapshot.docs
+                .map(documento => ({
+                  id: documento.id,
+                  uid,
+                  sectionId: documento.id,
+                  ...documento.data()
+                }))
+                .filter(documento => documento.estadoConsentimiento === "pendiente");
+              if (pendientes.length) colaboracionesCRDTPendientes.set(uid, pendientes);
+              else colaboracionesCRDTPendientes.delete(uid);
+            } catch (error) {
+              manejarError(error);
+            }
+          }));
+          emitirPanel();
+        };
+        detenerSolicitudesDirectas = onSnapshot(
+          collection(database, "solicitudesColaboracion"),
+          snapshot => {
+            const mapa = new Map();
+            snapshot.docs.forEach(documento => {
+              const datos = documento.data();
+              if (datos.estado !== "pendiente" || !datos.uid) return;
+              if (!mapa.has(datos.uid)) mapa.set(datos.uid, []);
+              mapa.get(datos.uid).push({
+                id: documento.id,
+                uid: datos.uid,
+                sectionId: datos.sectionId || documento.id,
+                objetivoCooperacion: datos.objetivo || "",
+                solicitadoPor: datos.solicitadoPor || "",
+                solicitudEn: datos.solicitudEn || null,
+                ...datos
+              });
+            });
+            mapa.forEach((solicitudes, uid) => colaboracionesPendientes.set(uid, solicitudes));
+            [...colaboracionesPendientes.keys()].forEach(uid => {
+              if (!mapa.has(uid)) colaboracionesPendientes.delete(uid);
+            });
+            window.ultimoEstadoSolicitudesColaboracion = {
+              coleccion: "solicitudesColaboracion",
+              leidas: snapshot.size,
+              pendientes: [...mapa.values()].reduce((total, lista) => total + lista.length, 0),
+              proyecto: firebaseConfig.projectId,
+              usuario: contextoDocenteFirebase().user?.email || contextoDocenteFirebase().user?.uid || ""
+            };
+            emitirPanel();
+          },
+          manejarError
+        );
         const detenerEstudiantes = onSnapshot(
           collection(database, "estudiantes"),
           snapshot => {
@@ -4705,6 +5398,8 @@
               id: item.id,
               datos: item.data()
             }));
+            actualizarListenersColaboracion();
+            void refrescarColaboraciones();
             emitirPanel();
           },
           manejarError
@@ -4719,10 +5414,23 @@
           },
           manejarError
         );
+        intervaloColaboraciones = setInterval(() => {
+          void refrescarColaboraciones();
+        }, 5000);
         window.__profesorUnsubscribe = () => {
           cancelado = true;
           detenerEstudiantes();
           detenerControles();
+          detenerColaboraciones.forEach(detener => {
+            try { detener(); } catch {}
+          });
+          detenerColaboraciones.clear();
+          try { detenerSolicitudesDirectas?.(); } catch {}
+          detenerSolicitudesDirectas = null;
+          if (intervaloColaboraciones) {
+            clearInterval(intervaloColaboraciones);
+            intervaloColaboraciones = null;
+          }
           window.__profesorRefreshInterval = null;
           window.__profesorUnsubscribe = null;
           window.__profesorPanelActivo = false;
@@ -4731,7 +5439,7 @@
       
       // ============================================================
       // DESAFÍOS EDITABLES EN FIREBASE
-      // Colección: desafios / Documentos: sec-1 ... sec-19
+      // Colecci??n: desafios / Documentos: sec-1 ... sec-19
       // ============================================================
       window.cargarDesafiosFirebase = async function() {
         if (!db) return null;
@@ -4794,10 +5502,115 @@
         }, err => window.dispatchEvent(new CustomEvent('desafios-firebase-error',{detail:err.message})));
       };
 
-
-
-
-
+      // API de proceso/evaluación: documentos append-only, separados del borrador.
+      const limpiarPayloadProceso = (valor, limite = 12000) => {
+        if (typeof valor === "string") return valor.slice(0, limite);
+        if (Array.isArray(valor)) return valor.slice(0, 100).map(item => limpiarPayloadProceso(item, limite));
+        if (valor && typeof valor === "object") {
+          return Object.fromEntries(Object.entries(valor).slice(0, 80).map(([clave, dato]) => [
+            String(clave).slice(0, 80), limpiarPayloadProceso(dato, limite)
+          ]));
+        }
+        return valor ?? null;
+      };
+      async function contextoProceso(uid, rol = "estudiante") {
+        const contexto = rol === "docente" ? contextoDocenteFirebase() : { user: window.firebaseCurrentUser, database: db };
+        const user = contexto.user || await window.firebaseAuthReady;
+        if (!contexto.database || !user || !uid) return null;
+        if (rol === "docente" && !(await verificarUsuarioDocente(user))) return null;
+        if (rol === "estudiante" && user.uid !== uid) return null;
+        return { ...contexto, user };
+      }
+      window.registrarActividadFirebase = async function(uid, sectionId, tipo, datos = {}, rol = "estudiante") {
+        const contexto = await contextoProceso(uid, rol);
+        if (!contexto || !sectionId || !tipo) return false;
+        try {
+          const referencia = doc(collection(contexto.database, "estudiantes", uid, "colaboracionCodigo", sectionId, "eventos"));
+          await setDoc(referencia, {
+            id: referencia.id, uid, sectionId, tipo: String(tipo).slice(0, 80),
+            datos: limpiarPayloadProceso(datos), rol, autorUid: contexto.user.uid,
+            autorEmail: contexto.user.email || "", creadoEn: serverTimestamp()
+          });
+          return true;
+        } catch (error) {
+          console.warn("No se pudo registrar el evento de actividad:", error);
+          return false;
+        }
+      };
+      window.guardarVersionImportanteFirebase = async function(uid, sectionId, codigo, motivo = "hito", rol = "estudiante") {
+        const contexto = await contextoProceso(uid, rol);
+        if (!contexto || !sectionId) return false;
+        try {
+          const referencia = doc(collection(contexto.database, "estudiantes", uid, "colaboracionCodigo", sectionId, "versiones"));
+          await setDoc(referencia, {
+            id: referencia.id, uid, sectionId, version: referencia.id,
+            codigo: String(codigo || "").slice(0, 30000), motivo: String(motivo).slice(0, 160),
+            rol, autorUid: contexto.user.uid, autorEmail: contexto.user.email || "",
+            creadoEn: serverTimestamp()
+          });
+          return true;
+        } catch (error) {
+          console.warn("No se pudo guardar la versión importante:", error);
+          return false;
+        }
+      };
+      window.guardarEntregaDefinitivaFirebase = async function(uid, sectionId, evidencia = {}, rol = "estudiante") {
+        const contexto = await contextoProceso(uid, rol);
+        if (!contexto || rol !== "estudiante") return null;
+        try {
+          const intento = Math.max(1, Number(evidencia.intento || 1));
+          const intentoId = String(evidencia.intentoId || `intento-${intento}`)
+            .replace(/[^a-zA-Z0-9_-]/g, "-")
+            .slice(0, 80);
+          const referencia = doc(
+            contexto.database,
+            "estudiantes", uid, "entregasDefinitivas", sectionId,
+            "intentos", intentoId
+          );
+          const actual = await getDoc(referencia);
+          if (actual.exists()) return { ok: false, congelada: true, entrega: actual.data() };
+          const entrega = {
+            uid, sectionId, intento, intentoId,
+            codigo: String(evidencia.codigo || "").slice(0, 30000),
+            pruebas: limpiarPayloadProceso(evidencia.pruebas),
+            respuestas: limpiarPayloadProceso(evidencia.respuestas),
+            errores: limpiarPayloadProceso(evidencia.errores),
+            ayudaUsada: limpiarPayloadProceso(evidencia.ayudaUsada),
+            versionCodigo: Number(evidencia.versionCodigo || 0),
+            entregadoPor: contexto.user.uid, entregadoEmail: contexto.user.email || "",
+            entregadoEn: serverTimestamp(), estado: "definitiva"
+          };
+          await setDoc(referencia, entrega);
+          await window.registrarActividadFirebase(uid, sectionId, "entrega", {
+            intento: entrega.intento, intentoId
+          }, "estudiante");
+          return { ok: true, congelada: true, entrega };
+        } catch (error) {
+          console.warn("No se pudo congelar la entrega:", error);
+          return { ok: false, error: error?.message || String(error) };
+        }
+      };
+      window.guardarEvaluacionDocenteFirebase = async function(uid, sectionId, evaluacion = {}) {
+        const contexto = await contextoProceso(uid, "docente");
+        if (!contexto || !sectionId) return false;
+        try {
+          await setDoc(doc(contexto.database, "estudiantes", uid, "evaluaciones", sectionId), {
+            uid, sectionId, automatico: limpiarPayloadProceso(evaluacion.automatico),
+            docente: limpiarPayloadProceso(evaluacion.docente),
+            final: evaluacion.final == null ? null : Number(evaluacion.final),
+            componentes: limpiarPayloadProceso(evaluacion.componentes),
+            fortalezas: limpiarPayloadProceso(evaluacion.fortalezas),
+            mejoras: limpiarPayloadProceso(evaluacion.mejoras),
+            evidenciaInsuficiente: evaluacion.evidenciaInsuficiente === true,
+            actualizadoPor: contexto.user.email || contexto.user.uid,
+            actualizadoEn: serverTimestamp()
+          }, { merge: true });
+          return true;
+        } catch (error) {
+          console.warn("No se pudo guardar la evaluación docente:", error);
+          return false;
+        }
+      };
 
 
 

@@ -1,8 +1,10 @@
 const fs = require("fs");
+const path = require("path");
 const assert = require("assert");
 
-const html = fs.readFileSync("actividad.html", "utf8");
-const css = fs.readFileSync("actividad-mobile.css", "utf8");
+const root = __dirname;
+const html = fs.readFileSync(path.join(root, "actividad.html"), "utf8");
+const css = fs.readFileSync(path.join(root, "actividad-mobile.css"), "utf8");
 
 assert(
   /<meta[^>]+name=["']viewport["'][^>]+width=device-width/i.test(html),

@@ -12,6 +12,130 @@
       const escapeHtml = window.appUtils?.escapeHtml || (value => String(value ?? "").replace(/[&<>'"]/g, char => ({
           "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
       }[char])));
+      const repararCaracteresVisibles = valor => {
+          let texto = String(valor ?? "");
+          const decodificarUtf8MalInterpretado = entrada => {
+              let actual = entrada;
+               for (let intento = 0; intento < 4 && /[ÃÂâï¿½]/.test(actual); intento++) {
+                  try {
+                      const bytes = Uint8Array.from([...actual].map(caracter => {
+                          const codigo = caracter.codePointAt(0);
+                          return codigo <= 0xff ? codigo : (codigo & 0xff);
+                      }));
+                      const decodificado = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+                      if (!decodificado || decodificado === actual) break;
+                      actual = decodificado;
+                  } catch (_) {
+                      break;
+                  }
+              }
+              return actual;
+          };
+          const reemplazos = [
+              ["\u00c3\u0192\u00c2", "\u00c3"], ["\u00c3\u0192", "\u00c3"],
+              ["\u00c3\u201a", "\u00c2"], ["\u00c3\u00a2", "\u00e2"],
+              ["\u00c3\u00a1", "\u00e1"], ["\u00c3\u00a9", "\u00e9"],
+              ["\u00c3\u00ad", "\u00ed"], ["\u00c3\u00b3", "\u00f3"],
+              ["\u00c3\u00ba", "\u00fa"], ["\u00c3\u00b1", "\u00f1"],
+              ["\u00c3\u00bc", "\u00fc"], ["\u00c3\u0161", "\u00da"],
+              ["\u00c3\u201c", "\u00d3"], ["\u00c3\u2030", "\u00c9"],
+              ["\u00c3\u008d", "\u00cd"], ["\u00c3\u2018", "\u00d1"],
+              ["\u00c2\u00b7", "\u00b7"], ["\u00c2\u00bf", "\u00bf"],
+              ["\u00c2\u00a1", "\u00a1"], ["\u00c2\u00b0", "\u00b0"],
+              ["\u00e2\u20ac\u201c", "\u201c"], ["\u00e2\u20ac\u009d", "\u201d"],
+              ["\u00e2\u20ac\u2122", "\u2019"], ["\u00e2\u20ac\u2014", "\u2014"],
+              ["\u00e2\u20ac\u201c", "\u2013"], ["\u00e2\u20ac\u00a6", "\u2026"],
+              ["\u00e2\u2020\u2019", "\u2192"], ["\u00e2\u2030\u00a5", "\u2265"],
+              ["�?", "?"], ["�", "?"], ["?", ""],
+              ["á", "�"], ["é", "�"], ["í", "�"], ["ó", "�"], ["ú", "�"],
+              ["ñ", "�"], ["ü", "�"], ["Á", "�"], ["É", "�"], ["Í", "�"],
+              ["Ó", "�"], ["Ú", "�"], ["Ñ", "�"], ["Ü", "�"],
+              ["“", "�"], ["”", "�"], ["‘", "�"], ["’", "�"],
+              ["—", "�"], ["–", "�"], ["…", "�"], ["→", "?"],
+              ["≥", "="], ["≤", "="], ["⚠️", "??"], ["⚠", "?"],
+              ["✅", "?"], ["❌", "?"], ["☑", "?"], ["☐", "?"],
+              ["⏰", "?"], ["⏸", "?"], ["▶", "?"], ["ℹ️", "??"],
+              ["═", "-"], ["×", "�"], ["÷", "�"], ["Últ", "�lt"],
+              ["Ú", "�"], ["Ó", "�"], ["É", "�"], ["Í", "�"], ["Ñ", "�"],
+              ["�?", "?"], ["�", "?"], ["�?", "?"], ["�", "?"],
+              ["�?", "?"], ["�", "?"], ["�", "?"], ["N.�", "N.?"],
+              ["…", "?"], ["��", "?"]
+          ];
+          for (let ronda = 0; ronda < 3; ronda++) {
+              reemplazos.forEach(([incorrecto, correcto]) => {
+                  texto = texto.split(incorrecto).join(correcto);
+              });
+          }
+          return decodificarUtf8MalInterpretado(texto);
+      };
+      window.repararCaracteresVisibles = repararCaracteresVisibles;
+      (() => {
+          const excluir = nodo => {
+              const elemento = nodo?.nodeType === Node.ELEMENT_NODE ? nodo : nodo?.parentElement;
+              return elemento?.closest?.("script,style,textarea,input,[contenteditable='true'],[data-no-character-repair]") != null;
+          };
+          const corregirNodo = nodo => {
+              if (!nodo || excluir(nodo)) return;
+              if (nodo.nodeType === Node.TEXT_NODE) {
+                  const corregido = repararCaracteresVisibles(nodo.nodeValue);
+                  if (corregido !== nodo.nodeValue) nodo.nodeValue = corregido;
+                  return;
+              }
+              if (nodo.nodeType !== Node.ELEMENT_NODE) return;
+              ["title", "aria-label", "placeholder"].forEach(atributo => {
+                  if (!nodo.hasAttribute(atributo)) return;
+                  const valor = nodo.getAttribute(atributo);
+                  const corregido = repararCaracteresVisibles(valor);
+                  if (corregido !== valor) nodo.setAttribute(atributo, corregido);
+              });
+              nodo.childNodes.forEach(corregirNodo);
+          };
+          const iniciar = () => {
+              corregirNodo(document.body);
+              const observador = new MutationObserver(cambios => {
+                  cambios.forEach(cambio => {
+                      cambio.addedNodes.forEach(corregirNodo);
+                      if (cambio.type === "characterData") corregirNodo(cambio.target);
+                  });
+              });
+              observador.observe(document.body, { childList: true, subtree: true, characterData: true });
+          };
+          if (document.body) iniciar();
+          else document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+          ["alert", "confirm", "prompt"].forEach(nombre => {
+              const original = window[nombre];
+              if (typeof original !== "function" || original.__caracteresReparados) return;
+              const envoltura = function (mensaje, ...resto) {
+                  return original.call(this, repararCaracteresVisibles(mensaje), ...resto);
+              };
+              envoltura.__caracteresReparados = true;
+              window[nombre] = envoltura;
+          });
+      })();
+      window.mostrarToastAplicacion = window.mostrarToastAplicacion || function (mensaje, tipo = "info") {
+          const anterior = document.getElementById("toastAplicacion");
+          anterior?.remove();
+          const toast = document.createElement("div");
+          toast.id = "toastAplicacion";
+          toast.setAttribute("role", "status");
+          toast.setAttribute("aria-live", "polite");
+          toast.textContent = repararCaracteresVisibles(mensaje || "");
+          Object.assign(toast.style, {
+              position: "fixed",
+              right: "1rem",
+              bottom: "1rem",
+              zIndex: "100003",
+              maxWidth: "min(92vw, 420px)",
+              padding: ".75rem 1rem",
+              borderRadius: "8px",
+              color: "#fff",
+              background: tipo === "error" ? "#991b1b" : (tipo === "success" ? "#166534" : "#1e3a8a"),
+              boxShadow: "0 10px 30px rgba(0,0,0,.25)",
+              font: "600 .9rem/1.35 system-ui, sans-serif"
+          });
+          document.body.appendChild(toast);
+          window.setTimeout(() => toast.remove(), 5000);
+      };
       function portapapelesDocentePermitido() {
           const body = document.body;
           return Boolean(
@@ -37,7 +161,7 @@
               title: "1. Introducción a JS",
               theory: "JavaScript es el lenguaje que le da vida a la web interactiva.",
               exerciseTitle: "Desafío Escolar: Cartelera Digital del IPEM 146",
-              exerciseDesc: "Diseña un script interactivo para la pantalla de bienvenida del IPEM 146. Deberás declarar variables utilizando palabras clave adecuadas para almacenar tu nombre de alumno y una frase motivadora orientada al aprendizaje técnico. Luego, genera la fecha actual mediante el objeto Date() de JavaScript e imprime en la consola un encabezado oficial con formato llamativo mediante múltiples llamadas a console.log().",
+              exerciseDesc: "Diseña un script interactivo para la pantalla de bienvenida del IPEM 146. Deberás declarar variables utilizando palabras clave adecuadas para almacenar tu nombre de alumno y una frase motivadora orientada al aprendizaje técnico. Luego, genera una variable para la fecha actual e imprime en la consola un encabezado oficial con formato llamativo mediante múltiples llamadas a console.log().",
               initialCode: `// 1. Declarar variables para tu nombre y el mensaje motivador\n// 2. Usar console.log()`,
               aiSolution: `const nombreEstudiante = "Lucas";\nconst frase = "¡El esfuerzo de hoy es el éxito de mañana!";\nconsole.log("=== CARTELERA IPEM 146 ===");\nconsole.log("Alumno: " + nombreEstudiante);\nconsole.log("Mensaje: " + frase);\nconsole.log("Fecha: " + new Date().toLocaleDateString());`
           },
@@ -227,195 +351,6 @@
           ? window.DESAFIOS_DATA
           : seccionesDataBase;
 
-      // LEARNING_PATH_MODEL_START
-      function obtenerMetadatosRutaAprendizaje(seccion, indice) {
-          const numero = indice + 1;
-          const grupo = numero <= 4
-              ? { unidad: "Unidad 1 · Fundamentos", dificultad: "Inicial", minutos: 25, competencia: "Fundamentos de programación" }
-              : numero <= 8
-                  ? { unidad: "Unidad 2 · Control y modularidad", dificultad: "Intermedia", minutos: 35, competencia: "Resolución algorítmica" }
-                  : numero <= 12
-                      ? { unidad: "Unidad 3 · Datos y estructuras", dificultad: "Intermedia", minutos: 35, competencia: "Modelado y tratamiento de datos" }
-                      : numero <= 16
-                          ? { unidad: "Unidad 4 · Web y persistencia", dificultad: "Avanzada", minutos: 40, competencia: "Desarrollo web interactivo" }
-                          : { unidad: "Unidad 5 · Integración", dificultad: "Avanzada", minutos: 45, competencia: "Integración y calidad de software" };
-          const competencias = Array.isArray(seccion?.competencias) && seccion.competencias.length
-              ? seccion.competencias.map(String)
-              : [grupo.competencia];
-          return {
-              unidad: String(seccion?.unidad || grupo.unidad),
-              dificultad: String(seccion?.dificultad || grupo.dificultad),
-              minutos: Math.max(5, Number(seccion?.tiempoEstimado || seccion?.minutosEstimados || grupo.minutos) || grupo.minutos),
-              competencias
-          };
-      }
-
-      function contarErroresRuta(resultado) {
-          const conteo = resultado?.analista?.conteoNiveles || {};
-          const directo = Number(conteo.incorrecta || 0) + Number(conteo.parcial || 0);
-          if (directo > 0) return directo;
-          const preguntas = Array.isArray(resultado?.analista?.preguntas) ? resultado.analista.preguntas : [];
-          return preguntas.filter(item => item?.nivel === "incorrecta" || item?.nivel === "parcial").length +
-              (resultado?.error ? 1 : 0);
-      }
-
-      function contarAyudasRuta(registro) {
-          if (!registro || typeof registro !== "object") return 0;
-          const palabras = Object.values(registro.palabras || {}).reduce((total, item) => {
-              if (typeof item === "number") return total + item;
-              return total + Number(item?.vistas || item?.conteo || item?.usos || 0);
-          }, 0);
-          return palabras +
-              Number(registro.pasosVistos || 0) +
-              Number(registro.materialApoyoVistas || 0) +
-              Number(registro.verificacion?.intentos || 0);
-      }
-
-      function obtenerNotaRuta(sectionId, contexto) {
-          const ajuste = contexto.notasDocente?.[sectionId] || {};
-          const resultado = contexto.historial?.[sectionId] || {};
-          const resultadoServidor = contexto.resultadosVerificados?.[sectionId] || {};
-          const valorServidor = resultadoServidor.verificadaServidor === true
-              ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota)
-              : null;
-          const valorHistorico = resultado.notaFinal ?? resultado.notaIA;
-          const valor = ajuste.notaDocente ?? ajuste.notaFinalCalculada ?? ajuste.nota ?? valorHistorico ?? valorServidor;
-          const nota = valor === null || valor === undefined || valor === "" ? NaN : Number(valor);
-          return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
-      }
-
-      function obtenerNotaHistoricaOrientativaRuta(sectionId, contexto) {
-          const resultado = contexto.historial?.[sectionId];
-          if (!resultado || typeof resultado !== "object") return null;
-          const valorHistorico = resultado?.["notaFinal"] ?? resultado?.["notaIA"];
-          const nota = valorHistorico === null || valorHistorico === undefined || valorHistorico === ""
-              ? NaN
-              : Number(valorHistorico);
-          return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
-      }
-
-      function crearModeloRutaAprendizaje(secciones, datos = {}) {
-          const lista = Array.isArray(secciones) ? secciones.filter(item => item?.id) : [];
-          const contexto = {
-              finalizadas: datos.finalizadas && typeof datos.finalizadas === "object" ? datos.finalizadas : {},
-              notasDocente: datos.notasDocente && typeof datos.notasDocente === "object" ? datos.notasDocente : {},
-              historial: datos.historial && typeof datos.historial === "object" ? datos.historial : {},
-              resultadosVerificados: datos.resultadosVerificados && typeof datos.resultadosVerificados === "object"
-                  ? datos.resultadosVerificados : {},
-              ayudas: datos.ayudas && typeof datos.ayudas === "object" ? datos.ayudas : {},
-              tiempos: datos.tiempos && typeof datos.tiempos === "object" ? datos.tiempos : {},
-              borradores: datos.borradores && typeof datos.borradores === "object" ? datos.borradores : {}
-          };
-          if (!lista.length) {
-              return { desafios: [], unidades: [], competencias: [], recomendaciones: [], actualId: "", progreso: 0 };
-          }
-          const primerPendiente = lista.find(item => contexto.finalizadas[item.id] !== true)?.id || lista[lista.length - 1].id;
-          const actualId = lista.some(item => item.id === datos.seccionActiva) ? datos.seccionActiva : primerPendiente;
-          const indiceActual = Math.max(0, lista.findIndex(item => item.id === actualId));
-          const desafios = lista.map((seccion, indice) => {
-              const metadata = obtenerMetadatosRutaAprendizaje(seccion, indice);
-              const prerequisitos = Array.isArray(seccion.prerrequisitos)
-                  ? seccion.prerrequisitos.filter(Boolean).map(String)
-                  : (indice > 0 ? [lista[indice - 1].id] : []);
-              const finalizada = contexto.finalizadas[seccion.id] === true;
-              const corregida = Boolean(contexto.notasDocente[seccion.id] &&
-                  Object.keys(contexto.notasDocente[seccion.id]).length);
-              const nota = obtenerNotaRuta(seccion.id, contexto);
-              const notaOrientativa = Number.isFinite(nota)
-                  ? nota
-                  : obtenerNotaHistoricaOrientativaRuta(seccion.id, contexto);
-              const errores = contarErroresRuta(contexto.historial[seccion.id]);
-              const ayudas = contarAyudasRuta(contexto.ayudas[seccion.id]);
-              const bloqueado = !finalizada && seccion.id !== actualId &&
-                  prerequisitos.some(id => contexto.finalizadas[id] !== true);
-              let estado = "pendiente";
-              if (corregida) estado = "corregido";
-              else if (finalizada && ((Number.isFinite(nota) && nota < 6) || errores >= 2)) estado = "requiere_revision";
-              else if (finalizada) estado = "finalizado";
-              else if (seccion.id === actualId) estado = "en_curso";
-              const intentoAbandonado = !finalizada && indice < indiceActual && (
-                  contexto.historial[seccion.id]?.abandono === true ||
-                  contexto.historial[seccion.id]?.abandonado === true ||
-                  Number(contexto.tiempos[seccion.id]) < 2400 ||
-                  Boolean(contexto.borradores[seccion.id])
-              );
-              return {
-                  id: seccion.id,
-                  indice: indice + 1,
-                  titulo: String(seccion.title || `Desafío ${indice + 1}`),
-                  unidad: metadata.unidad,
-                  dificultad: metadata.dificultad,
-                  minutos: metadata.minutos,
-                  competencias: metadata.competencias,
-                  prerequisitos,
-                  finalizada,
-                  corregida,
-                  bloqueado,
-                  estado,
-                  nota,
-                  notaOrientativa,
-                  errores,
-                  ayudas,
-                  intentoAbandonado
-              };
-          });
-          const nombresUnidades = [...new Set(desafios.map(item => item.unidad))];
-          const unidades = nombresUnidades.map(nombre => {
-              const items = desafios.filter(item => item.unidad === nombre);
-              const completados = items.filter(item => item.finalizada).length;
-              return {
-                  nombre,
-                  total: items.length,
-                  completados,
-                  progreso: items.length ? Math.round(completados * 100 / items.length) : 0
-              };
-          });
-          const mapaCompetencias = new Map();
-          desafios.forEach(item => item.competencias.forEach(nombre => {
-              const actual = mapaCompetencias.get(nombre) || { nombre, desafios: 0, completados: 0 };
-              actual.desafios += 1;
-              if (item.finalizada) actual.completados += 1;
-              mapaCompetencias.set(nombre, actual);
-          }));
-          const recomendaciones = [];
-          desafios.forEach((item, indice) => {
-              if (item.errores >= 2) recomendaciones.push({ id: `${item.id}-errores`, sectionId: item.id, tipo: "errores_repetidos", prioridad: "alta", titulo: `Revisar errores de ${item.titulo}`, detalle: `Se detectaron ${item.errores} respuestas o ejecuciones con dificultad.` });
-              if (Number.isFinite(item.notaOrientativa) && item.notaOrientativa < 6) recomendaciones.push({ id: `${item.id}-nota`, sectionId: item.id, tipo: "baja_nota", prioridad: "alta", titulo: `Reforzar ${item.titulo}`, detalle: `El historial sugiere reforzar este desafío (referencia ${item.notaOrientativa.toFixed(1)}/10).` });
-              if (item.ayudas >= 5) recomendaciones.push({ id: `${item.id}-ayudas`, sectionId: item.id, tipo: "demasiadas_ayudas", prioridad: "media", titulo: `Practicar sin guía en ${item.titulo}`, detalle: `Se registraron ${item.ayudas} usos de ayudas o verificaciones.` });
-              if (item.intentoAbandonado) recomendaciones.push({ id: `${item.id}-abandono`, sectionId: item.id, tipo: "abandono", prioridad: "media", titulo: `Retomar ${item.titulo}`, detalle: "Hay actividad iniciada que todavía no fue finalizada." });
-              if (item.id === actualId && indice > 0 && !desafios[indice - 1].finalizada) {
-                  recomendaciones.push({ id: `${item.id}-anterior`, sectionId: desafios[indice - 1].id, tipo: "anterior_incompleto", prioridad: "alta", titulo: `Completar ${desafios[indice - 1].titulo}`, detalle: "El desafío anterior sigue incompleto y conviene resolverlo antes de avanzar." });
-              }
-          });
-          const completados = desafios.filter(item => item.finalizada).length;
-          return {
-              desafios,
-              unidades,
-              competencias: [...mapaCompetencias.values()],
-              recomendaciones: recomendaciones.slice(0, 8),
-              actualId,
-              progreso: desafios.length ? Math.round(completados * 100 / desafios.length) : 0
-          };
-      }
-
-      function filtrarRutaAprendizaje(modelo, filtros = {}) {
-          const desafios = Array.isArray(modelo?.desafios) ? modelo.desafios : [];
-          return desafios.filter(item => {
-              if (filtros.unidad && item.unidad !== filtros.unidad) return false;
-              if (filtros.dificultad && item.dificultad !== filtros.dificultad) return false;
-              if (filtros.estado === "bloqueado" && !item.bloqueado) return false;
-              if (filtros.estado && filtros.estado !== "bloqueado" && item.estado !== filtros.estado) return false;
-              return true;
-          });
-      }
-      // LEARNING_PATH_MODEL_END
-
-      window.learningPathUtils = {
-          obtenerMetadatosRutaAprendizaje,
-          crearModeloRutaAprendizaje,
-          filtrarRutaAprendizaje
-      };
-
       const SITIO_APOYO_URL = "https://josepantaleo.github.io/formacionprofesionalweb/";
       const ayudasPalabrasClave = {
           "diseña": "Planificá la solución y escribí el código que cumpla el objetivo indicado.",
@@ -587,7 +522,7 @@
           const clave = normalizarTerminoAyuda(termino);
           if (ejemplosPalabrasClave[clave]) return ejemplosPalabrasClave[clave];
           if (categoria === "action") {
-              return `Ejemplo general: aplicá la acción “${termino}” sobre datos de prueba antes de resolver el caso del desafío.`;
+              return `Ejemplo general: aplic? la acci?n �${termino}� sobre datos de prueba antes de resolver el caso del desaf?o.`;
           }
           if (categoria === "tool") {
               return `Ejemplo general: probá ${termino} con un valor sencillo y observá qué resultado produce.`;
@@ -1014,6 +949,28 @@
           const locales = palabrasClaveLocales(sec);
           descripcion.innerHTML = resaltarPalabrasClaveIA(sec.exerciseDesc, locales);
           if (estado) estado.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Palabras clave sugeridas por el desafío';
+          if (!window.firebaseAIRealConfigurada || typeof window.consultarTutorIAFirebase !== "function" || !window.firebaseCurrentUser) return;
+          try {
+              if (estado) estado.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> La IA está identificando las acciones y conceptos principales...';
+              const respuesta = await window.consultarTutorIAFirebase({
+                  nombreModulo: sec.title || sec.id,
+                  consigna: sec.exerciseDesc || "",
+                  pregunta: "Identificá entre 6 y 14 palabras o frases clave que ayuden a comprender qué debe hacer el estudiante. Devolvé únicamente un array JSON de objetos con las propiedades termino y explicacion. La explicación debe ser breve, clara, orientada a la acción y no debe resolver el ejercicio.",
+                  modo: "identificar_palabras_clave",
+                  conceptos: locales.join(", ")
+              });
+              const palabrasIA = extraerPalabrasClaveIA(respuesta);
+              if (palabrasIA.length) {
+                  descripcion.innerHTML = resaltarPalabrasClaveIA(sec.exerciseDesc, palabrasIA);
+                  if (estado) {
+                      estado.classList.add("ready");
+                      estado.innerHTML = '<i class="fa-solid fa-circle-check"></i> Palabras clave identificadas por IA';
+                  }
+              }
+          } catch (error) {
+              console.warn("No se pudieron identificar palabras clave con IA; se mantienen las sugerencias locales.", error);
+              if (estado) estado.innerHTML = '<i class="fa-solid fa-circle-info"></i> Palabras clave sugeridas localmente';
+          }
       }
 
       window.addEventListener("firebase-auth-changed", event => {
@@ -1030,28 +987,30 @@
       window.addEventListener("actividades-desbloqueadas-estudiante", event => {
           const finalizadasRemotas = event.detail?.finalizadas;
           if (!finalizadasRemotas || typeof finalizadasRemotas !== "object") return;
+          const desbloqueo = event.detail?.desbloqueo || {};
+          const seccionesDesbloqueadas = Array.isArray(desbloqueo.secciones)
+              ? desbloqueo.secciones.map(String)
+              : (desbloqueo.seccion === 'todas'
+                  ? seccionesData.map(sec => sec.id)
+                  : (Array.isArray(desbloqueo.seccion)
+                      ? desbloqueo.seccion.map(String)
+                      : (desbloqueo.seccion ? [String(desbloqueo.seccion)] : [])));
           actividadesFinalizadas = { ...finalizadasRemotas };
           seccionesData.forEach(sec => {
               if (actividadesFinalizadas[sec.id] === true) {
                   setLocalStorage(`finalized_${sec.id}`, 'true');
               } else {
                   removeLocalStorage(`finalized_${sec.id}`);
-                  actualizarBloqueoEditorEstudiante(sec.id);
-                  ['run', 'preview', 'ai', 'reset'].forEach(btn => {
-                      const control = document.getElementById(`btn-${btn}-${sec.id}`);
-                      if (control) control.disabled = false;
-                  });
-                  const estado = document.getElementById(`editor-state-${sec.id}`);
-                  if (estado) {
-                      estado.className = 'student-editor-state idle';
-                      estado.innerHTML = '<i class="fa-solid fa-pen"></i> Listo para programar';
+                  if (seccionesDesbloqueadas.includes(sec.id)) {
+                      prepararReintentoDesafio(sec.id, { conservarHistorial: true });
+                  } else {
+                      actualizarControlesDesafio(sec.id);
                   }
                   const consola = document.getElementById(`console-${sec.id}`);
                   if (consola && consola.textContent.includes('Actividad finalizada')) consola.textContent = '// Ejecutá el código para ver aquí los resultados o errores.';
               }
           });
           actualizarProgreso();
-          actualizarControlesTutorProgramacion();
       });
       window.addEventListener("pantalla-bloqueada-estudiante", () => {
           pantallaBloqueada = true;
@@ -1060,13 +1019,11 @@
 
 
       let historialResultados = {};
-      let resultadosVerificadosEstudiante = {};
       let notasDesafiosDocente = {};
       let actividadesFinalizadas = {};
       let estadosRecomendacionesInforme = {};
       let contadorPrevisualizaciones = {};
       let ayudasComprension = {};
-      let filtrosRutaAprendizaje = { unidad: "", estado: "", dificultad: "" };
       let totalSalidasPestana = 0;
       let eventosSalidasPestana = [];
       let salidaActivaPestana = null;
@@ -1081,6 +1038,7 @@
           notaModificadaManualmente: false
       };
       let seccionActivaActual = seccionesData[0].id;
+      window.obtenerSeccionActivaEstudiante = () => seccionActivaActual;
 
       function formatearFechaNotaDocente(valor) {
           if (!valor) return '';
@@ -1088,217 +1046,18 @@
           return Number.isNaN(fecha.getTime()) ? '' : fecha.toLocaleString('es-AR');
       }
 
-      function normalizarNotaModulo(valor) {
-          const nota = valor === null || valor === undefined || valor === '' ? NaN : Number(valor);
-          return Number.isFinite(nota) ? Math.max(0, Math.min(10, nota)) : null;
-      }
-
-      function obtenerNotaCodigoVerificada(resultadoServidor = {}) {
-          if (resultadoServidor?.verificadaServidor !== true) return null;
-          return normalizarNotaModulo(
-              resultadoServidor.notaCodigo ??
-              resultadoServidor.evaluacionCodigo?.nota
-          );
-      }
-
-      function obtenerNotaAutomaticaModulo(resultado = {}, resultadoServidor = {}) {
-          const notaFinal = normalizarNotaModulo(resultado?.notaFinal ?? resultado?.notaIA);
-          if (notaFinal !== null) return notaFinal;
-
-          const notaPreguntas = normalizarNotaModulo(resultado?.notaPreguntas);
-          const notaCodigo = obtenerNotaCodigoVerificada(resultadoServidor) ??
-              normalizarNotaModulo(resultado?.notaCodigo);
-          if (notaCodigo !== null && notaPreguntas !== null) {
-              return normalizarNotaModulo(calcularNotaCombinada(notaCodigo, notaPreguntas * 10, resultadoServidor?.evaluacionCodigo || resultado?.evaluacionCodigo || null));
-          }
-
-          return notaCodigo;
-      }
-
-      function formatearNotaJustificacion(valor) {
-          const nota = normalizarNotaModulo(valor);
-          return nota === null ? "Pendiente" : `${nota.toFixed(1)}/10`;
-      }
-
-      function generarJustificacionNotaAutomatica(d, sectionId) {
-          const sec = seccionesData.find(item => item.id === sectionId) || {};
-          const resultado = d?.historialResultados?.[sectionId] || {};
-          const resultadoServidor = d?.resultadosVerificados?.[sectionId] || {};
-          const evaluacion = resultadoServidor.evaluacionCodigo || resultado.evaluacionCodigo || {};
-          const notaCodigo = obtenerNotaCodigoVerificada(resultadoServidor) ??
-              normalizarNotaModulo(resultado.notaCodigo ?? evaluacion.nota);
-          const notaPreguntas = normalizarNotaModulo(resultado.notaPreguntas);
-          const notaAutomatica = obtenerNotaAutomaticaModulo(resultado, resultadoServidor);
-          const confianza = Number(evaluacion.confianza ?? evaluacion.metricas?.confianza);
-          const criterios = Array.isArray(evaluacion.criterios) ? evaluacion.criterios : [];
-          const limites = Array.isArray(evaluacion.limites) ? evaluacion.limites : [];
-          const analista = resultado.analista && typeof resultado.analista === "object"
-              ? resultado.analista
-              : null;
-          const lineas = [
-              `Justificación de nota automática - ${sec.title || sectionId}`,
-              "",
-              `Nota automática del módulo: ${formatearNotaJustificacion(notaAutomatica)}`,
-              `Código evaluado por servidor: ${formatearNotaJustificacion(notaCodigo)} (70%)`,
-              `Preguntas del analista: ${formatearNotaJustificacion(notaPreguntas)} (30%)`
-          ];
-          if (notaCodigo !== null && notaPreguntas !== null) {
-              lineas.push(`Fórmula: (${notaCodigo.toFixed(1)} × 0,70) + (${notaPreguntas.toFixed(1)} × 0,30) = ${formatearNotaJustificacion(notaAutomatica)}`);
-          } else {
-              lineas.push("Fórmula pendiente: falta entregar código verificado o responder las preguntas del analista.");
-          }
-          lineas.push("");
-          lineas.push(`Confianza del análisis: ${Number.isFinite(confianza) ? `${Math.round(confianza * 100)}%` : "Pendiente"}`);
-          lineas.push(evaluacion.requiereRevision === true
-              ? "Estado: requiere revisión docente antes de confirmar la nota."
-              : "Estado: sin alerta automática de revisión; queda sujeta a confirmación docente.");
-          if (criterios.length) {
-              lineas.push("", "Criterios del evaluador:");
-              criterios.forEach(criterio => {
-                  lineas.push(`- ${criterio.nombre || criterio.id || "Criterio"}: ${criterio.puntos}/${criterio.peso} (${criterio.estado || "sin estado"}). ${criterio.evidencia || ""}`.trim());
-              });
-          }
-          if (analista) {
-              lineas.push("", `Analista de preguntas: ${Number(analista.puntosObtenidos || 0)}/${Number(analista.maxPuntos || 0)} puntos, ${Number(analista.porcentaje || 0)}%.`);
-              lineas.push(`Viabilidad: ${analista.viabilidad || "Pendiente"}. Excelencia: ${analista.excelencia || "Pendiente"}.`);
-          }
-          if (limites.length) {
-              lineas.push("", "Límites aplicados:");
-              limites.forEach(limite => lineas.push(`- ${limite}`));
-          }
-          return lineas.join("\n");
-      }
-
-      function obtenerFilasJustificacionNotaAutomatica(d, sectionId) {
-          const resultado = d?.historialResultados?.[sectionId] || {};
-          const resultadoServidor = d?.resultadosVerificados?.[sectionId] || {};
-          const evaluacion = resultadoServidor.evaluacionCodigo || resultado.evaluacionCodigo || {};
-          const notaCodigo = obtenerNotaCodigoVerificada(resultadoServidor) ??
-              normalizarNotaModulo(resultado.notaCodigo ?? evaluacion.nota);
-          const notaPreguntas = normalizarNotaModulo(resultado.notaPreguntas);
-          const notaAutomatica = obtenerNotaAutomaticaModulo(resultado, resultadoServidor);
-          const confianza = Number(evaluacion.confianza ?? evaluacion.metricas?.confianza);
-          const filas = [
-              ["Nota automática del módulo", formatearNotaJustificacion(notaAutomatica), "Resultado usado para el módulo"],
-              ["Código evaluado por servidor", formatearNotaJustificacion(notaCodigo), "Peso 70%"],
-              ["Preguntas del analista", formatearNotaJustificacion(notaPreguntas), "Peso 30%"],
-              ["Confianza del análisis", Number.isFinite(confianza) ? `${Math.round(confianza * 100)}%` : "Pendiente", evaluacion.requiereRevision === true ? "Requiere revisión docente" : "Sin alerta automática"]
-          ];
-          if (notaCodigo !== null && notaPreguntas !== null) {
-              filas.push(["Fórmula aplicada", `(${notaCodigo.toFixed(1)} × 0,70) + (${notaPreguntas.toFixed(1)} × 0,30) = ${formatearNotaJustificacion(notaAutomatica)}`, "Código + preguntas"]);
-          } else {
-              filas.push(["Fórmula aplicada", "Pendiente", "Falta código verificado o respuestas del analista"]);
-          }
-          return {
-              filas,
-              criterios: Array.isArray(evaluacion.criterios) ? evaluacion.criterios : [],
-              limites: Array.isArray(evaluacion.limites) ? evaluacion.limites : [],
-              texto: generarJustificacionNotaAutomatica(d, sectionId)
-          };
-      }
-
-      function mostrarJustificacionNotaAutomaticaProfesor(indice, sectionId) {
-          const d = estudiantesProfesor[indice];
-          if (!d || !sectionId) {
-              alert("No se encontraron datos suficientes para justificar la nota automática.");
-              return;
-          }
-          const justificacion = obtenerFilasJustificacionNotaAutomatica(d, sectionId);
-          const texto = justificacion.texto;
-          const existente = document.getElementById("justificacionNotaAutomaticaModal");
-          existente?.remove();
-
-          const modal = document.createElement("div");
-          modal.id = "justificacionNotaAutomaticaModal";
-          modal.className = "modal-overlay active";
-          modal.setAttribute("role", "dialog");
-          modal.setAttribute("aria-modal", "true");
-          modal.setAttribute("aria-labelledby", "justificacionNotaAutomaticaTitulo");
-          modal.innerHTML = `
-              <div class="modal-box ai-grade-justification-box" tabindex="-1">
-                  <div class="ai-grade-justification-header">
-                      <div>
-                          <span class="student-progress-eyebrow">Auditoría de evaluación</span>
-                          <h3 id="justificacionNotaAutomaticaTitulo">
-                              <i class="fa-solid fa-scale-balanced"></i> Justificación de la nota automática
-                          </h3>
-                          <p>Revisá la fórmula, la evidencia y las alertas antes de confirmar una nota.</p>
-                      </div>
-                      <button type="button" class="btn btn-secondary" data-close-justificacion aria-label="Cerrar justificación">
-                          <i class="fa-solid fa-xmark"></i>
-                      </button>
-                  </div>
-                  <div class="ai-grade-justification-table-wrap">
-                      <table class="ai-grade-justification-table">
-                          <thead><tr><th>Elemento</th><th>Valor</th><th>Interpretación</th></tr></thead>
-                          <tbody>${justificacion.filas.map(fila => `<tr><th scope="row">${escapeHtml(fila[0])}</th><td>${escapeHtml(fila[1])}</td><td>${escapeHtml(fila[2])}</td></tr>`).join("")}</tbody>
-                      </table>
-                  </div>
-                  ${justificacion.criterios.length ? `<details class="ai-grade-justification-section" open><summary>Criterios del evaluador</summary><div class="ai-grade-criteria-list">${justificacion.criterios.map(criterio => `<article><strong>${escapeHtml(criterio.nombre || criterio.id || "Criterio")}</strong><span>${escapeHtml(`${criterio.puntos}/${criterio.peso} · ${criterio.estado || "sin estado"}`)}</span><p>${escapeHtml(criterio.evidencia || "")}</p></article>`).join("")}</div></details>` : ""}
-                  ${justificacion.limites.length ? `<details class="ai-grade-justification-section"><summary>Límites aplicados (${justificacion.limites.length})</summary><ul>${justificacion.limites.map(limite => `<li>${escapeHtml(limite)}</li>`).join("")}</ul></details>` : ""}
-                  <label class="ai-grade-justification-copy-label" for="aiGradeJustificationCopy">Texto completo para copiar</label>
-                  <textarea id="aiGradeJustificationCopy" class="ai-grade-justification-text" readonly aria-label="Justificación completa">${escapeHtml(texto)}</textarea>
-                  <div class="ai-grade-justification-actions">
-                      <span class="ai-grade-justification-status" role="status"></span>
-                      <div class="btn-group">
-                          <button type="button" class="btn btn-secondary" data-copy-justificacion>
-                              <i class="fa-solid fa-copy"></i> Copiar
-                          </button>
-                          <button type="button" class="btn btn-primary" data-close-justificacion>
-                              <i class="fa-solid fa-check"></i> Cerrar
-                          </button>
-                      </div>
-                  </div>
-              </div>`;
-          document.body.appendChild(modal);
-
-          const cerrar = () => {
-              document.removeEventListener("keydown", manejarTecla);
-              modal.remove();
-          };
-          const manejarTecla = event => {
-              if (event.key === "Escape") cerrar();
-          };
-          const area = modal.querySelector(".ai-grade-justification-text");
-          const estado = modal.querySelector(".ai-grade-justification-status");
-          modal.querySelectorAll("[data-close-justificacion]").forEach(boton => {
-              boton.addEventListener("click", cerrar);
-          });
-          modal.addEventListener("click", event => {
-              if (event.target === modal) cerrar();
-          });
-          modal.querySelector("[data-copy-justificacion]")?.addEventListener("click", async () => {
-              try {
-                  await navigator.clipboard.writeText(texto);
-                  if (estado) estado.textContent = "Justificación copiada.";
-              } catch (_) {
-                  area?.focus();
-                  area?.select();
-                  if (estado) estado.textContent = "No se pudo copiar automáticamente. Seleccioná el texto y copiá manualmente.";
-              }
-          });
-          document.addEventListener("keydown", manejarTecla);
-          requestAnimationFrame(() => {
-              modal.querySelector(".ai-grade-justification-box")?.focus();
-              area?.focus();
-              area?.select();
-          });
-      }
-
       function obtenerNotaVigenteModuloEstudiante(sectionId) {
           const resultado = historialResultados[sectionId] || {};
-          const resultadoServidor = resultadosVerificadosEstudiante[sectionId] || {};
           const ajuste = notasDesafiosDocente[sectionId] || null;
-          const notaDocenteValor = ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota;
-          const notaDocente = notaDocenteValor === null || notaDocenteValor === undefined || notaDocenteValor === ''
+          const notaDocente = ajuste?.nota === null || ajuste?.nota === undefined || ajuste?.nota === ''
               ? NaN
-              : Number(notaDocenteValor);
-          const notaAutomatica = obtenerNotaAutomaticaModulo(resultado, resultadoServidor);
+              : Number(ajuste.nota);
+          const notaAutomatica = Number(resultado.notaFinal ?? resultado.notaIA);
           return {
               nota: Number.isFinite(notaDocente)
                   ? Math.max(0, Math.min(10, notaDocente))
-                  : notaAutomatica,
-              notaAutomatica,
+                  : (Number.isFinite(notaAutomatica) ? Math.max(0, Math.min(10, notaAutomatica)) : null),
+              notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
               corregida: Number.isFinite(notaDocente),
               ajuste
           };
@@ -1315,17 +1074,6 @@
               return;
           }
           const fecha = formatearFechaNotaDocente(detalle.ajuste?.modificadaEn);
-          const criteriosRubrica = Array.isArray(detalle.ajuste?.rubrica?.criterios)
-              ? detalle.ajuste.rubrica.criterios
-              : [];
-          const totalRubricaMaximo = criteriosRubrica.reduce(
-              (suma, criterio) => suma + Math.max(0, Number(criterio.puntajeMaximo) || 0),
-              0
-          );
-          const totalRubricaObtenido = criteriosRubrica.reduce(
-              (suma, criterio) => suma + Math.max(0, Number(criterio.puntajeObtenido) || 0),
-              0
-          );
           aviso.hidden = false;
           aviso.innerHTML = `
               <div class="student-teacher-grade-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
@@ -1333,10 +1081,6 @@
                   <strong>Nota corregida por tu docente: ${detalle.nota.toFixed(1)}/10</strong>
                   <span>Calificación automática anterior: ${detalle.notaAutomatica !== null ? `${detalle.notaAutomatica}/10` : 'sin calificación automática'}.</span>
                   ${detalle.ajuste?.motivo ? `<span><b>Observación:</b> ${escapeHtml(detalle.ajuste.motivo)}</span>` : ''}
-                  ${criteriosRubrica.length ? `<span><b>Rúbrica:</b> ${criteriosRubrica.map(criterio =>
-                      `${escapeHtml(criterio.criterio || 'Criterio')}: ${Number(criterio.puntajeObtenido || 0)}/${Number(criterio.puntajeMaximo || 0)}`
-                  ).join(' · ')}</span>` : ''}
-                  ${totalRubricaMaximo > 0 ? `<span><b>Cálculo:</b> (${totalRubricaObtenido}/${totalRubricaMaximo}) × 10 = ${detalle.nota.toFixed(1)}/10.</span>` : ''}
                   <small>${escapeHtml(detalle.ajuste?.modificadaPor || 'Docente autorizado')}${fecha ? ` · ${escapeHtml(fecha)}` : ''}</small>
               </div>`;
           const textoEvaluacion = document.getElementById(`ai-text-${sectionId}`);
@@ -1365,8 +1109,12 @@
 
       // Control de Cronómetros por Módulo (40 minutos = 2400 segundos)
       const TIEMPO_MAXIMO_SEGUNDOS = 2400;
+      const UMBRAL_REVISION_DIEZ_MINUTOS = 600;
+      const UMBRAL_REVISION_CINCO_MINUTOS = 300;
+      const UMBRAL_REVISION_ULTIMO_MINUTO = 60;
       let tiemposRestantes = {};
       let cronometrosActivos = {};
+      let avisosTiempoEstudiante = {};
       let modulosPausados = {};
       let cronometrosPausadosPorDocente = false;
       let cronometrosPausadosIndividualmente = false;
@@ -1386,10 +1134,6 @@
           avisoSinConexionSegundos: 30,
           alertaSinConexionSegundos: 120,
           retencionDias: 180,
-          tutorHabilitado: true,
-          evaluacionFormal: false,
-          nivelMaximoTutor: 6,
-          limiteConsultasTutor: 12,
           dominiosPermitidos: [],
           dominiosAlerta: [],
           dominiosIgnorados: []
@@ -1473,11 +1217,6 @@
       let firebaseSaveDirty = false;
       let firebaseLastSavedFingerprint = "";
       let firebaseSaveGeneration = 0;
-      let firebaseSyncRetryTimer = null;
-      let restaurandoDesdeFuente = false;
-      const SYNC_SNAPSHOT_KEY = 'sync_snapshot_v1';
-      const SYNC_QUEUE_KEY = 'sync_queue_v1';
-      const SYNC_META_KEY = 'sync_meta_v1';
       let firebaseInitialized = false;
       let ultimaActividadConexionEstudiante = 0;
       let ultimoEnvioConexionEstudiante = 0;
@@ -1493,18 +1232,80 @@
               editor.dataset.cooperationLocked = String(Boolean(bloqueoCooperacion));
           }
           const bloqueado = (
-              editor.dataset.cooperationLocked === "true" ||
+              (editor.dataset.cooperationLocked === "true" && !window.firebaseTeacherUser) ||
               !cuentaEstudianteActiva ||
               !claseHabilitada ||
               pantallaBloqueada ||
               Boolean(actividadesFinalizadas[sectionId]) ||
-              Boolean(modulosPausados[sectionId])
+               Boolean(modulosPausados[sectionId]) && !window.firebaseTeacherUser
           );
           editor.disabled = bloqueado;
           editor.__setCodeMirrorDisabled?.(bloqueado);
           return bloqueado;
       }
       window.actualizarBloqueoEditorEstudiante = actualizarBloqueoEditorEstudiante;
+
+      function actualizarControlesDesafio(sectionId) {
+          const bloqueado = !claseHabilitada ||
+              !cuentaEstudianteActiva ||
+              pantallaBloqueada ||
+              Boolean(actividadesFinalizadas[sectionId]) ||
+              Boolean(modulosPausados[sectionId]);
+          actualizarBloqueoEditorEstudiante(sectionId);
+          ['run', 'preview', 'ai', 'reset'].forEach(btn => {
+              const control = document.getElementById(`btn-${btn}-${sectionId}`);
+              if (control) control.disabled = bloqueado;
+          });
+          document.querySelectorAll(`#${CSS.escape(sectionId)} [data-ai-editor-action]`).forEach(control => {
+              control.disabled = bloqueado;
+          });
+          return bloqueado;
+      }
+
+      function prepararReintentoDesafio(sectionId, { conservarHistorial = true } = {}) {
+          const sec = seccionesData.find(item => item.id === sectionId);
+          if (!sec) return;
+
+          delete actividadesFinalizadas[sectionId];
+          removeLocalStorage(`finalized_${sectionId}`);
+          removeLocalStorage(`preview_count_${sectionId}`);
+          contadorPrevisualizaciones[sectionId] = 0;
+          delete avisosTiempoEstudiante[sectionId];
+          if (!conservarHistorial) delete historialResultados[sectionId];
+
+          // Una reapertura inicia un nuevo intento con código limpio y 40 minutos.
+          const editor = document.getElementById(`editor-${sectionId}`);
+          if (editor) {
+              editor.value = sec.initialCode || '';
+              editor.__syncCodeMirror?.(editor.value);
+              editor.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          tiemposRestantes[sectionId] = TIEMPO_MAXIMO_SEGUNDOS;
+          setLocalStorage(`timer_${sectionId}`, TIEMPO_MAXIMO_SEGUNDOS);
+          removeLocalStorage(`timer_started_${sectionId}`);
+
+          // La pausa individual deja de bloquear el nuevo intento; la pausa global sigue vigente.
+          modulosPausados[sectionId] = cronometrosPausadosPorDocente || cronometrosPausadosIndividualmente;
+          removeLocalStorage(`pausa_${sectionId}`);
+
+          const consola = document.getElementById(`console-${sectionId}`);
+          if (consola) consola.textContent = '// Ejecutá el código para ver aquí los resultados o errores.';
+          document.getElementById(`ai-feedback-${sectionId}`)?.classList.remove('active');
+          document.getElementById(`time-review-alert-${sectionId}`)?.setAttribute('hidden', '');
+          const estado = document.getElementById(`editor-state-${sectionId}`);
+          if (estado) {
+              estado.className = 'student-editor-state idle';
+              estado.innerHTML = '<i class="fa-solid fa-pen"></i> Listo para programar';
+          }
+          const btnPreview = document.getElementById(`btn-preview-${sectionId}`);
+          if (btnPreview) btnPreview.innerHTML = '<i class="fa-solid fa-star-half-stroke"></i> Nota previa (3)';
+          const navBtn = document.getElementById(`nav-btn-${sectionId}`);
+          navBtn?.querySelector('.status-icon')?.remove();
+          actualizarControlesDesafio(sectionId);
+          actualizarMetricasEditor(sectionId);
+          actualizarDisplayTiempo(sectionId);
+          actualizarEstadoEditorEstudiante(sectionId, "idle", "Desafío habilitado para un nuevo intento");
+      }
 
       function enviarLatidoConexionEstudiante(forzar = false) {
           if (!window.firebaseCurrentUser || typeof window.actualizarControlEstudianteFirebase !== 'function') return;
@@ -1760,6 +1561,27 @@
           document.addEventListener(tipo, impedirInteraccionMientrasBloqueado, true);
       });
 
+      function esCuentaDocenteActiva() {
+          return Boolean(window.firebaseTeacherUser || document.body?.classList.contains('teacher-authorized'));
+      }
+
+      function bloquearPortapapelesEstudiante(evento) {
+          if (esCuentaDocenteActiva()) return;
+          const destino = evento.target;
+          const dentroDelDesafio = destino?.closest?.(
+              '.section-card, #sectionsContainer, #editorContainer, .code-editor, .CodeMirror, textarea[id^="editor-"]'
+          );
+          if (!dentroDelDesafio) return;
+          const estaEnAutenticacion = destino.closest?.('#firebaseAuthOverlay, #passwordModal, input[type="email"], input[type="password"]');
+          if (estaEnAutenticacion) return;
+          evento.preventDefault();
+          evento.stopImmediatePropagation();
+      }
+
+      ['copy', 'cut', 'paste'].forEach(tipo => {
+          document.addEventListener(tipo, bloquearPortapapelesEstudiante, true);
+      });
+
       async function persistirEventosSalidas(inmediato = false) {
           setLocalStorage('app_tab_events', JSON.stringify(eventosSalidasPestana));
           const botonJustificar = document.getElementById('btnJustificarSalida');
@@ -1897,17 +1719,12 @@
           configuracionSeguimientoActual = {
               ...configuracionSeguimientoActual,
               ...configuracionRecibida,
-              tutorHabilitado: configuracionRecibida.tutorHabilitado !== false,
-              evaluacionFormal: configuracionRecibida.evaluacionFormal === true,
-              nivelMaximoTutor: Math.max(1, Math.min(6, Number(configuracionRecibida.nivelMaximoTutor) || 6)),
-              limiteConsultasTutor: Math.max(1, Math.min(50, Number(configuracionRecibida.limiteConsultasTutor) || 12)),
               dominiosPermitidos: Array.isArray(configuracionRecibida.dominiosPermitidos) ? configuracionRecibida.dominiosPermitidos : configuracionSeguimientoActual.dominiosPermitidos,
               dominiosAlerta: Array.isArray(configuracionRecibida.dominiosAlerta) ? configuracionRecibida.dominiosAlerta : configuracionSeguimientoActual.dominiosAlerta,
               dominiosIgnorados: Array.isArray(configuracionRecibida.dominiosIgnorados) ? configuracionRecibida.dominiosIgnorados : configuracionSeguimientoActual.dominiosIgnorados
           };
           LIMITE_SALIDAS_PARA_BLOQUEO = Math.max(1, Number(configuracionSeguimientoActual.limiteSalidas) || 5);
           window.configuracionSeguimientoActual = configuracionSeguimientoActual;
-          actualizarControlesTutorProgramacion();
           aplicarRubricaSocratica(datos.rubricaSocratica || rubricaSocraticaActual);
           ignorarSalidasHasta = Date.now() + 3000;
           claseHabilitada = Boolean(iniciada);
@@ -1918,6 +1735,9 @@
               if (mensaje) mensaje.textContent = datos.iniciadaPor
                   ? `Clase iniciada por ${datos.iniciadaPor}. Ya podés comenzar.`
                   : "La clase fue habilitada. Ya podés comenzar.";
+              if (seccionActivaActual && cronometroDesafioIniciado(seccionActivaActual)) {
+                  iniciarCronometro(seccionActivaActual);
+              }
           } else {
               overlay?.classList.remove('hidden');
               if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -1959,7 +1779,7 @@
           }
           const btnIngresoDocente = document.getElementById('btnIngresoDocente');
           if (btnIngresoDocente) {
-              btnIngresoDocente.style.display = autorizado ? 'none' : 'inline-flex';
+              btnIngresoDocente.style.display = autorizacionTemporal ? 'none' : 'inline-flex';
               btnIngresoDocente.disabled = false;
           }
           document.querySelectorAll('.teacher-only').forEach(control => {
@@ -1969,10 +1789,11 @@
               control.hidden = !visible;
               control.style.display = visible ? '' : 'none';
           });
-          if (!autorizado) {
+          if (!autorizado || !autorizacionTemporal) {
               document.getElementById('passwordModal')?.classList.remove('active');
               document.getElementById('panelProfesorModal')?.classList.remove('active');
               document.getElementById('editorDesafiosFirebaseModal')?.classList.remove('active');
+              actualizarEstadoVistaDocente();
           }
       }
 
@@ -2112,6 +1933,7 @@
           cerrarPanelProfesor();
           cerrarEditorDesafiosFirebase();
           document.getElementById('detalleEstudianteProfesorModal')?.classList.remove('active');
+          actualizarEstadoVistaDocente();
           const cerrado = await window.cerrarAutorizacionDocenteFirebase?.();
           if (cerrado) {
               await actualizarVisibilidadDocente();
@@ -2180,14 +2002,16 @@
       window.addEventListener('profesor-data', e => {
           const datos = e.detail || [];
           detectarNuevasSolicitudes(datos);
+          detectarNuevasSolicitudesColaboracion(datos);
           estudiantesProfesor = datos;
+          renderSolicitudesColaboracionProfesor(datos);
           document.getElementById('estadoPanelProfesor').textContent = `Actualizado: ${new Date().toLocaleTimeString()}`;
           renderPanelProfesor();
       });
       window.addEventListener('profesor-data-error', e => { document.getElementById('estadoPanelProfesor').textContent = 'No se pudo consultar estudiantes: ' + e.detail; });
       window.addEventListener('load', () => {
         actualizarVisibilidadDocente();
-          ['filtroProfesor','filtroEmailProfesor','filtroCursoProfesor','filtroDivisionProfesor','filtroTurnoProfesor','filtroEstadoProfesor','filtroBloqueoProfesor','filtroProgresoProfesor','filtroSalidasProfesor','filtroPortapapelesProfesor','filtroNotaProfesor','filtroDescuentoProfesor','filtroActualizacionProfesor','ordenProfesor'].forEach(id => {
+          ['filtroProfesor','filtroEmailProfesor','filtroCursoProfesor','filtroDivisionProfesor','filtroTurnoProfesor','filtroEstadoProfesor','filtroBloqueoProfesor','filtroProgresoProfesor','filtroSalidasProfesor','filtroPortapapelesProfesor','filtroReaperturasProfesor','filtroFechaReaperturaProfesor','filtroNotaProfesor','filtroDescuentoProfesor','filtroActualizacionProfesor','ordenProfesor'].forEach(id => {
               document.getElementById(id)?.addEventListener('input', renderPanelProfesor);
               document.getElementById(id)?.addEventListener('change', renderPanelProfesor);
           });
@@ -2202,16 +2026,6 @@
       });
 
       function mostrarEstadoFirebase(tipo, texto) {
-          const ultimaEl = document.getElementById('firebaseLastSync');
-          if (ultimaEl) {
-              try {
-                  const meta = getLocalStorage(SYNC_META_KEY);
-                  const ultima = meta ? JSON.parse(meta).ultimaSincronizacion : null;
-                  ultimaEl.textContent = ultima
-                      ? `Última sincronización: ${new Date(ultima).toLocaleString()}`
-                      : 'Última sincronización: todavía no confirmada';
-              } catch (_) {}
-          }
           const el = document.getElementById('firebaseSaveStatus');
           if (!el) return;
           el.className = `firebase-status ${tipo}`;
@@ -2219,54 +2033,6 @@
       }
 
       
-      function leerEstadoSync(clave, fallback = null) {
-          try {
-              const raw = getLocalStorage(clave);
-              return raw ? JSON.parse(raw) : fallback;
-          } catch (_) {
-              return fallback;
-          }
-      }
-
-      function escribirEstadoSync(clave, valor) {
-          try {
-              localStorage.setItem(storageKey(clave), JSON.stringify(valor));
-          } catch (error) {
-              console.warn('No se pudo respaldar el estado de sincronización:', error);
-          }
-      }
-
-      function respaldarPaqueteLocal(paquete, version) {
-          if (!firebaseStorageUid || !paquete) return;
-          const registro = {
-              version: Number(version) || 0,
-              creadoEn: new Date().toISOString(),
-              payload: paquete
-          };
-          escribirEstadoSync(SYNC_SNAPSHOT_KEY, registro);
-          escribirEstadoSync(SYNC_QUEUE_KEY, registro);
-          mostrarEstadoFirebase('pending', 'Cambios pendientes');
-      }
-
-      function confirmarSincronizacionLocal(version, fingerprint) {
-          const meta = leerEstadoSync(SYNC_META_KEY, {}) || {};
-          escribirEstadoSync(SYNC_META_KEY, {
-              ...meta,
-              ultimaSincronizacion: new Date().toISOString(),
-              versionConfirmada: Number(version) || 0
-          });
-          const cola = leerEstadoSync(SYNC_QUEUE_KEY);
-          if (!cola || Number(cola.version || 0) <= Number(version || 0)) {
-              localStorage.removeItem(storageKey(SYNC_QUEUE_KEY));
-          }
-          if (fingerprint) firebaseLastSavedFingerprint = fingerprint;
-          mostrarEstadoFirebase('online', 'Sincronizado');
-      }
-
-      function hayCambiosPendientesLocal() {
-          return Boolean(leerEstadoSync(SYNC_QUEUE_KEY)?.payload || firebaseSaveDirty);
-      }
-
       function extraerCursoYDivision(valorCurso) {
           const valor = String(valorCurso || '').trim();
           if (!valor) return { curso: '', division: '' };
@@ -2280,7 +2046,9 @@
       }
 
       async function guardarIdentificacionFirebase() {
-          if (!firebaseInitialized || !window.firebaseCurrentUser) return false;
+          // El alta inicial ocurre antes de activar la cuenta de estudiante.
+          // Basta con tener una sesión autenticada y el puente de Firebase.
+          if (!window.firebaseCurrentUser || typeof window.guardarProgresoFirebase !== 'function') return false;
           const nombre = document.getElementById('studentName')?.value.trim() || '';
           const curso = document.getElementById('studentCourse')?.value.trim() || '';
           const division = document.getElementById('studentDivision')?.value.trim().toUpperCase() || '';
@@ -2414,9 +2182,14 @@
           const division = document.getElementById('studentDivision')?.value.trim() || '';
           const turno = document.getElementById('studentTurno')?.value.trim() || '';
           const codigos = {};
+          const versionRemota = Number(window.ultimoDocumentoEstudianteFirebase?.versionLocal || 0);
+          const versionLocalGuardada = Number(getLocalStorage('versionLocalEstudiante') || 0);
+          const versionLocal = Math.max(versionRemota, versionLocalGuardada) + 1;
+          localStorage.setItem(storageKey('versionLocalEstudiante'), String(versionLocal));
+          const versionLocalEn = new Date().toISOString();
           seccionesData.forEach(sec => {
               const editor = document.getElementById(`editor-${sec.id}`);
-              codigos[sec.id] = editor ? editor.value : (getLocalStorage(`draft_editor-${sec.id}`) || sec.initialCode);
+              codigos[sec.id] = editor ? editor.value : sec.initialCode;
           });
           return {
               estudiante: { nombre, curso, division, turno },
@@ -2425,6 +2198,8 @@
               pantallaBloqueada: pantallaBloqueada === true,
               codigos,
               tiemposRestantes: { ...tiemposRestantes },
+              pausasModulos: { ...modulosPausados },
+              pausaGlobal: cronometrosPausadosPorDocente === true,
               finalizadas: { ...actividadesFinalizadas },
               historialResultados: JSON.parse(JSON.stringify(historialResultados || {})),
               chatIA: JSON.parse(JSON.stringify(historialChatIA || {})),
@@ -2434,21 +2209,19 @@
               seccionActiva: seccionActivaActual,
               versionCodigo: VERSION_CODIGO_SUBIDO,
               versionScript: VERSION_SCRIPT,
-              versionApp: '8.0-desafios-externos-editables-ia',
-              versionLocal: firebaseSaveGeneration,
-              versionLocalEn: new Date().toISOString()
+              versionLocal,
+              versionLocalEn,
+              versionApp: '8.0-desafios-externos-editables-ia'
           };
       }
 
       function programarGuardadoFirebase() {
-          if (restaurandoDesdeFuente) return;
           if (!firebaseInitialized || !window.firebaseCurrentUser) return;
           firebaseSaveDirty = true;
           firebaseSaveGeneration += 1;
-          respaldarPaqueteLocal(construirPaqueteAvanceFirebase(), firebaseSaveGeneration);
           if (firebaseSaveInProgress) {
               firebaseSavePending = true;
-              mostrarEstadoFirebase('pending', 'Cambios pendientes');
+              mostrarEstadoFirebase('saving', 'Cambios pendientes de sincronización...');
               return;
           }
           clearTimeout(firebaseSaveTimer);
@@ -2478,47 +2251,47 @@
 
       async function guardarAhoraFirebase() {
           if (!firebaseInitialized || !window.firebaseCurrentUser) return false;
-          if (!firebaseSaveDirty && !leerEstadoSync(SYNC_QUEUE_KEY)) return true;
+          if (!firebaseSaveDirty) return true;
           if (firebaseSaveInProgress) {
               firebaseSavePending = true;
               return false;
           }
           firebaseSaveInProgress = true;
           firebaseSavePending = false;
-          mostrarEstadoFirebase('saving', 'Sincronizando...');
-          actualizarTodosEstadosChatIA('saving', 'Sincronizando con Firebase...');
+          const generacionGuardado = firebaseSaveGeneration;
+          mostrarEstadoFirebase('saving', 'Guardando...');
+          actualizarTodosEstadosChatIA('saving', 'Guardando en Firebase...');
           try {
-              const respaldo = leerEstadoSync(SYNC_QUEUE_KEY);
-              const paquete = respaldo?.payload || construirPaqueteAvanceFirebase();
-              const generacionGuardado = Number(respaldo?.version ?? paquete.versionLocal ?? firebaseSaveGeneration) || 0;
+              const paquete = construirPaqueteAvanceFirebase();
               const huella = JSON.stringify(paquete);
               if (huella === firebaseLastSavedFingerprint) {
-                  firebaseSaveDirty = firebaseSaveGeneration > generacionGuardado;
-                  confirmarSincronizacionLocal(generacionGuardado, huella);
+                  firebaseSaveDirty = false;
                   return true;
               }
               const ok = await window.guardarProgresoFirebase(paquete);
               const errorGuardado = window.ultimoErrorGuardadoFirebase;
-              const esConflicto = errorGuardado?.code === 'sync-conflict';
-              const textoError = esConflicto
-                  ? 'Error de sincronización: existe una versión más nueva'
-                  : (errorGuardado?.code === 'permission-denied'
-                      ? 'Error de sincronización: permiso denegado'
-                      : 'Cambios pendientes');
-              mostrarEstadoFirebase(ok ? 'online' : (esConflicto ? 'offline' : 'pending'), ok ? 'Sincronizado' : textoError);
-              actualizarTodosEstadosChatIA(ok ? 'saved' : 'error', ok ? 'Sincronizado' : textoError);
+              const textoError = errorGuardado?.code === 'permission-denied'
+                  ? 'Permiso denegado'
+                  : errorGuardado?.code === 'auth/email-not-verified'
+                      ? 'Correo no verificado'
+                      : errorGuardado?.code === 'auth/email-claim-stale'
+                          ? 'Token desactualizado'
+                          : errorGuardado?.code === 'student/email-mismatch'
+                              ? 'Correo del registro no coincide'
+                              : errorGuardado?.code === 'student/uid-mismatch'
+                                  ? 'Registro de estudiante incompatible'
+                                  : 'Error al guardar';
+              mostrarEstadoFirebase(ok ? 'online' : 'offline', ok ? 'Guardado exitosamente' : textoError);
+              actualizarTodosEstadosChatIA(ok ? 'saved' : 'error', ok ? 'Guardado exitosamente' : 'Error de guardado');
               if (ok) {
-                  confirmarSincronizacionLocal(generacionGuardado, huella);
-                  firebaseSaveDirty = firebaseSaveGeneration > generacionGuardado;
-              } else {
-                  firebaseSaveDirty = true;
+                  firebaseLastSavedFingerprint = huella;
+                  firebaseSaveDirty = firebaseSaveGeneration !== generacionGuardado;
               }
               return ok;
           } catch (e) {
               console.error(e);
-              respaldarPaqueteLocal(construirPaqueteAvanceFirebase(), firebaseSaveGeneration);
-              mostrarEstadoFirebase('offline', 'Error de sincronización');
-              actualizarTodosEstadosChatIA('error', 'Error de sincronización');
+              mostrarEstadoFirebase('offline', e?.code === 'auth/email-not-verified' ? 'Correo no verificado' : 'Error de conexión');
+              actualizarTodosEstadosChatIA('error', 'Error de conexión');
               return false;
           } finally {
               firebaseSaveInProgress = false;
@@ -2528,34 +2301,6 @@
                   firebaseSaveTimer = setTimeout(() => guardarAhoraFirebase(), 150);
               }
           }
-      }
-
-      function programarReintentoSincronizacion() {
-          clearTimeout(firebaseSyncRetryTimer);
-          firebaseSyncRetryTimer = setTimeout(() => {
-              if (navigator.onLine !== false && hayCambiosPendientesLocal()) {
-                  void guardarAhoraFirebase();
-              }
-          }, 350);
-      }
-
-      if (!window.__syncLifecycleListenersInstalled) {
-          window.__syncLifecycleListenersInstalled = true;
-          window.addEventListener('app-network-offline', () => {
-              if (hayCambiosPendientesLocal()) mostrarEstadoFirebase('pending', 'Cambios pendientes');
-          });
-          window.addEventListener('app-network-online', programarReintentoSincronizacion);
-          window.addEventListener('pagehide', () => {
-              if (firebaseInitialized && hayCambiosPendientesLocal()) {
-                  respaldarPaqueteLocal(construirPaqueteAvanceFirebase(), firebaseSaveGeneration);
-              }
-          });
-          window.addEventListener('beforeunload', evento => {
-              if (!firebaseInitialized || !hayCambiosPendientesLocal()) return;
-              respaldarPaqueteLocal(construirPaqueteAvanceFirebase(), firebaseSaveGeneration);
-              evento.preventDefault();
-              evento.returnValue = 'Hay cambios pendientes de sincronización.';
-          });
       }
 
       // ============================================================
@@ -2572,6 +2317,32 @@
 
       function getLocalStorage(clave) {
           return localStorage.getItem(storageKey(clave));
+      }
+
+      function getTimerPersistido(sectionId) {
+          const actual = getLocalStorage(`timer_${sectionId}`);
+          if (actual !== null && actual !== '') return actual;
+          return localStorage.getItem(`legacy_timer_${sectionId}`);
+      }
+
+      function cronometroDesafioIniciado(sectionId) {
+          const guardado = getTimerPersistido(sectionId);
+          return getLocalStorage(`timer_started_${sectionId}`) === 'true'
+              || (guardado !== null && Number.isFinite(Number(guardado)) && Number(guardado) < TIEMPO_MAXIMO_SEGUNDOS);
+      }
+
+      function migrarTimersLegacy(uid) {
+          if (!uid) return;
+          seccionesData.forEach(sec => {
+              const legado = localStorage.getItem(`legacy_timer_${sec.id}`);
+              const actual = localStorage.getItem(`firebase_user_${uid}_timer_${sec.id}`);
+              if ((actual === null || actual === '') && legado !== null && legado !== '') {
+                  localStorage.setItem(`firebase_user_${uid}_timer_${sec.id}`, legado);
+              }
+              if (legado !== null) {
+                  localStorage.removeItem(`legacy_timer_${sec.id}`);
+              }
+          });
       }
 
       function setLocalStorage(clave, valor) {
@@ -2593,6 +2364,23 @@
               if (clave && clave.startsWith(prefijo)) claves.push(clave);
           }
           claves.forEach(clave => localStorage.removeItem(clave));
+      }
+
+      function limpiarTemporizadoresNuevaCuenta(uid = firebaseStorageUid) {
+          if (!uid) return;
+          seccionesData.forEach(sec => {
+              localStorage.removeItem(`firebase_user_${uid}_timer_${sec.id}`);
+              localStorage.removeItem(`firebase_user_${uid}_timer_started_${sec.id}`);
+              localStorage.removeItem(`legacy_timer_${sec.id}`);
+              localStorage.removeItem(`legacy_timer_started_${sec.id}`);
+              tiemposRestantes[sec.id] = TIEMPO_MAXIMO_SEGUNDOS;
+              actividadesFinalizadas[sec.id] = false;
+              modulosPausados[sec.id] = false;
+              delete avisosTiempoEstudiante[sec.id];
+              if (cronometrosActivos[sec.id]) clearInterval(cronometrosActivos[sec.id]);
+              cronometrosActivos[sec.id] = null;
+          });
+          moduloCronometroEnCurso = null;
       }
 
       function limpiarLocalStorage() {
@@ -2664,15 +2452,22 @@
                   notaConfirmadaEn: datos.revisionSalidas.notaConfirmadaEn || null
               };
           }
-          if (datos.tiemposRestantes) Object.entries(datos.tiemposRestantes).forEach(([id,v]) => setLocalStorage(`timer_${id}`, Number(v)));
+          if (datos.tiemposRestantes) Object.entries(datos.tiemposRestantes).forEach(([id,v]) => {
+              if (getLocalStorage(`timer_${id}`) === null) setLocalStorage(`timer_${id}`, Number(v));
+          });
+          if (datos.pausasModulos && typeof datos.pausasModulos === 'object') {
+              Object.entries(datos.pausasModulos).forEach(([id, pausado]) => {
+                  if (getLocalStorage(`pausa_${id}`) === null) {
+                      setLocalStorage(`pausa_${id}`, pausado === true ? 'true' : 'false');
+                  }
+              });
+          }
+          if (datos.pausaGlobal !== undefined && getLocalStorage('pausa_global') === null) {
+              setLocalStorage('pausa_global', datos.pausaGlobal === true ? 'true' : 'false');
+          }
           if (datos.finalizadas) Object.entries(datos.finalizadas).forEach(([id,v]) => v ? setLocalStorage(`finalized_${id}`, 'true') : removeLocalStorage(`finalized_${id}`));
           if (datos.contadorPrevisualizaciones) Object.entries(datos.contadorPrevisualizaciones).forEach(([id,v]) => setLocalStorage(`preview_count_${id}`, Number(v)));
-          if (datos.codigos) Object.entries(datos.codigos).forEach(([id,v]) => { if (typeof v === 'string') setLocalStorage(`draft_editor-${id}`, v); });
           historialResultados = datos.historialResultados || {};
-          resultadosVerificadosEstudiante = datos.resultadosVerificados &&
-              typeof datos.resultadosVerificados === 'object'
-              ? datos.resultadosVerificados
-              : {};
           notasDesafiosDocente = datos.notasDesafiosDocente && typeof datos.notasDesafiosDocente === 'object'
               ? datos.notasDesafiosDocente
               : {};
@@ -2691,7 +2486,12 @@
               typeof datos.estadosRecomendacionesInforme === 'object'
               ? datos.estadosRecomendacionesInforme
               : {};
-          tiemposRestantes = datos.tiemposRestantes || {};
+          const tiemposLocales = { ...tiemposRestantes };
+          tiemposRestantes = { ...(datos.tiemposRestantes || {}), ...tiemposLocales };
+          const pausaGlobalLocal = getLocalStorage('pausa_global');
+          if (pausaGlobalLocal !== null) {
+              cronometrosPausadosPorDocente = pausaGlobalLocal === 'true';
+          }
           pantallaBloqueada = datos.pantallaBloqueada === true;
           pantallaBloqueadaEn = String(datos.pantallaBloqueadaEn || "");
           pantallaBloqueadaSeccion = String(datos.pantallaBloqueadaSeccion || "");
@@ -2701,11 +2501,16 @@
 
       function solicitarDatosNuevoEstudiante(esNuevoRegistro = true, datosExistentes = null) {
         return new Promise((resolve) => {
-          const modal=document.createElement('div'); modal.className='modal-overlay'; modal.style.display='flex';
+          const modal=document.createElement('div');
+          modal.className='modal-overlay';
+          modal.style.display='flex';
+          // El alta se abre mientras el overlay de autenticación sigue visible.
+          // Debe quedar por encima para que el estudiante pueda completar los datos.
+          modal.style.zIndex='10050';
           const textoRegistro = esNuevoRegistro
               ? "Primera vez con este correo. Completá tus datos para comenzar."
               : "Este correo ya está registrado. Completá los datos faltantes para continuar.";
-          modal.innerHTML=`<div class="modal-box" style="max-width:520px;width:92%;"><h3>👨‍🎓 Datos del estudiante</h3><p>Primera vez con este correo. Completá tus datos para comenzar.</p><div class="input-group"><label>Nombre y Apellido</label><input id="nuevoNombre" type="text" required></div><div class="input-group"><label>Curso</label><select id="nuevoCurso" required><option value="">Seleccionar curso</option><option>1° Año</option><option>2° Año</option><option>3° Año</option><option>4° Año</option><option>5° Año</option><option>6° Año</option><option>7° Año</option></select></div><div class="input-group"><label>División</label><select id="nuevoDivision" required><option value="">Seleccionar división</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div><div class="input-group"><label>Turno</label><select id="nuevoTurno" required><option value="">Seleccionar turno</option><option>Mañana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select></div><div id="nuevoError" role="alert" style="display:none;color:#fca5a5">Seleccioná obligatoriamente curso, división y turno.</div><div class="modal-actions"><button class="btn btn-primary" id="confirmarNuevo" type="button">Comenzar actividad</button></div></div>`;
+          modal.innerHTML=`<div class="modal-box" style="max-width:520px;width:92%;"><h3>????? Datos del estudiante</h3><p>Primera vez con este correo. Complet? tus datos para comenzar.</p><div class="input-group"><label>Nombre y Apellido</label><input id="nuevoNombre" type="text" required></div><div class="input-group"><label>Curso</label><select id="nuevoCurso" required><option value="">Seleccionar curso</option><option>1? A?o</option><option>2? A?o</option><option>3? A?o</option><option>4? A?o</option><option>5? A?o</option><option>6? A?o</option><option>7? A?o</option></select></div><div class="input-group"><label>Divisi?n</label><select id="nuevoDivision" required><option value="">Seleccionar divisi?n</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div><div class="input-group"><label>Turno</label><select id="nuevoTurno" required><option value="">Seleccionar turno</option><option>Ma?ana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select></div><div id="nuevoError" role="alert" style="display:none;color:#fca5a5">Seleccion? obligatoriamente curso, divisi?n y turno.</div><div class="modal-actions"><button class="btn btn-primary" id="confirmarNuevo" type="button">Comenzar actividad</button></div></div>`;
           const descripcionRegistro = modal.querySelector(".modal-box > p");
           if (descripcionRegistro) descripcionRegistro.textContent = textoRegistro;
           document.body.appendChild(modal);
@@ -2937,6 +2742,7 @@
           // Desde aquí TODAS las claves locales pertenecen al UID actual.
           // Los datos de otras cuentas permanecen aislados por su propia clave.
           firebaseStorageUid = user.uid;
+          migrarTimersLegacy(user.uid);
           localStorage.setItem('firebase_active_uid', user.uid);
 
           // La configuración docente de desafíos tiene prioridad sobre la copia local.
@@ -2948,7 +2754,7 @@
               }
           }
 
-          const datosFirebase = await window.cargarProgresoFirebase();
+          let datosFirebase = await window.cargarProgresoFirebase();
           registroFirebaseExistente = Boolean(
               datosFirebase?.uid &&
               datosFirebase?.email &&
@@ -2960,6 +2766,22 @@
               datosFirebase.estudiante.curso &&
               datosFirebase.estudiante.division &&
               datosFirebase.estudiante.turno);
+          if (!datosFirebase || !perfilFirebaseCompleto) {
+              // Un UID eliminado o un registro incompleto vuelve al alta:
+              // primero completa sus datos y queda pendiente de aprobación.
+              const esNuevoRegistro = !datosFirebase;
+              if (esNuevoRegistro) limpiarTemporizadoresNuevaCuenta(user.uid);
+              await solicitarDatosNuevoEstudiante(esNuevoRegistro, datosFirebase);
+              const datosDespuesDelAlta = await window.cargarProgresoFirebase?.();
+              const estadoDespuesDelAlta = datosDespuesDelAlta?.estadoCuenta || 'pendiente';
+              estadoCuentaEstudiante = estadoDespuesDelAlta;
+              if (estadoDespuesDelAlta !== 'activo') {
+                  window.escucharReinicioSalidasFirebase?.();
+                  bloquearCuentaPorAprobacion(estadoDespuesDelAlta);
+                  return;
+              }
+              datosFirebase = datosDespuesDelAlta;
+          }
           if (datosFirebase?.estadoCuenta === 'inactivo') {
               bloquearCuentaEstudiante(datosFirebase.bajaMotivo || '');
               return;
@@ -2970,13 +2792,17 @@
           const estadoLocalAnterior = getLocalStorage('app_account_state') || '';
           if (estadoCuentaEstudiante === 'activo' &&
               (estadoLocalAnterior === 'pendiente' || estadoLocalAnterior === 'rechazado')) {
+              reiniciarCronometrosLocales({
+                  incluirFinalizados: true,
+                  limpiarPausas: true
+              });
               mostrarAvisoAccesoAprobado({
                   aprobadoPor: datosFirebase?.aprobadoPor || '',
                   aprobadoEn: datosFirebase?.aprobadoEn || null
               });
               return;
           }
-          if (estadoCuentaEstudiante === 'pendiente' && perfilFirebaseCompleto) {
+          if (estadoCuentaEstudiante === 'pendiente') {
               window.escucharReinicioSalidasFirebase?.();
               bloquearCuentaPorAprobacion('pendiente');
               return;
@@ -2994,24 +2820,7 @@
           window.escucharReinicioSalidasFirebase?.();
           window.escucharNotasDocenteEstudianteFirebase?.();
           window.escucharMensajesDocenteEstudianteFirebase?.();
-          const respaldoLocal = leerEstadoSync(SYNC_QUEUE_KEY) || leerEstadoSync(SYNC_SNAPSHOT_KEY);
-          const versionRemota = Math.max(0, Number(datosFirebase?.versionLocal) || 0);
-          const versionLocal = Math.max(0, Number(respaldoLocal?.version) || 0);
-          firebaseSaveGeneration = Math.max(firebaseSaveGeneration, versionRemota, versionLocal);
-          restaurandoDesdeFuente = true;
-          try {
-              if (datosFirebase) await restaurarDesdeFirebase(datosFirebase);
-              if (respaldoLocal?.payload && versionLocal > versionRemota) {
-                  await restaurarDesdeFirebase(respaldoLocal.payload);
-                  firebaseSaveDirty = true;
-                  mostrarEstadoFirebase('pending', 'Cambios locales recuperados');
-              } else if (respaldoLocal && versionLocal <= versionRemota) {
-                  localStorage.removeItem(storageKey(SYNC_QUEUE_KEY));
-                  confirmarSincronizacionLocal(versionRemota, datosFirebase ? JSON.stringify(construirPaqueteAvanceFirebase()) : '');
-              }
-          } finally {
-              restaurandoDesdeFuente = false;
-          }
+          if (datosFirebase) await restaurarDesdeFirebase(datosFirebase);
 
           const photo = document.getElementById('firebaseUserPhoto');
           if (user.photoURL) { photo.src = user.photoURL; photo.style.display = 'block'; }
@@ -3099,14 +2908,9 @@
               }
           });
 
-          const seccionLocalRecordada = getLocalStorage('active_section_v1');
-          if (seccionLocalRecordada && seccionesData.some(sec => sec.id === seccionLocalRecordada)) {
-              seccionActivaActual = seccionLocalRecordada;
-          }
-
           seccionesData.forEach((sec, idx) => {
               const li = document.createElement('li');
-              li.className = `nav-item ${sec.id === seccionActivaActual ? 'active' : ''}`;
+              li.className = `nav-item ${idx === 0 ? 'active' : ''}`;
               li.onclick = () => switchSection(sec.id);
               li.onkeydown = event => {
                   if (event.key === 'Enter' || event.key === ' ') {
@@ -3117,23 +2921,28 @@
               li.tabIndex = 0;
               li.setAttribute('role', 'button');
               li.setAttribute('aria-label', `Abrir ${sec.title}`);
-              li.setAttribute('aria-current', sec.id === seccionActivaActual ? 'page' : 'false');
+              li.setAttribute('aria-current', idx === 0 ? 'page' : 'false');
               li.id = `nav-btn-${sec.id}`;
               li.innerHTML = `<i class="fa-solid ${sec.icon}"></i> <span>${sec.title}</span>`;
               navList.appendChild(li);
 
-              const savedCode = getLocalStorage(`draft_editor-${sec.id}`) || sec.initialCode;
+              const savedCode = sec.initialCode;
               const isFinalized = getLocalStorage(`finalized_${sec.id}`) === 'true';
               const tutorMinimizado = getLocalStorage(`ai_tutor_minimized_${sec.id}`) !== 'false';
               if (isFinalized) actividadesFinalizadas[sec.id] = true;
               contadorPrevisualizaciones[sec.id] = parseInt(getLocalStorage(`preview_count_${sec.id}`) || '0');
 
-              let savedTime = getLocalStorage(`timer_${sec.id}`);
-              tiemposRestantes[sec.id] = savedTime !== null ? parseInt(savedTime) : TIEMPO_MAXIMO_SEGUNDOS;
-              modulosPausados[sec.id] = cronometrosPausadosPorDocente;
+              let savedTime = getTimerPersistido(sec.id);
+              const savedTimeNumber = Number(savedTime);
+              tiemposRestantes[sec.id] = Number.isFinite(savedTimeNumber) && savedTimeNumber >= 0
+                  ? Math.min(TIEMPO_MAXIMO_SEGUNDOS, Math.floor(savedTimeNumber))
+                  : TIEMPO_MAXIMO_SEGUNDOS;
+              modulosPausados[sec.id] =
+                  cronometrosPausadosPorDocente ||
+                  getLocalStorage(`pausa_${sec.id}`) === 'true';
 
               const card = document.createElement('div');
-              card.className = `section-card ${sec.id === seccionActivaActual ? 'active' : ''}`;
+              card.className = `section-card ${idx === 0 ? 'active' : ''}`;
               card.id = sec.id;
               card.innerHTML = `
                   <h2 class="section-title"><i class="fa-solid ${sec.icon}"></i> ${sec.title}</h2>
@@ -3146,29 +2955,31 @@
                       <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                           <span class="timer-display" id="timer-display-${sec.id}">40:00</span>
                           <small style="color:var(--text-muted)">Comienza al hacer clic en el editor</small>
-                          <button type="button" class="btn btn-warning teacher-only" id="btn-pause-${sec.id}" onclick="solicitarPausaModulo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                          <button class="btn btn-warning teacher-only" id="btn-pause-${sec.id}" onclick="solicitarPausaModulo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                               <i class="fa-solid fa-pause"></i> Pausar (Profe)
                           </button>
-                          <button type="button" class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_current')">
+                          <button class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_current')">
                               <i class="fa-solid fa-unlock"></i> Desbloquear Este
                           </button>
-                          <button type="button" class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_all')">
+                          <button class="btn btn-danger teacher-only" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="solicitarAccionProfesor('unlock_all')">
                               <i class="fa-solid fa-unlock-keyhole"></i> Desbloquear Todos
                           </button>
                       </div>
                   </div>
 
+                  <div class="time-review-alert" id="time-review-alert-${sec.id}" role="alert" aria-live="assertive" hidden></div>
+
                   <div class="pause-banner" id="pause-banner-${sec.id}">
                       <i class="fa-solid fa-circle-pause" style="font-size: 1.2rem;"></i>
-                      <span><strong>MÓDULO PAUSADO POR EL PROFESOR:</strong> El cronómetro y la edición de código han sido suspendidos temporalmente.</span>
+                      <span><strong>M�DULO PAUSADO POR EL PROFESOR:</strong> El cron?metro y la edici?n de c?digo han sido suspendidos temporalmente.</span>
                   </div>
 
                   <div class="theory-box">
-                      <p>${escapeHtml(sec.theory || "")}</p>
+                      <p>${sec.theory}</p>
                   </div>
 
                   <div class="exercise-box">
-                      <h3><i class="fa-solid fa-laptop-code"></i> ${escapeHtml(sec.exerciseTitle || "")}</h3>
+                      <h3><i class="fa-solid fa-laptop-code"></i> ${sec.exerciseTitle}</h3>
                       <p id="exercise-desc-${sec.id}">${resaltarPalabrasClave(sec.exerciseDesc)}</p>
                       <div class="exercise-ai-status" id="exercise-ai-status-${sec.id}" aria-live="polite">
                           <i class="fa-solid fa-wand-magic-sparkles"></i> Preparando palabras clave...
@@ -3241,8 +3052,15 @@
                                           <button class="student-focus-toggle" type="button" onclick="alternarModoEnfoque('${sec.id}', this)" aria-pressed="false" title="Ocultar temporalmente teoría y ayudas">
                                               <i class="fa-solid fa-expand"></i><span>Enfoque</span>
                                           </button>
+                                          <button class="student-focus-toggle student-collaboration-request" type="button" id="btn-solicitar-colaboracion-${sec.id}" onclick="solicitarColaboracionEstudiante('${sec.id}')" title="Avisar al docente y solicitar colaboración con tu código" aria-label="Solicitar ayuda del docente para este código">
+                                              <i class="fa-solid fa-hand"></i><span>Solicitar colaboración</span>
+                                          </button>
                                       </div>
                                   </div>
+                                  <div id="estado-colaboracion-${sec.id}" role="status" aria-live="polite" hidden style="margin:.45rem 0;color:#bae6fd;font-size:.8rem;"></div>
+                                  <button type="button" class="btn btn-secondary" id="btn-cancelar-colaboracion-${sec.id}" onclick="cancelarColaboracionEstudiante('${sec.id}', this)" hidden style="margin-bottom:.55rem">
+                                      <i class="fa-solid fa-trash-can"></i> Cancelar solicitud de colaboración
+                                  </button>
                                   <div class="student-ai-editor-actions" aria-label="Ayuda de programación con IA">
                                       <button type="button" data-ai-editor-action class="student-ai-editor-action" onclick="solicitarAyudaEditor('${sec.id}', 'consigna', this)" ${isFinalized ? 'disabled' : ''} title="Organizar la consigna antes de programar">
                                           <i class="fa-solid fa-list-ol"></i><span>Planificar</span>
@@ -3267,21 +3085,21 @@
                                       <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
                                       <span>Copiar, cortar y pegar están deshabilitados para estudiantes. Cada intento queda registrado para revisión docente.</span>
                                   </div>
-                                  <label class="sr-only" for="editor-${sec.id}">Código para ${escapeHtml(sec.title || "")}</label>
-                                      <textarea id="editor-${sec.id}" class="code-editor" aria-label="Código para ${escapeHtml(sec.title || "")}" spellcheck="false" autocapitalize="off" autocomplete="off" ${isFinalized ? 'disabled' : ''}>${escapeHtml(savedCode)}</textarea>
+                                  <label class="sr-only" for="editor-${sec.id}">Código para ${sec.title}</label>
+                                      <textarea id="editor-${sec.id}" class="code-editor" aria-label="Código para ${sec.title}" spellcheck="false" autocapitalize="off" autocomplete="off" ${isFinalized ? 'disabled' : ''}>${savedCode}</textarea>
                                   </div>
 
                                   <div class="student-run-actions">
-                                      <button type="button" class="btn btn-primary student-run-primary" id="btn-run-${sec.id}" onclick="ejecutarCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                      <button class="btn btn-primary student-run-primary" id="btn-run-${sec.id}" onclick="ejecutarCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                                           <i class="fa-solid fa-play"></i> Ejecutar código
                                       </button>
-                                      <button type="button" class="btn btn-preview" id="btn-preview-${sec.id}" onclick="previsualizarNotaIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                      <button class="btn btn-preview" id="btn-preview-${sec.id}" onclick="previsualizarNotaIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                                           <i class="fa-solid fa-star-half-stroke"></i> Nota previa (${3 - contadorPrevisualizaciones[sec.id]})
                                       </button>
-                                      <button type="button" class="btn btn-ai" id="btn-ai-${sec.id}" onclick="resolverYCompararIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
+                                      <button class="btn btn-ai" id="btn-ai-${sec.id}" onclick="resolverYCompararIA('${sec.id}')" ${isFinalized ? 'disabled' : ''}>
                                           <i class="fa-solid fa-flag-checkered"></i> Entregar y comparar
                                       </button>
-                                      <button type="button" class="btn btn-secondary" id="btn-reset-${sec.id}" onclick="restablecerCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''} title="Volver al código inicial">
+                                      <button class="btn btn-secondary" id="btn-reset-${sec.id}" onclick="restablecerCodigo('${sec.id}')" ${isFinalized ? 'disabled' : ''} title="Volver al código inicial">
                                           <i class="fa-solid fa-rotate-left"></i> Restablecer
                                       </button>
                                   </div>
@@ -3311,8 +3129,7 @@
                                               </button>
                                           </div>
                                       </div>
-                                      <div class="student-ai-principle"><i class="fa-solid fa-shield-halved"></i> La ayuda avanza por niveles. La solución completa solo está disponible en el nivel 6 cuando el docente lo permite.</div>
-                                      <div class="student-ai-policy" id="ai-policy-${sec.id}" role="status" aria-live="polite"></div>
+                                      <div class="student-ai-principle"><i class="fa-solid fa-shield-halved"></i> Te guía con pistas y preguntas. No entrega la solución completa.</div>
                                       <div class="ai-chat-messages" id="ai-chat-messages-${sec.id}" aria-live="polite"></div>
                                       <div class="ai-chat-quick-actions">
                                           <button class="btn btn-chat-primary" type="button" onclick="pedirPistaIA('${sec.id}', 'pista')"><i class="fa-solid fa-lightbulb"></i> Nueva pista</button>
@@ -3321,14 +3138,11 @@
                                           <button class="btn btn-secondary" type="button" onclick="pedirPistaIA('${sec.id}', 'linea')"><i class="fa-solid fa-list-ol"></i> Error por línea</button>
                                           <button class="btn btn-chat-danger" type="button" onclick="limpiarChatIA('${sec.id}')"><i class="fa-solid fa-trash-can"></i> Limpiar</button>
                                       </div>
-                                      <div class="student-ai-hint-levels" aria-label="Niveles de ayuda progresiva">
-                                          <span><i class="fa-solid fa-stairs"></i> Nivel de ayuda</span>
-                                          <button type="button" data-ai-level="1" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel1')" title="Recordatorio conceptual"><strong>1</strong><small>Concepto</small></button>
-                                          <button type="button" data-ai-level="2" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel2')" title="Pregunta orientadora"><strong>2</strong><small>Pregunta</small></button>
-                                          <button type="button" data-ai-level="3" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel3')" title="Identificación del error"><strong>3</strong><small>Error</small></button>
-                                          <button type="button" data-ai-level="4" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel4')" title="Pseudocódigo"><strong>4</strong><small>Pseudocódigo</small></button>
-                                          <button type="button" data-ai-level="5" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel5')" title="Fragmento parcial"><strong>5</strong><small>Fragmento</small></button>
-                                          <button type="button" data-ai-level="6" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'nivel6')" title="Solución comentada"><strong>6</strong><small>Solución</small></button>
+                                      <div class="student-ai-hint-levels" aria-label="Nivel de pista progresiva">
+                                          <span><i class="fa-solid fa-stairs"></i> Pista progresiva</span>
+                                          <button type="button" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'pista1')">1</button>
+                                          <button type="button" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'pista2')">2</button>
+                                          <button type="button" data-ai-editor-action onclick="pedirPistaIA('${sec.id}', 'pista3')">3</button>
                                       </div>
                                       <form class="ai-chat-composer" onsubmit="enviarMensajeIA(event, '${sec.id}')">
                                           <input class="ai-chat-input" id="ai-chat-input-${sec.id}" maxlength="240" autocomplete="off" placeholder="Preguntá sobre tu código o el error..." aria-label="Pregunta a la IA sobre ${sec.title}" ${isFinalized ? 'disabled' : ''}>
@@ -3343,11 +3157,11 @@
                               <div class="ai-comparison-grid">
                                   <div class="ai-column">
                                       <h4><i class="fa-solid fa-user-graduate"></i> Tu Código Entregado</h4>
-                                      <pre id="ai-student-code-${sec.id}">${escapeHtml(savedCode)}</pre>
+                                      <pre id="ai-student-code-${sec.id}">${savedCode}</pre>
                                   </div>
                                   <div class="ai-column">
                                       <h4><i class="fa-solid fa-robot"></i> Solución de referencia</h4>
-                                      <pre id="ai-ideal-code-${sec.id}">${escapeHtml(sec.aiSolution || "")}</pre>
+                                      <pre id="ai-ideal-code-${sec.id}">${sec.aiSolution}</pre>
                                   </div>
                               </div>
                               <div class="ai-eval-summary" id="ai-text-${sec.id}">${isFinalized ? 'Actividad previamente evaluada de forma estricta y cerrada.' : 'Generando comparativa...'}</div>
@@ -3358,7 +3172,7 @@
                                       Analista de Viabilidad y Excelencia — RESPONDE AHORA
                                   </div>
                                   <div style="margin-bottom:0.8rem;color:#cbd5e1;line-height:1.45;">
-                                      🤖 Al pulsar <strong>IA</strong>, estas preguntas se habilitan para responder.
+                                      ðŸ¤– Al pulsar <strong>IA</strong>, estas preguntas se habilitan para responder.
                                       Están basadas en <strong>tu código</strong>, en la <strong>solución de la IA</strong>
                                       y en la <strong>comparación entre ambos</strong>. Algunas tienen más de una respuesta correcta.
                                   </div>
@@ -3367,7 +3181,7 @@
                                       <span class="analyst-badge" id="excellence-${sec.id}">Excelencia: pendiente</span>
                                   </div>
                                   <div id="analyst-questions-${sec.id}"></div>
-                                  <button type="button" class="btn btn-success" id="analyst-submit-${sec.id}" onclick="evaluarAnalista('${sec.id}')">
+                                  <button class="btn btn-success" id="analyst-submit-${sec.id}" onclick="evaluarAnalista('${sec.id}')">
                                       <i class="fa-solid fa-check-double"></i> Entregar respuestas al analista
                                   </button>
                                   <div class="analyst-result" id="analyst-result-${sec.id}"></div>
@@ -3394,25 +3208,55 @@
               }
               renderizarChatIA(sec.id);
               actualizarDisplayTiempo(sec.id);
+              controlarAvisoTiempoEstudiante(sec.id);
 
               if (isFinalized) {
                   actualizarIconoEstado(sec.id, true);
               }
           });
+          ubicarCronometroEnEncabezadoDesafio(seccionActivaActual);
+          if (cronometroDesafioIniciado(seccionActivaActual)) {
+              iniciarCronometro(seccionActivaActual);
+          }
 
-          document.getElementById('currentTitle').innerText =
-              seccionesData.find(sec => sec.id === seccionActivaActual)?.title || seccionesData[0].title;
+          // Restaurar en pantalla las pausas individuales después de reconstruir las tarjetas.
+          seccionesData.forEach(sec => {
+              if (!modulosPausados[sec.id]) return;
+              const btnPause = document.getElementById(`btn-pause-${sec.id}`);
+              const banner = document.getElementById(`pause-banner-${sec.id}`);
+              const editor = document.getElementById(`editor-${sec.id}`);
+              if (btnPause) {
+                  btnPause.innerHTML = `<i class="fa-solid fa-play"></i> Reanudar (Profe)`;
+                  btnPause.classList.remove('btn-warning');
+                  btnPause.classList.add('btn-success');
+              }
+              if (banner) banner.classList.add('active');
+              if (editor) editor.disabled = true;
+              ['run', 'preview', 'ai', 'reset'].forEach(btn => {
+                  const el = document.getElementById(`btn-${btn}-${sec.id}`);
+                  if (el) el.disabled = true;
+              });
+              document.querySelectorAll(`#${CSS.escape(sec.id)} [data-ai-editor-action]`).forEach(control => {
+                  control.disabled = true;
+              });
+          });
+
+          document.getElementById('currentTitle').innerText = seccionesData[0].title;
           configurarEditores();
           await window.iniciarColaboracionCRDTEstudiante?.();
           bloquearCopiaYPegado();
           actualizarProgreso();
-          actualizarControlesTutorProgramacion();
 
           // Autoguardado de respaldo: captura también cambios que no pasan por localStorage.
           clearInterval(window.__firebaseAutoSaveInterval);
           window.__firebaseAutoSaveInterval = setInterval(() => {
               if (document.visibilityState !== 'hidden' && firebaseSaveDirty) guardarAhoraFirebase();
           }, 180000);
+      window.addEventListener('beforeunload', () => {
+              // El último estado queda además en localStorage; Firebase se actualiza con el debounce normal.
+              programarGuardadoFirebase();
+          });
+
           guardarAhoraFirebase();
           aplicarControlCronometrosDocente(ultimoControlCronometros);
           aplicarControlCronometroIndividual(ultimoControlCronometroIndividual);
@@ -3435,7 +3279,6 @@
       function cerrarJustificacionSalida() {
           document.getElementById('justificarSalidaModal').classList.remove('active');
       }
-
       function guardarJustificacionSalida() {
           const modal = document.getElementById('justificarSalidaModal');
           const evento = eventosSalidasPestana.find(x => x.id === modal.dataset.eventoId);
@@ -3456,19 +3299,255 @@
           alert('La justificación quedó registrada para revisión docente.');
       }
 
+      function obtenerSeccionSeleccionadaVisualmente() {
+          const tarjetaActiva = document.querySelector('.section-card.active[id]');
+          if (tarjetaActiva?.id && seccionesData.some(item => item.id === tarjetaActiva.id)) {
+              return tarjetaActiva.id;
+          }
+          const navegacionActiva = document.querySelector('.nav-item.active[id^="nav-btn-"]');
+          const idNavegacion = navegacionActiva?.id?.replace(/^nav-btn-/, '');
+          if (idNavegacion && seccionesData.some(item => item.id === idNavegacion)) {
+              return idNavegacion;
+          }
+          return seccionActivaActual;
+      }
+
+      function ubicarCronometroEnEncabezadoDesafio(sectionId = obtenerSeccionSeleccionadaVisualmente()) {
+          const cronometro = document.getElementById('studentFloatingTimer');
+          const overlayAuth = document.getElementById('firebaseAuthOverlay');
+          const accesoEstudianteVisible = !cuentaEstudianteActiva ||
+              Boolean(overlayAuth && (
+                  !overlayAuth.classList.contains('hidden') ||
+                  overlayAuth.hidden === false && overlayAuth.getAttribute('aria-hidden') === 'true'
+              ));
+          if (cronometro && accesoEstudianteVisible) {
+              cronometro.hidden = true;
+              cronometro.removeAttribute('data-section-id');
+              return;
+          }
+          const tarjeta = sectionId ? document.getElementById(sectionId) : null;
+          const encabezado = tarjeta?.querySelector('.section-title');
+          if (!cronometro || !encabezado) return;
+          if (cronometro.parentElement !== encabezado) encabezado.appendChild(cronometro);
+          cronometro.dataset.sectionId = sectionId;
+          cronometro.hidden = false;
+      }
+
       function actualizarDisplayTiempo(sectionId) {
           let segs = tiemposRestantes[sectionId];
+          if (!Number.isFinite(segs)) segs = TIEMPO_MAXIMO_SEGUNDOS;
           let mins = Math.floor(segs / 60);
           let sRestantes = segs % 60;
           let displayStr = `${mins.toString().padStart(2, '0')}:${sRestantes.toString().padStart(2, '0')}`;
 
           const el = document.getElementById(`timer-display-${sectionId}`);
           if (el) el.innerText = displayStr;
+
+          const floating = document.getElementById('studentFloatingTimer');
+          const floatingValue = document.getElementById('studentFloatingTimerValue');
+          const floatingModule = document.getElementById('studentFloatingTimerModule');
+          const seccionSeleccionada = obtenerSeccionSeleccionadaVisualmente();
+          ubicarCronometroEnEncabezadoDesafio(seccionSeleccionada);
+          if (floating && floatingValue && floatingModule && sectionId === seccionSeleccionada) {
+              floatingValue.textContent = displayStr;
+              const sec = seccionesData.find(item => item.id === sectionId);
+              floatingModule.textContent = sec ? sec.title : 'Desafío activo';
+              floating.classList.toggle('is-warning', segs <= 600 && segs > 120);
+              floating.classList.toggle('is-danger', segs <= 120);
+          }
+      }
+
+      function guardarCronometrosLocales() {
+          Object.entries(tiemposRestantes).forEach(([id, segundos]) => {
+              const valor = Math.max(0, Math.floor(Number(segundos) || 0));
+              setLocalStorage(`timer_${id}`, valor);
+          });
+      }
+
+      window.addEventListener('pagehide', guardarCronometrosLocales);
+      window.addEventListener('beforeunload', guardarCronometrosLocales);
+
+      function obtenerCodigoActualEstudiante(sectionId) {
+          return document.getElementById(`editor-${sectionId}`)?.value ||
+              historialResultados[sectionId]?.codigo || "";
+      }
+      window.obtenerEvidenciaEntregaEstudiante = sectionId => {
+          const historial = historialResultados[sectionId] || {};
+          const codigo = obtenerCodigoActualEstudiante(sectionId);
+          const ejecucion = historial.evaluacionCodigo?.ejecucion || (
+              historial.exito === undefined ? null : {
+                  intentada: true,
+                  ok: historial.exito === true,
+                  salida: historial.salida || "",
+                  error: historial.error || ""
+              }
+          );
+          return {
+              codigo,
+              pruebas: ejecucion ? [{
+                  tipo: "ejecucion",
+                  intentada: ejecucion.intentada !== false,
+                  ok: ejecucion.ok === true,
+                  salida: ejecucion.salida || historial.salida || "",
+                  error: ejecucion.error || historial.error || ""
+              }] : [],
+              respuestas: Array.isArray(historial.analista?.preguntas)
+                  ? Object.fromEntries(historial.analista.preguntas.map((pregunta, indice) => [String(indice), pregunta]))
+                  : (historial.analista?.preguntas || {}),
+              errores: [
+                  ...(historial.error ? [historial.error] : []),
+                  ...(historial.evaluacionCodigo?.mejoras || [])
+              ],
+              ayudaUsada: historial.ayudasAnalista || historial.ayudasComprension || [],
+              versionCodigo: Number(historial.versionCodigo || 0),
+              intento: Number(historial.intento || 1)
+          };
+      };
+
+      function construirRevisionTiempoEstudiante(sectionId, segundosRestantes) {
+          const sec = seccionesData.find(s => s.id === sectionId) || {};
+          const historial = historialResultados[sectionId] || {};
+          const code = obtenerCodigoActualEstudiante(sectionId);
+          const ejecucion = historial.exito === undefined ? null : {
+              ok: Boolean(historial.exito),
+              logs: String(historial.salida || "").split("\n").filter(Boolean),
+              salida: historial.salida || "",
+              error: historial.error || ""
+          };
+          const evaluacion = evaluarCodigoPorEvidencias(code, sec, ejecucion);
+          const esPlantilla = !code.trim() ||
+              (sec?.initialCode && code.trim() === String(sec.initialCode).trim());
+          const lineas = Number(evaluacion?.metricas?.lineasUtiles || 0);
+          const fortalezas = [];
+          const paraRevisar = [];
+          const pendiente = [];
+          const conceptosPendientes = (evaluacion.conceptos || [])
+              .filter(item => !item.cumple)
+              .map(item => item.nombre)
+              .slice(0, 2);
+
+          if (lineas > 0 && !esPlantilla) fortalezas.push(`Ya escribiste ${lineas} línea${lineas === 1 ? "" : "s"} útil${lineas === 1 ? "" : "es"}.`);
+          if (evaluacion.sintaxis?.valida && !esPlantilla) fortalezas.push("La sintaxis es válida.");
+          if (evaluacion.ejecucion?.ok) fortalezas.push("La última ejecución terminó sin errores.");
+          if (evaluacion.fortalezas?.length) fortalezas.push(evaluacion.fortalezas[0]);
+          if (!fortalezas.length) fortalezas.push("Ya comenzaste a trabajar en el editor.");
+
+          if (esPlantilla) paraRevisar.push("Reemplazá la plantilla por instrucciones propias.");
+          else if (!evaluacion.sintaxis?.valida) paraRevisar.push("Corregí primero el error de sintaxis señalado por la consola.");
+          else if (historial.exito === false) paraRevisar.push("Revisá el último error y ejecutá nuevamente.");
+          if (conceptosPendientes.length) paraRevisar.push(`Comprobá que aparezcan: ${conceptosPendientes.join(", ")}.`);
+          if (evaluacion.ejecucion?.ok && evaluacion.metricas?.comportamiento < 0.8) paraRevisar.push("Contrastá la salida con lo que pide la consigna.");
+          if (!evaluacion.ejecucion?.intentada) pendiente.push("Todavía falta ejecutar y verificar el código.");
+          if (evaluacion.criterios?.some(c => c.estado !== "cumplido")) pendiente.push("Hay criterios de evaluación que aún no muestran evidencia suficiente.");
+          if (!pendiente.length && conceptosPendientes.length) pendiente.push("Falta completar al menos un concepto solicitado.");
+          if (!pendiente.length && !actividadesFinalizadas[sectionId]) pendiente.push("Realizá una revisión final antes de entregar.");
+
+          const prioridades = [];
+          if (!evaluacion.ejecucion?.intentada || evaluacion.ejecucion?.ok === false) prioridades.push("Ejecutá el código y corregí el primer error que aparezca.");
+          if (conceptosPendientes.length) prioridades.push(`Completá la parte relacionada con ${conceptosPendientes[0]}.`);
+          prioridades.push("Compará la salida con la consigna y entregá solo cuando hayas verificado lo esencial.");
+
+          const maxRecomendaciones = prioridades.slice(0, 3);
+          const minutos = Math.max(1, Math.ceil(segundosRestantes / 60));
+          return {
+              minutos,
+              fortalezas: fortalezas.slice(0, 3),
+              paraRevisar: (paraRevisar.length ? paraRevisar : ["Revisá nombres, datos de entrada y salida esperada."]).slice(0, 3),
+              pendiente: (pendiente.length ? pendiente : ["Completá una última prueba antes de finalizar."]).slice(0, 2),
+              prioridades: maxRecomendaciones,
+              pista: conceptosPendientes.length
+                  ? `Preguntate: ¿qué dato o instrucción demostraría claramente "${conceptosPendientes[0]}"?`
+                  : "Separá el problema en entrada, procesamiento y salida; verificá una parte por vez.",
+              evaluacion
+          };
+      }
+
+      function renderizarListaRevision(items, tag = "li") {
+          return (items || []).map(item => `<${tag}>${escaparTextoAnalista(item)}</${tag}>`).join("");
+      }
+
+      function mostrarRevisionTiempoEstudiante(sectionId, tipo = "cinco") {
+          const alertBox = document.getElementById(`time-review-alert-${sectionId}`);
+          if (!alertBox) return;
+          const segundos = Math.max(0, Number(tiemposRestantes[sectionId] || 0));
+          const revision = construirRevisionTiempoEstudiante(sectionId, segundos);
+          if (tipo === "uno") {
+              alertBox.className = "time-review-alert is-urgent";
+              alertBox.innerHTML = `
+                  <div class="time-review-alert-heading"><span aria-hidden="true">⏰</span><strong>�Último minuto!</strong><span class="time-review-alert-time">${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}</span></div>
+                  <p>Antes de entregar, revisá rápidamente:</p>
+                  <ul>${renderizarListaRevision(["Que el código ejecute sin errores.", "Que la salida responda a la consigna.", "Que hayas completado la parte principal del desafío."])}</ul>
+                  <p class="time-review-priority">Enfocate en completar lo indispensable y corregir el error más importante.</p>`;
+          } else {
+              alertBox.className = "time-review-alert is-warning";
+              alertBox.innerHTML = `
+                  <div class="time-review-alert-heading"><span aria-hidden="true">⏰</span><strong>Te quedan aproximadamente ${revision.minutos} minutos.</strong><span class="time-review-alert-time">${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}</span></div>
+                  <div class="time-review-grid">
+                    <section><h4>✅ Lo que ya lograste</h4><ul>${renderizarListaRevision(revision.fortalezas)}</ul></section>
+                    <section><h4>⚠️ Para revisar</h4><ul>${renderizarListaRevision(revision.paraRevisar)}</ul></section>
+                    <section><h4>ðŸ”´ Pendiente</h4><ul>${renderizarListaRevision(revision.pendiente)}</ul></section>
+                  </div>
+                  <h4 class="time-review-priority-title">ðŸ”´ Prioridad ahora</h4>
+                  <ol>${renderizarListaRevision(revision.prioridades)}</ol>
+                  <p class="time-review-hint">ðŸ’¡ Pista: ${escaparTextoAnalista(revision.pista)}</p>`;
+          }
+          alertBox.hidden = false;
+          alertBox.dataset.lastShown = tipo;
+      }
+
+      function controlarAvisoTiempoEstudiante(sectionId) {
+          const segundos = Number(tiemposRestantes[sectionId] || 0);
+          const estado = { ...(avisosTiempoEstudiante[sectionId] || {}) };
+          if (segundos <= UMBRAL_REVISION_DIEZ_MINUTOS && !estado.diez) {
+              mostrarRevisionTiempoEstudiante(sectionId, "diez");
+              estado.diez = true;
+          }
+          if (segundos <= UMBRAL_REVISION_CINCO_MINUTOS && !estado.cinco) {
+              mostrarRevisionTiempoEstudiante(sectionId, "cinco");
+              estado.cinco = true;
+          }
+          if (segundos <= UMBRAL_REVISION_ULTIMO_MINUTO && !estado.uno) {
+              mostrarRevisionTiempoEstudiante(sectionId, "uno");
+              estado.uno = true;
+          }
+          if (Object.keys(estado).length) {
+              avisosTiempoEstudiante[sectionId] = estado;
+              programarGuardadoFirebase();
+          }
+      }
+
+      function mostrarEvaluacionFinalEstudiante(sectionId) {
+          const sec = seccionesData.find(s => s.id === sectionId) || {};
+          const historial = historialResultados[sectionId] || {};
+          const code = obtenerCodigoActualEstudiante(sectionId);
+          const evaluacion = historial.evaluacionCodigo ||
+              evaluarCodigoPorEvidencias(code, sec, historial.exito === undefined ? null : {
+                  ok: Boolean(historial.exito),
+                  salida: historial.salida || "",
+                  error: historial.error || ""
+              });
+          const fortalezas = (evaluacion.fortalezas || []).slice(0, 2);
+          const dificultades = (evaluacion.mejoras || []).slice(0, 2);
+          const pendientes = (evaluacion.criterios || [])
+              .filter(item => item.estado !== "cumplido")
+              .map(item => item.nombre)
+              .slice(0, 2);
+          const feedback = document.getElementById(`ai-text-${sectionId}`);
+          if (!feedback) return;
+          const finalBox = document.createElement("div");
+          finalBox.className = "student-final-evaluation";
+          finalBox.innerHTML = `
+              <h4>Evaluación final para seguir mejorando</h4>
+              <p><strong>Logrado:</strong> ${escaparTextoAnalista((fortalezas.length ? fortalezas : ["Completaste la entrega del desafío."]).join(" "))}</p>
+              <p><strong>Para mejorar:</strong> ${escaparTextoAnalista((dificultades.length ? dificultades : ["Revisá el criterio que haya quedado parcial."]).join(" "))}</p>
+              <p><strong>Próximo paso:</strong> ${escaparTextoAnalista((pendientes.length ? `En una próxima actividad, priorizá: ${pendientes.join(", ")}.` : "Probá un caso límite y explicá por qué tu solución funciona.").slice(0, 360))}</p>`;
+          feedback.appendChild(finalBox);
       }
 
       function iniciarCronometro(sectionId) {
           if (
-              sectionId !== seccionActivaActual ||
+              !sectionId ||
+              sectionId !== obtenerSeccionSeleccionadaVisualmente() ||
               !cuentaEstudianteActiva ||
               !claseHabilitada ||
               cronometrosActivos[sectionId] ||
@@ -3476,6 +3555,7 @@
               modulosPausados[sectionId]
           ) return;
 
+          setLocalStorage(`timer_started_${sectionId}`, 'true');
           Object.keys(cronometrosActivos).forEach(id => {
               if (id === sectionId || !cronometrosActivos[id]) return;
               clearInterval(cronometrosActivos[id]);
@@ -3494,6 +3574,7 @@
                   tiemposRestantes[sectionId]--;
                   setLocalStorage(`timer_${sectionId}`, tiemposRestantes[sectionId]);
                   actualizarDisplayTiempo(sectionId);
+                  controlarAvisoTiempoEstudiante(sectionId);
               } else {
                   clearInterval(cronometrosActivos[sectionId]);
                   cronometrosActivos[sectionId] = null;
@@ -3506,7 +3587,7 @@
       function expirarTiempoModulo(sectionId) {
           if (!cuentaEstudianteActiva || !claseHabilitada || actividadesFinalizadas[sectionId]) return;
 
-          alert(`⏰ ¡Tiempo agotado (40 minutos) para este módulo! Se registrará nota 1 por tiempo expirado.`);
+          alert(`? ?Tiempo agotado (40 minutos) para este m?dulo! Se registrar? nota 1 por tiempo expirado.`);
 
           const editor = document.getElementById(`editor-${sectionId}`);
           if (editor) editor.disabled = true;
@@ -3522,6 +3603,7 @@
 
           actividadesFinalizadas[sectionId] = true;
           setLocalStorage(`finalized_${sectionId}`, 'true');
+          mostrarEvaluacionFinalEstudiante(sectionId);
 
           if(!historialResultados[sectionId]) historialResultados[sectionId] = {};
           historialResultados[sectionId].codigo = editor ? editor.value : '';
@@ -3550,6 +3632,92 @@
           seccionPendientePausa = sectionId;
           solicitarAccionProfesor('pausar_modulo');
       }
+
+      async function solicitarColaboracionEstudiante(sectionId) {
+          const boton = document.getElementById(`btn-solicitar-colaboracion-${sectionId}`);
+          if (boton?.disabled || boton?.dataset.busy === 'true') return;
+          const liberarBotonSolicitud = () => {
+              if (!boton) return;
+              boton.disabled = false;
+              delete boton.dataset.busy;
+          };
+          if (boton) {
+              boton.disabled = true;
+              boton.dataset.busy = 'true';
+          }
+          let sesion = window.__sesionCRDTEstudianteActiva;
+          if (!sesion || sesion.sectionId !== sectionId || !sesion.sesion?.solicitarCooperacion) {
+              await window.iniciarColaboracionCRDTEstudiante?.();
+              sesion = window.__sesionCRDTEstudianteActiva;
+          }
+          if (!sesion || sesion.sectionId !== sectionId || !sesion.sesion?.solicitarCooperacion) {
+              liberarBotonSolicitud();
+              alert('No se pudo preparar la solicitud de ayuda. Recargá la actividad e intentá nuevamente.');
+              return;
+          }
+          const sec = seccionesData.find(item => item.id === sectionId);
+          const motivo = prompt(
+              `¿Qué necesitás revisar con el docente en "${sec?.title || 'este desafío'}"?`,
+              'Necesito ayuda para revisar mi código.'
+          );
+          if (motivo === null) {
+              liberarBotonSolicitud();
+              return;
+          }
+          try {
+              const okSolicitud = await window.registrarSolicitudColaboracionFirebase?.({
+                  uid: window.firebaseCurrentUser?.uid,
+                  sectionId,
+                  objetivo: motivo,
+                  solicitadoPor: window.firebaseCurrentUser?.displayName || window.firebaseCurrentUser?.email || 'Estudiante'
+              });
+              if (!okSolicitud) throw new Error(window.ultimoErrorCooperacion?.message || 'No se pudo registrar la solicitud.');
+              const estado = document.getElementById(`estado-colaboracion-${sectionId}`);
+              if (estado) {
+                  estado.hidden = false;
+                  estado.textContent = 'Solicitud enviada al docente. Queda pendiente de atención.';
+              }
+              const cancelar = document.getElementById(`btn-cancelar-colaboracion-${sectionId}`);
+              if (cancelar) cancelar.hidden = false;
+          } catch (error) {
+              liberarBotonSolicitud();
+              const estado = document.getElementById(`estado-colaboracion-${sectionId}`);
+              if (estado) {
+                  estado.hidden = false;
+                  estado.textContent = error?.code === 'permission-denied'
+                      ? 'Firebase rechazó la solicitud. Verificá que las reglas publicadas correspondan a este proyecto.'
+                      : (error?.message || 'No se pudo enviar la solicitud de colaboración.');
+              }
+              alert(error?.message || 'No se pudo enviar la solicitud de colaboración.');
+          }
+      }
+      window.solicitarColaboracionEstudiante = solicitarColaboracionEstudiante;
+
+      async function cancelarColaboracionEstudiante(sectionId, boton) {
+          const uid = window.firebaseCurrentUser?.uid;
+          if (!uid || typeof window.eliminarSolicitudColaboracionEstudianteFirebase !== 'function') {
+              alert('La función de cancelación todavía no está disponible. Recargá la actividad.');
+              return;
+          }
+          if (!confirm('¿Cancelar esta solicitud de colaboración? Podrás volver a solicitar ayuda después.')) return;
+          if (boton) boton.disabled = true;
+          try {
+              const ok = await window.eliminarSolicitudColaboracionEstudianteFirebase({ uid, sectionId });
+              if (!ok) throw new Error(window.ultimoErrorCooperacion?.message || 'No se pudo cancelar la solicitud.');
+              const estado = document.getElementById(`estado-colaboracion-${sectionId}`);
+              if (estado) {
+                  estado.hidden = false;
+                  estado.textContent = 'Solicitud cancelada. Podés volver a solicitar colaboración cuando lo necesites.';
+              }
+              const solicitar = document.getElementById(`btn-solicitar-colaboracion-${sectionId}`);
+              if (solicitar) solicitar.disabled = false;
+              if (boton) boton.hidden = true;
+          } catch (error) {
+              if (boton) boton.disabled = false;
+              alert(error?.message || 'No se pudo cancelar la solicitud.');
+          }
+      }
+      window.cancelarColaboracionEstudiante = cancelarColaboracionEstudiante;
 
       function solicitarAccionProfesor(accion) {
           tipoAccionModal = accion;
@@ -3646,12 +3814,27 @@
           }
       }
 
-      window.addEventListener('keydown', event => {
+      window.addEventListener('keydown', async event => {
+          const objetivo = event.target;
+          const escribiendo = objetivo instanceof HTMLElement &&
+              (objetivo.matches('input, textarea, select, [contenteditable="true"]') ||
+               objetivo.closest('.cm-editor'));
+          if (escribiendo) return;
+
           const atajoFinClase = event.ctrlKey && event.altKey && !event.shiftKey && event.key.toLowerCase() === 'f';
           if (atajoFinClase) {
               event.preventDefault();
               if (event.repeat) return;
-              window.finalizarClaseFirebase?.().then(finalizada => {
+              const autorizado = await window.autorizarDocenteFirebase?.();
+              if (!autorizado) {
+                  alert("Solo una cuenta docente autorizada puede finalizar la clase.");
+                  return;
+              }
+              const confirmarFinalizacion = confirm(
+                  "¿Confirmás finalizar la clase? Todos los estudiantes volverán al estado de espera y se detendrán los cronómetros activos."
+              );
+              if (!confirmarFinalizacion) return;
+              window.finalizarClaseFirebase?.(true).then(finalizada => {
                   if (finalizada) {
                       aplicarEstadoInicioClase(false, {
                           finalizadaPor: window.firebaseTeacherUser?.email || window.firebaseCurrentUser?.email || "docente autorizado"
@@ -3665,6 +3848,11 @@
           if (atajoInicioClase) {
               event.preventDefault();
               if (event.repeat) return;
+              const autorizado = await window.autorizarDocenteFirebase?.();
+              if (!autorizado) {
+                  alert("Solo una cuenta docente autorizada puede iniciar la clase.");
+                  return;
+              }
               window.iniciarClaseFirebase?.().then(iniciada => {
                   if (iniciada) {
                       aplicarEstadoInicioClase(true, {
@@ -3684,6 +3872,7 @@
           const atajoDocente = event.ctrlKey && event.altKey && event.shiftKey && event.key.toLowerCase() === 'p';
           if (!atajoDocente) return;
           event.preventDefault();
+          if (event.repeat) return;
           if (!modal?.classList.contains('active')) {
               solicitarAccionProfesor('panel_profesor');
           }
@@ -3713,6 +3902,12 @@
 
       function desbloquearEjercicioActual() {
           const sectionId = seccionActivaActual;
+          if (actividadesFinalizadas[sectionId]) {
+              prepararReintentoDesafio(sectionId, { conservarHistorial: false });
+              actualizarProgreso();
+              alert(`Desafío ${sectionId} habilitado para un nuevo intento.`);
+              return;
+          }
           if (!actividadesFinalizadas[sectionId]) {
               alert("ℹ️ Este ejercicio ya se encuentra desbloqueado y activo.");
               return;
@@ -3723,6 +3918,8 @@
           removeLocalStorage(`preview_count_${sectionId}`);
           delete historialResultados[sectionId];
           contadorPrevisualizaciones[sectionId] = 0;
+          delete avisosTiempoEstudiante[sectionId];
+          document.getElementById(`time-review-alert-${sectionId}`)?.setAttribute("hidden", "");
 
           const editor = document.getElementById(`editor-${sectionId}`);
           actualizarBloqueoEditorEstudiante(sectionId);
@@ -3754,16 +3951,25 @@
           actualizarDisplayTiempo(sectionId);
 
           actualizarProgreso();
-          alert(`🔓 ¡El ejercicio actual (${sectionId}) ha sido desbloqueado con éxito por el profesor!`);
+          alert(`ðŸ”“ ¡El ejercicio actual (${sectionId}) ha sido desbloqueado con éxito por el profesor!`);
       }
 
       function desbloquearTodosEjercicios() {
+          seccionesData.forEach(sec => {
+              prepararReintentoDesafio(sec.id, { conservarHistorial: false });
+          });
+          actualizarProgreso();
+          alert("Todos los desafíos fueron habilitados para nuevos intentos.");
+          return;
+
           seccionesData.forEach(sec => {
               delete actividadesFinalizadas[sec.id];
               removeLocalStorage(`finalized_${sec.id}`);
               removeLocalStorage(`preview_count_${sec.id}`);
               delete historialResultados[sec.id];
               contadorPrevisualizaciones[sec.id] = 0;
+              delete avisosTiempoEstudiante[sec.id];
+              document.getElementById(`time-review-alert-${sec.id}`)?.setAttribute("hidden", "");
 
               const editor = document.getElementById(`editor-${sec.id}`);
               actualizarBloqueoEditorEstudiante(sec.id);
@@ -3792,11 +3998,13 @@
 
               tiemposRestantes[sec.id] = TIEMPO_MAXIMO_SEGUNDOS;
               removeLocalStorage(`timer_${sec.id}`);
+              delete avisosTiempoEstudiante[sec.id];
+              document.getElementById(`time-review-alert-${sec.id}`)?.setAttribute("hidden", "");
               actualizarDisplayTiempo(sec.id);
           });
 
           actualizarProgreso();
-          alert("🔓 ¡Todos los ejercicios de la plataforma han sido desbloqueados con éxito!");
+          alert("ðŸ”“ ¡Todos los ejercicios de la plataforma han sido desbloqueados con éxito!");
       }
 
       function togglePausaModulo(sectionId) {
@@ -3805,6 +4013,7 @@
           const editor = document.getElementById(`editor-${sectionId}`);
 
           modulosPausados[sectionId] = !modulosPausados[sectionId];
+          setLocalStorage(`pausa_${sectionId}`, modulosPausados[sectionId] ? 'true' : 'false');
 
           if (modulosPausados[sectionId]) {
               if (cronometrosActivos[sectionId]) {
@@ -3829,7 +4038,7 @@
                   control.disabled = true;
               });
 
-              alert(`⏸️ Cronómetro y edición pausados por el profesor para el módulo ${sectionId}.`);
+              alert(`?? Cron?metro y edici?n pausados por el profesor para el m?dulo ${sectionId}.`);
           } else {
               if (btnPause) {
                   btnPause.innerHTML = `<i class="fa-solid fa-pause"></i> Pausar (Profe)`;
@@ -3856,14 +4065,16 @@
                   }
               }
 
-              alert(`▶️ Cronómetro y edición reanudados para el módulo ${sectionId}.`);
+              alert(`?? Cron?metro y edici?n reanudados para el m?dulo ${sectionId}.`);
           }
       }
 
       function establecerPausaGlobal(nuevoEstadoPausa, mostrarAviso = true) {
           cronometrosPausadosPorDocente = Boolean(nuevoEstadoPausa);
-          const pausaEfectiva = cronometrosPausadosPorDocente || cronometrosPausadosIndividualmente;
+          setLocalStorage('pausa_global', cronometrosPausadosPorDocente ? 'true' : 'false');
           seccionesData.forEach(sec => {
+              const pausaIndividual = getLocalStorage(`pausa_${sec.id}`) === 'true';
+              const pausaEfectiva = cronometrosPausadosPorDocente || cronometrosPausadosIndividualmente || pausaIndividual;
               modulosPausados[sec.id] = pausaEfectiva;
               const btnPause = document.getElementById(`btn-pause-${sec.id}`);
               const banner = document.getElementById(`pause-banner-${sec.id}`);
@@ -3905,8 +4116,11 @@
                   }
               }
           });
+          const pausaEfectivaActual = seccionActivaActual
+              ? Boolean(modulosPausados[seccionActivaActual])
+              : false;
           if (
-              !pausaEfectiva &&
+              !pausaEfectivaActual &&
               moduloCronometroEnCurso &&
               moduloCronometroEnCurso === seccionActivaActual
           ) {
@@ -3915,8 +4129,8 @@
           actualizarBotonPausaCronometros();
           if (mostrarAviso) {
               alert(cronometrosPausadosPorDocente
-                  ? "⏸️ Pausa Global Activada: Se han congelado los cronómetros y editores de todos los módulos."
-                  : "▶️ Pausa Global Desactivada: Se han reanudado todos los módulos activos.");
+                  ? "?? Pausa Global Activada: Se han congelado los cron?metros y editores de todos los m?dulos."
+                  : "?? Pausa Global Desactivada: Se han reanudado todos los m?dulos activos.");
           }
       }
 
@@ -3955,22 +4169,42 @@
           }
       }
 
-      function reiniciarCronometrosLocales() {
+      function reiniciarCronometrosLocales(opciones = {}) {
+          const incluirFinalizados = opciones.incluirFinalizados === true;
+          const limpiarPausas = opciones.limpiarPausas === true;
           seccionesData.forEach(sec => {
-              if (actividadesFinalizadas[sec.id]) return;
+              if (!incluirFinalizados && actividadesFinalizadas[sec.id]) return;
               if (cronometrosActivos[sec.id]) {
                   clearInterval(cronometrosActivos[sec.id]);
                   cronometrosActivos[sec.id] = null;
               }
               tiemposRestantes[sec.id] = TIEMPO_MAXIMO_SEGUNDOS;
               setLocalStorage(`timer_${sec.id}`, TIEMPO_MAXIMO_SEGUNDOS);
+              removeLocalStorage(`timer_started_${sec.id}`);
+              delete avisosTiempoEstudiante[sec.id];
+              document.getElementById(`time-review-alert-${sec.id}`)?.setAttribute("hidden", "");
+              if (limpiarPausas) {
+                  removeLocalStorage(`pausa_${sec.id}`);
+                  modulosPausados[sec.id] = false;
+              }
               actualizarDisplayTiempo(sec.id);
           });
+          if (limpiarPausas) {
+              cronometrosPausadosIndividualmente = false;
+              cronometrosPausadosPorDocente = false;
+              removeLocalStorage('pausa_global');
+          }
           moduloCronometroEnCurso = null;
+          actualizarBotonPausaCronometros();
       }
 
       function aplicarControlCronometrosDocente(datos = {}) {
-          establecerPausaGlobal(Boolean(datos.cronometrosPausados), false);
+          const tieneEstadoRemoto = Object.prototype.hasOwnProperty.call(datos, 'cronometrosPausados');
+          const estadoPersistido = getLocalStorage('pausa_global') === 'true';
+          establecerPausaGlobal(
+              tieneEstadoRemoto ? Boolean(datos.cronometrosPausados) : estadoPersistido,
+              false
+          );
           const reinicioId = String(datos.cronometrosReinicioId || '');
           const ultimoReinicio = getLocalStorage('app_last_timer_reset') || '';
           if (!reinicioId || reinicioId === ultimoReinicio) return;
@@ -4081,7 +4315,6 @@
                   document.getElementById(`editor-${sectionId}`).dispatchEvent(new Event('input', { bubbles: true }));
                   document.getElementById(`console-${sectionId}`).innerText = '// Código restablecido.';
                   document.getElementById(`ai-feedback-${sectionId}`).classList.remove('active');
-                  removeLocalStorage(`draft_editor-${sectionId}`);
                   delete historialResultados[sectionId];
 
                   const navBtn = document.getElementById(`nav-btn-${sectionId}`);
@@ -4097,13 +4330,14 @@
       }
 
       async function reiniciarSesionEstudiante() {
-          if (confirm("⚠️ ¿Iniciar nueva sesión? Se cerrará la cuenta de Google y se borrará el avance local de este equipo.")) {
+          if (confirm("?? ?Iniciar nueva sesi?n? Se cerrar? la cuenta de Google y se borrar? el avance local de este equipo.")) {
               if (window.cerrarSesionGoogle) await window.cerrarSesionGoogle();
               else window.location.reload();
           }
       }
 
       function switchSection(sectionId) {
+          guardarCronometrosLocales();
           Object.keys(cronometrosActivos).forEach(id => {
               if (!cronometrosActivos[id]) return;
               clearInterval(cronometrosActivos[id]);
@@ -4111,9 +4345,6 @@
           });
           moduloCronometroEnCurso = null;
           seccionActivaActual = sectionId;
-          if (firebaseStorageUid) {
-              localStorage.setItem(storageKey('active_section_v1'), sectionId);
-          }
           document.querySelectorAll('.section-card').forEach(card => card.classList.remove('active'));
           document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
           document.querySelectorAll('.nav-item').forEach(item => item.setAttribute('aria-current', 'false'));
@@ -4126,14 +4357,18 @@
               targetNav.classList.add('active');
               targetNav.setAttribute('aria-current', 'page');
               const data = seccionesData.find(s => s.id === sectionId);
-              if (data) document.getElementById('currentTitle').innerText = data.title;
+          if (data) document.getElementById('currentTitle').innerText = data.title;
+          }
+          ubicarCronometroEnEncabezadoDesafio(sectionId);
+          actualizarDisplayTiempo(sectionId);
+          if (cronometroDesafioIniciado(sectionId)) {
+              iniciarCronometro(sectionId);
           }
           actualizarContextoExtensionSeguimiento();
           programarGuardadoFirebase();
           window.dispatchEvent(new CustomEvent("seccion-estudiante-cambiada", {
               detail: { sectionId }
           }));
-          renderRutaAprendizaje();
       }
 
       function actualizarProgreso() {
@@ -4143,26 +4378,9 @@
           document.getElementById('progressBarContainer')?.setAttribute('aria-valuenow', String(porcentaje));
           document.getElementById('progressText').innerText = `Progreso: ${porcentaje}% (${finalizadasCount}/${seccionesData.length} finalizadas)`;
           renderInformeVisualEstudiante();
-          renderRutaAprendizaje();
       }
 
       async function ejecutarCodigoAislado(code) {
-          const fuente = String(code || "");
-          const APIs_PROHIBIDAS = [
-              { patron: /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|WebTransport|importScripts)\b/, nombre: "acceso a red" },
-              { patron: /\b(?:Worker|SharedWorker|ServiceWorker|BroadcastChannel|RTCPeerConnection)\b/, nombre: "procesos o canales externos" },
-              { patron: /\b(?:indexedDB|caches)\b/, nombre: "almacenamiento del navegador" },
-              { patron: /\bimport\s*\(/, nombre: "importación dinámica" },
-              { patron: /\bnavigator\s*\.\s*sendBeacon\b/, nombre: "envío de datos" }
-          ];
-          const apiDetectada = APIs_PROHIBIDAS.find(item => item.patron.test(fuente));
-          if (apiDetectada) {
-              return {
-                  ok: false,
-                  logs: [],
-                  error: `La ejecución fue bloqueada porque intenta usar ${apiDetectada.nombre}.`
-              };
-          }
           const workerSource = `
               const serializar = valor => {
                   if (typeof valor !== "object" || valor === null) return String(valor);
@@ -4175,13 +4393,6 @@
               self.WebSocket = undefined;
               self.EventSource = undefined;
               self.importScripts = bloquearRed;
-              self.Worker = undefined;
-              self.SharedWorker = undefined;
-              self.BroadcastChannel = undefined;
-              self.RTCPeerConnection = undefined;
-              self.WebTransport = undefined;
-              self.indexedDB = undefined;
-              self.caches = undefined;
               self.onmessage = event => {
                   const logs = [];
                   const consola = {
@@ -4222,7 +4433,7 @@
                       URL.revokeObjectURL(workerUrl);
                       reject(new Error(event.message || "Error en el entorno aislado."));
                   };
-                  worker.postMessage({ code: fuente });
+                  worker.postMessage({ code });
               });
           } catch (error) {
               return { ok: false, logs: [], error: error.message };
@@ -4324,7 +4535,7 @@
           const total = eventos.length;
           const segundos = eventos.reduce((suma, item) => suma + Math.max(0, Number(item.duracionSegundos || item.duracion || 0)), 0);
           const minutos = Math.round(segundos / 60);
-          contenido.innerHTML = `<div class="student-tabs-summary-stats"><div><small>Cambios registrados</small><strong>${total}</strong></div><div><small>Tiempo fuera</small><strong>${minutos} min</strong></div><div><small>Último cambio</small><strong>${total ? escapeHtml(new Date(eventos[total - 1].timestamp || eventos[total - 1].en || Date.now()).toLocaleTimeString('es-AR')) : 'Sin cambios'}</strong></div></div><div class="student-tabs-summary-list">${total ? eventos.slice(-12).reverse().map(item => `<article><strong>${escapeHtml(item.titulo || item.dominio || item.motivo || 'Cambio de pestaña')}</strong><small>${escapeHtml(new Date(item.timestamp || item.en || Date.now()).toLocaleString('es-AR'))} · ${Math.max(0, Number(item.duracionSegundos || item.duracion || 0))} s</small></article>`).join('') : '<p class="student-tabs-summary-empty">Todavía no hay cambios de pestaña registrados.</p>'}</div>`;
+          contenido.innerHTML = `<div class="student-tabs-summary-stats"><div><small>Cambios registrados</small><strong>${total}</strong></div><div><small>Tiempo fuera</small><strong>${minutos} min</strong></div><div><small>�ltimo cambio</small><strong>${total ? escapeHtml(new Date(eventos[total - 1].timestamp || eventos[total - 1].en || Date.now()).toLocaleTimeString('es-AR')) : 'Sin cambios'}</strong></div></div><div class="student-tabs-summary-list">${total ? eventos.slice(-12).reverse().map(item => `<article><strong>${escapeHtml(item.titulo || item.dominio || item.motivo || 'Cambio de pesta?a')}</strong><small>${escapeHtml(new Date(item.timestamp || item.en || Date.now()).toLocaleString('es-AR'))} ? ${Math.max(0, Number(item.duracionSegundos || item.duracion || 0))} s</small></article>`).join('') : '<p class="student-tabs-summary-empty">Todav?a no hay cambios de pesta?a registrados.</p>'}</div>`;
           modal.classList.add('active');
           document.body.classList.add('student-tabs-summary-open');
           modal.querySelector('.student-tabs-summary-box')?.focus({preventScroll:true});
@@ -4539,8 +4750,8 @@
                   nombre,
                   cumple,
                   evidencia: cumple
-                      ? `Se encontró una estructura compatible con “${nombre}”.`
-                      : `No se encontró una estructura verificable para “${nombre}”.`
+                      ? `Se encontr� una estructura compatible con “${nombre}”.`
+                      : `No se encontr� una estructura verificable para “${nombre}”.`
               };
           });
           const conceptosCumplidos = evidenciasConceptos.filter(x => x.cumple).length;
@@ -4773,17 +4984,36 @@
           return evaluarCodigoPorEvidencias(code, sec, resultadoEjecucion).nota;
       }
 
-      function calcularNotaCombinada(notaCodigo, porcentajePreguntas, evaluacionCodigo = null) {
-          const codigo = Math.max(0, Math.min(10, Number(notaCodigo) || 0));
-          const preguntas = Math.max(0, Math.min(100, Number(porcentajePreguntas) || 0)) / 10;
-          let nota = codigo * 0.7 + preguntas * 0.3;
+      function calcularNotaCombinada(notaCodigo, porcentajePreguntas, evaluacionCodigo = null, componentes = {}) {
+          const codigoBase = Math.max(0, Math.min(10, Number(notaCodigo) || 0));
+          const metricas = evaluacionCodigo?.metricas || {};
+          const evidencia = [
+              Number(metricas.requisitos),
+              Number(metricas.estructura),
+              Number(metricas.calidad)
+          ].filter(Number.isFinite);
+          const requisitos = evidencia.length
+              ? evidencia.reduce((total, valor) => total + Math.max(0, Math.min(1, valor)), 0) / evidencia.length
+              : codigoBase / 10;
+          const funcionamiento = Number.isFinite(Number(metricas.comportamiento))
+              ? Math.max(0, Math.min(1, Number(metricas.comportamiento)))
+              : (evaluacionCodigo?.ejecucion?.ok ? 0.8 : 0);
+          const codigo = Number((codigoBase * 0.65 + requisitos * 10 * 0.35).toFixed(1));
+          const multiple = Math.max(0, Math.min(10, Number(componentes.multiple ?? porcentajePreguntas) || 0));
+          const socraticas = Math.max(0, Math.min(10, Number(componentes.socraticas ?? porcentajePreguntas) || 0));
+          const pruebas = Math.max(0, Math.min(10, Number(componentes.pruebas ?? (evaluacionCodigo?.ejecucion?.intentada ? (evaluacionCodigo.ejecucion.ok ? 10 : 2) : 0)) || 0));
+          let nota = (
+              codigo * 0.40 +
+              (funcionamiento * 10) * 0.25 +
+              multiple * 0.15 +
+              socraticas * 0.15 +
+              pruebas * 0.05
+          );
           const sintaxisValida = evaluacionCodigo?.sintaxis?.valida !== false;
-          const ejecucionNoAplicada = evaluacionCodigo?.ejecucion?.intentada === false;
-          const ejecucionCorrecta = ejecucionNoAplicada || evaluacionCodigo?.ejecucion?.ok !== false;
-          const comportamiento = Number(evaluacionCodigo?.metricas?.comportamiento);
+          const ejecucionCorrecta = evaluacionCodigo?.ejecucion?.ok !== false;
           if (!sintaxisValida) nota = Math.min(nota, 3);
           else if (!ejecucionCorrecta) nota = Math.min(nota, 4);
-          else if (Number.isFinite(comportamiento) && comportamiento < 0.35) nota = Math.min(nota, 6);
+          else if (funcionamiento < 0.35) nota = Math.min(nota, 6);
           return Number(Math.max(1, Math.min(10, nota)).toFixed(1));
       }
 
@@ -4793,7 +5023,7 @@
 
           let usos = contadorPrevisualizaciones[sectionId] || 0;
           if (usos >= 3) {
-              alert("⚠️ Has alcanzado el límite máximo de 3 consultas de nota previa para este módulo.");
+              alert("?? Has alcanzado el l?mite m?ximo de 3 consultas de nota previa para este m?dulo.");
               return;
           }
 
@@ -4841,7 +5071,7 @@
           },
           {
               respuestaAbierta: true,
-              q: () => `Compará una diferencia concreta entre tu solución y la solución de referencia. Elegí un criterio —claridad, robustez, eficiencia o facilidad de mantenimiento— y defendé cuál decisión es más adecuada y en qué situación podría convenir la otra.`
+              q: () => `Compar? una diferencia concreta entre tu soluci?n y la soluci?n de referencia. Eleg? un criterio �claridad, robustez, eficiencia o facilidad de mantenimiento� y defend? cu?l decisi?n es m?s adecuada y en qu? situaci?n podr?a convenir la otra.`
           },
           {
               respuestaAbierta: true,
@@ -4861,7 +5091,7 @@
           },
           {
               respuestaAbierta: true,
-              q: () => `Usando un ejemplo específico de tu código, explicá la diferencia entre “obtener la salida correcta” y construir una solución técnicamente sólida. Proponé una mejora y justificá qué calidad aporta.`
+              q: () => `Usando un ejemplo espec?fico de tu c?digo, explic? la diferencia entre �obtener la salida correcta� y construir una soluci?n t?cnicamente s?lida. Propon? una mejora y justific? qu? calidad aporta.`
           }
       ];
 
@@ -4922,110 +5152,6 @@
 
       const historialChatIA = {};
 
-      // TUTOR_LEVEL_POLICY_START
-      const NIVELES_AYUDA_TUTOR = Object.freeze([
-          { nivel: 1, nombre: "Recordatorio conceptual" },
-          { nivel: 2, nombre: "Pregunta orientadora" },
-          { nivel: 3, nombre: "Identificación del error" },
-          { nivel: 4, nombre: "Pseudocódigo" },
-          { nivel: 5, nombre: "Fragmento parcial" },
-          { nivel: 6, nombre: "Solución comentada" }
-      ]);
-
-      function normalizarConfiguracionTutor(configuracion = {}) {
-          return {
-              habilitado: configuracion.tutorHabilitado !== false,
-              evaluacionFormal: configuracion.evaluacionFormal === true,
-              nivelMaximo: Math.max(1, Math.min(6, Number(configuracion.nivelMaximoTutor) || 6)),
-              limiteConsultas: Math.max(1, Math.min(50, Number(configuracion.limiteConsultasTutor) || 12))
-          };
-      }
-
-      function evaluarAccesoTutor({
-          desafioExiste = true,
-          habilitado = true,
-          evaluacionFormal = false,
-          nivel = 1,
-          nivelMaximo = 6,
-          consultasUsadas = 0,
-          limiteConsultas = 12
-      } = {}) {
-          if (!desafioExiste) return { permitido: false, codigo: "desafio-inexistente", mensaje: "El desafío solicitado ya no está disponible." };
-          if (!habilitado) return { permitido: false, codigo: "tutor-desactivado", mensaje: evaluacionFormal ? "El tutor está desactivado durante esta evaluación formal." : "El docente desactivó temporalmente el tutor." };
-          if (Number(nivel) > Number(nivelMaximo)) return { permitido: false, codigo: "nivel-limitado", mensaje: `El docente habilitó ayudas hasta el nivel ${nivelMaximo}.` };
-          if (Number(consultasUsadas) >= Number(limiteConsultas)) return { permitido: false, codigo: "cuota-agotada", mensaje: `Alcanzaste el límite de ${limiteConsultas} consultas para este desafío.` };
-          return { permitido: true, codigo: "permitido", mensaje: "" };
-      }
-      // TUTOR_LEVEL_POLICY_END
-
-      function obtenerNivelAyudaTutor(modo = "consulta", pregunta = "") {
-          const coincidencia = String(modo).match(/(?:nivel|pista)([1-6])$/);
-          if (coincidencia) return Number(coincidencia[1]);
-          const texto = normalizarEvaluacion(`${modo} ${pregunta}`);
-          if (/solucion comentada|solucion completa/.test(texto)) return 6;
-          if (/fragmento|parte del codigo/.test(texto)) return 5;
-          if (/pseudocodigo/.test(texto)) return 4;
-          if (/error|linea|revisar/.test(texto)) return 3;
-          if (/pregunta|casos|prueba|siguiente/.test(texto)) return 2;
-          return 1;
-      }
-
-      function contarConsultasTutor(sectionId) {
-          const registradas = (historialChatIA[sectionId] || []).filter(mensaje =>
-              mensaje.rol === "student" && mensaje.noConsumeCuota !== true
-          ).length;
-          const persistidas = Math.max(
-              0,
-              Number.parseInt(getLocalStorage(`ai_usage_${sectionId}`) || "0", 10) || 0
-          );
-          return Math.max(registradas, persistidas);
-      }
-
-      function obtenerEstadoTutor(sectionId, nivel = 1) {
-          const configuracion = normalizarConfiguracionTutor(configuracionSeguimientoActual);
-          const usadas = contarConsultasTutor(sectionId);
-          const acceso = evaluarAccesoTutor({
-              desafioExiste: seccionesData.some(sec => sec.id === sectionId),
-              habilitado: configuracion.habilitado,
-              evaluacionFormal: configuracion.evaluacionFormal,
-              nivel,
-              nivelMaximo: configuracion.nivelMaximo,
-              consultasUsadas: usadas,
-              limiteConsultas: configuracion.limiteConsultas
-          });
-          return { ...configuracion, ...acceso, usadas, restantes: Math.max(0, configuracion.limiteConsultas - usadas) };
-      }
-
-      function etiquetaNivelTutor(nivel) {
-          return NIVELES_AYUDA_TUTOR.find(item => item.nivel === Number(nivel))?.nombre || "Consulta guiada";
-      }
-
-      function actualizarControlesTutorProgramacion(sectionId = "") {
-          const ids = sectionId ? [sectionId] : seccionesData.map(sec => sec.id);
-          ids.forEach(id => {
-              const estadoBase = obtenerEstadoTutor(id, 1);
-              const politica = document.getElementById(`ai-policy-${id}`);
-              if (politica) {
-                  politica.className = `student-ai-policy ${estadoBase.habilitado ? "" : "is-disabled"} ${estadoBase.evaluacionFormal ? "is-formal" : ""}`.trim();
-                  politica.innerHTML = estadoBase.habilitado
-                      ? `<span><i class="fa-solid fa-gauge-high"></i> ${estadoBase.restantes}/${estadoBase.limiteConsultas} consultas disponibles</span><span><i class="fa-solid fa-layer-group"></i> Nivel máximo ${estadoBase.nivelMaximo}${estadoBase.evaluacionFormal ? " · evaluación formal" : ""}</span>`
-                      : `<span><i class="fa-solid fa-lock"></i> ${escaparTextoAnalista(estadoBase.mensaje)}</span>`;
-              }
-              document.querySelectorAll(`#${CSS.escape(id)} [data-ai-level]`).forEach(control => {
-                  const nivel = Number(control.dataset.aiLevel || 1);
-                  const estado = obtenerEstadoTutor(id, nivel);
-                  control.disabled = !estado.permitido || Boolean(actividadesFinalizadas[id] || modulosPausados[id]);
-                  control.setAttribute("aria-disabled", String(control.disabled));
-                  if (!estado.permitido) control.title = estado.mensaje;
-              });
-              const input = document.getElementById(`ai-chat-input-${id}`);
-              if (input) {
-                  input.disabled = !estadoBase.permitido || Boolean(actividadesFinalizadas[id] || modulosPausados[id]);
-                  input.placeholder = estadoBase.permitido ? "Preguntá sobre tu código o el error..." : estadoBase.mensaje;
-              }
-          });
-      }
-
       function guardarChatIA(sectionId) {
           const mensajes = historialChatIA[sectionId] || [];
           setLocalStorage(`ai_chat_${sectionId}`, JSON.stringify(mensajes.slice(-20)));
@@ -5049,32 +5175,19 @@
           contenedor.innerHTML = mensajes.length
               ? mensajes.map(m => {
                   const esEstudiante = m.rol === "student";
-                  const nivel = Number(m.nivel || 0);
-                  return `<div class="ai-chat-message ${esEstudiante ? "student" : "assistant"} ${m.tipo === "error-servicio" ? "is-service-error" : ""}">
-                      <span class="ai-message-label">${esEstudiante ? "Tu consulta" : "Guía IA"}${nivel ? ` · Nivel ${nivel}: ${escaparTextoAnalista(etiquetaNivelTutor(nivel))}` : ""}</span>${escaparTextoAnalista(m.texto)}
+                  return `<div class="ai-chat-message ${esEstudiante ? "student" : "assistant"}">
+                      <span class="ai-message-label">${esEstudiante ? "Tu consulta" : "Guía IA"}</span>${escaparTextoAnalista(m.texto)}
                   </div>`;
               }).join("")
               : `<div class="ai-chat-message assistant"><span class="ai-message-label">Guía IA</span>Voy a leer tu código antes de responder. Puedo ayudarte a entender la consigna, localizar un error, revisar decisiones y diseñar pruebas. Te daré pistas progresivas, no la solución completa.</div>`;
           contenedor.scrollTop = contenedor.scrollHeight;
       }
 
-      function agregarMensajeChatIA(sectionId, rol, texto, metadata = {}) {
+      function agregarMensajeChatIA(sectionId, rol, texto) {
           if (!historialChatIA[sectionId]) historialChatIA[sectionId] = [];
-          if (rol === "student" && metadata.noConsumeCuota !== true) {
-              setLocalStorage(`ai_usage_${sectionId}`, String(contarConsultasTutor(sectionId) + 1));
-          }
-          historialChatIA[sectionId].push({
-              rol,
-              texto: String(texto || "").trim(),
-              nivel: Number(metadata.nivel || 0) || null,
-              tipo: metadata.tipo || "",
-              proveedor: metadata.proveedor || "",
-              noConsumeCuota: metadata.noConsumeCuota === true,
-              creadoEn: new Date().toISOString()
-          });
+          historialChatIA[sectionId].push({ rol, texto: String(texto || "").trim() });
           guardarChatIA(sectionId);
           renderizarChatIA(sectionId);
-          actualizarControlesTutorProgramacion(sectionId);
           actualizarEstadoChatIA(sectionId, "saving", "Pendiente de guardar");
           programarGuardadoFirebase();
       }
@@ -5173,19 +5286,8 @@
       }
 
       async function generarRespuestaChatIASegura(sectionId, pregunta, modo = "consulta") {
-          const nivel = obtenerNivelAyudaTutor(modo, pregunta);
-          const estado = obtenerEstadoTutor(sectionId, nivel);
-          if (!estado.permitido) {
-              actualizarEstadoChatIA(sectionId, "error", estado.mensaje);
-              return estado.mensaje;
-          }
           const respaldoLocal = generarRespuestaChatIA(sectionId, pregunta, modo);
-          if (navigator.onLine === false) {
-              actualizarEstadoChatIA(sectionId, "error", "Sin conexión · Tutor local activo");
-              return `${respaldoLocal}\n\nAviso: no hay conexión. Se utilizó el tutor local y la consulta quedó disponible para continuar trabajando.`;
-          }
           if (!window.firebaseAIRealConfigurada || typeof window.consultarTutorIAFirebase !== "function") {
-              actualizarEstadoChatIA(sectionId, "saved", "Tutor local activo");
               return respaldoLocal;
           }
           const sec = seccionesData.find(s => s.id === sectionId) || {};
@@ -5207,12 +5309,12 @@
           actualizarEstadoChatIA(sectionId, "saving", "Consultando tutor IA seguro...");
           try {
               const consulta = window.consultarTutorIAFirebase({
-                  classId: idClaseSeguimientoPestanas(),
-                  sectionId,
+                  nombreModulo: sec.title || sectionId,
+                  consigna: sec.exerciseDesc || "",
                   pregunta,
                   modo,
-                  nivel,
                   codigo: code,
+                  conceptos: (sec.conceptosDetectar || []).join(", "),
                   diagnosticoLocal: resumenLocal,
                   historialReciente: mensajes.map(m => `${m.rol === "student" ? "Alumno" : "Tutor"}: ${m.texto}`).join("\n")
               });
@@ -5220,21 +5322,11 @@
                   consulta,
                   new Promise((_, reject) => setTimeout(() => reject(new Error("Tiempo de espera agotado.")), 15000))
               ]);
-              actualizarEstadoChatIA(sectionId, "saved", "Tutor IA disponible");
               return validarRespuestaTutorRemoto(respuestaRemota, respaldoLocal);
           } catch (error) {
               console.warn("Tutor IA remoto no disponible; se usará el tutor local.", error);
-              const codigoError = String(error?.code || "");
-              if (codigoError.includes("resource-exhausted")) {
-                  actualizarEstadoChatIA(sectionId, "error", "Cuota de IA agotada");
-                  return "Alcanzaste la cuota segura de consultas de IA para este desafío. Podés seguir ejecutando y revisando tu código; el docente puede ajustar el límite para una próxima consulta.";
-              }
-              if (codigoError.includes("permission-denied") || codigoError.includes("failed-precondition")) {
-                  actualizarEstadoChatIA(sectionId, "error", "Consulta no autorizada");
-                  return `La consulta remota no fue autorizada: ${error?.message || "revisá el estado de la clase y tu cuenta"}.`;
-              }
               actualizarEstadoChatIA(sectionId, "error", "Tutor local activo");
-              return `${respaldoLocal}\n\nAviso: el proveedor de IA no respondió. Se utilizó el tutor local y la consulta quedó registrada sin reintento automático.`;
+              return respaldoLocal;
           }
       }
 
@@ -5251,74 +5343,10 @@
           const texto = normalizarEvaluacion(`${pregunta} ${modo}`);
           const diagnostico = diagnosticarCodigoChatIA(code, sec, evaluacion, historial);
           const pendientes = diagnostico.conceptosPendientes;
-          const nivelPista = obtenerNivelAyudaTutor(modo, pregunta);
+          const nivelPista = /^pista[123]$/.test(modo)
+              ? Number(modo.slice(-1))
+              : obtenerNivelPistaIA(sectionId, pregunta);
           const preguntaSocratica = (sec.preguntasSocraticas || [])[Math.min(nivelPista - 1, Math.max(0, (sec.preguntasSocraticas || []).length - 1))];
-
-          if (/^nivel[1-6]$/.test(modo)) {
-              const linea = diagnostico.lineaError || diagnostico.lineaSospechosa;
-              const tipoError = diagnostico.delimitadores.length
-                  ? "sintaxis"
-                  : diagnostico.errorTexto || diagnostico.asignacionEnCondicion || diagnostico.funcionSinRetorno
-                      ? "lógica o ejecución"
-                      : pendientes.length
-                          ? "comprensión"
-                          : "validación";
-              const casoPrueba = diagnostico.errorTexto
-                  ? `El último caso ejecutado falló con: ${diagnostico.errorTexto}.`
-                  : diagnostico.tieneDecision
-                      ? "Probá un caso que cumpla la condición y otro que no la cumpla."
-                      : "Probá una entrada habitual y otra límite.";
-              if (nivelPista === 1) {
-                  return construirRespuestaIA(
-                      `Nivel 1 · ${etiquetaNivelTutor(1)}`,
-                      `Este desafío trabaja ${sec.theory || "el concepto indicado en la consigna"}. El foco actual es ${pendientes[0] || "explicar la entrada, el proceso y la salida"}.`,
-                      "Escribí con tus palabras qué debería recibir el programa, qué debería transformar y qué debería mostrar.",
-                      preguntaSocratica || "¿Qué concepto de la consigna podés nombrar antes de tocar el código?"
-                  );
-              }
-              if (nivelPista === 2) {
-                  return construirRespuestaIA(
-                      `Nivel 2 · ${etiquetaNivelTutor(2)}`,
-                      `Pensá el problema como una secuencia de decisiones; todavía no hace falta escribir la solución.`,
-                      "¿Qué valor debería tener la variable principal antes y después de la instrucción que estás revisando?",
-                      preguntaSocratica || casoPrueba
-                  );
-              }
-              if (nivelPista === 3) {
-                  return construirRespuestaIA(
-                      `Nivel 3 · ${etiquetaNivelTutor(3)}`,
-                      `El problema parece de ${tipoError}${linea ? ` y la zona para revisar es la línea ${linea}` : ""}.`,
-                      diagnostico.errorTexto
-                          ? `Compará el valor esperado con el valor real justo antes de esa línea y cambiá una sola cosa.`
-                          : "Revisá el fragmento que concentra la condición, el retorno o el delimitador desbalanceado.",
-                      casoPrueba
-                  );
-              }
-              if (nivelPista === 4) {
-                  return construirRespuestaIA(
-                      `Nivel 4 · ${etiquetaNivelTutor(4)}`,
-                      "Pasemos la solución a pseudocódigo, sin sintaxis JavaScript lista para copiar.",
-                      `1. Recibir los datos.\n2. ${pendientes[0] ? `Resolver ${pendientes[0]}.` : "Aplicar la decisión o repetición necesaria."}\n3. Comprobar el resultado.\n4. Mostrar la salida.`,
-                      preguntaSocratica || "¿Qué paso del pseudocódigo podés convertir primero en una instrucción?"
-                  );
-              }
-              if (nivelPista === 5) {
-                  return construirRespuestaIA(
-                      `Nivel 5 · ${etiquetaNivelTutor(5)}`,
-                      "Te muestro solo la forma parcial del fragmento que deberías completar.",
-                      pendientes.length
-                          ? `Fragmento orientativo: ${pendientes[0]}(...)\n// completá los datos, la condición o el retorno según la consigna.`
-                          : "Fragmento orientativo: const resultado = /* completá la transformación */;",
-                      "¿Qué parte falta completar para que el caso de prueba produzca la salida esperada?"
-                  );
-              }
-              return construirRespuestaIA(
-                  `Nivel 6 · ${etiquetaNivelTutor(6)}`,
-                  "Este nivel muestra una solución comentada y debe usarse para comparar decisiones, no para copiarla directamente.",
-                  `// Entrada: definí los datos que pide la consigna.\n// Proceso: aplicá ${pendientes[0] || "la regla principal"}.\n// Salida: verificá el resultado con un caso habitual y uno límite.\n// Completá la sintaxis con tus propias decisiones.`,
-                  casoPrueba
-              );
-          }
 
           if (/^(hola|buenas|buen dia|buenas tardes|buenas noches)\b/.test(texto)) {
               return construirRespuestaIA(
@@ -5326,7 +5354,7 @@
                   diagnostico.esPlantilla
                       ? "todavía está la plantilla inicial."
                       : `hay ${diagnostico.lineasUtiles.length} líneas útiles y la evaluación orientativa marca ${evaluacion.nota}/10.`,
-                  "Elegí “Entender consigna” si todavía estás planificando o “Revisar mi código” si ya hiciste un intento."
+                  "Eleg� “Entender consigna” si todav�a est�s planificando o “Revisar mi c�digo” si ya hiciste un intento."
               );
           }
 
@@ -5361,7 +5389,7 @@
                   mejoras.length
                       ? mejoras[0]
                       : pendientes.length
-                          ? `Hacé visible en el código el concepto “${pendientes[0]}”.`
+                          ? `Hac� visible en el c�digo el concepto “${pendientes[0]}”.`
                           : "Ejecutá dos casos con datos distintos y compará los resultados esperados.",
                   preguntaSocratica || "¿Qué línea demuestra mejor que tu programa cumple la consigna?"
               );
@@ -5451,7 +5479,7 @@
                   "No voy a entregar el código completo.",
                   "la actividad evalúa tu razonamiento y tus decisiones, no solo el resultado final.",
                   pendientes.length
-                      ? `Trabajemos sobre “${pendientes[0]}”: explicá en una frase qué debería hacer esa parte.`
+                      ? `Trabajemos sobre �${pendientes[0]}�: explic? en una frase qu? deber?a hacer esa parte.`
                       : "Decime qué parte te cuesta: entrada, condición, repetición, función o salida.",
                   "¿Qué intentaste hasta ahora y qué resultado obtuviste?"
               );
@@ -5476,7 +5504,7 @@
               return construirRespuestaIA(
                   "Necesito una ejecución reciente.",
                   "no encuentro un error registrado en la consola del módulo.",
-                  "Pulsá “Ejecutar y probar” y después volvé a “Ayúdame con el error”.",
+                  "Puls� “Ejecutar y probar” y despu�s volv� a “Ay�dame con el error”.",
                   "¿Cuál es la primera salida que difiere de lo esperado?"
               );
           }
@@ -5485,15 +5513,15 @@
               return construirRespuestaIA(
                   "Un solo foco para avanzar",
                   foco
-                      ? `todavía no encuentro evidencia clara de “${foco}”.`
+                      ? `todav�a no encuentro evidencia clara de “${foco}”.`
                       : `la estructura alcanza una estimación de ${evaluacion.nota}/10 y no detecto un concepto principal ausente.`,
                   foco
-                      ? `Agregá o corregí únicamente la parte que demuestra “${foco}” y ejecutá de nuevo.`
+                      ? `Agreg? o correg? ?nicamente la parte que demuestra �${foco}� y ejecut? de nuevo.`
                       : "Diseñá un caso límite y verificá que la salida siga siendo correcta.",
                   preguntaSocratica || "¿Qué cambio pequeño podés comprobar antes de continuar?"
               );
           }
-          if (/condicion|if|decidir/.test(texto)) return construirRespuestaIA("Condiciones", diagnostico.tieneDecision ? "tu código ya contiene una decisión." : "todavía no detecto una decisión explícita.", "Escribí la regla en palabras: “si ocurre..., entonces...; de lo contrario...”. Después traducí exactamente esa regla.", "¿Qué dos resultados diferentes debería producir la condición?");
+          if (/condicion|if|decidir/.test(texto)) return construirRespuestaIA("Condiciones", diagnostico.tieneDecision ? "tu c?digo ya contiene una decisi?n." : "todav?a no detecto una decisi?n expl?cita.", "Escrib? la regla en palabras: �si ocurre..., entonces...; de lo contrario...�. Despu?s traduc? exactamente esa regla.", "?Qu? dos resultados diferentes deber?a producir la condici?n?");
           if (/bucle|repet|for|while|recorrer/.test(texto)) return construirRespuestaIA("Repeticiones", diagnostico.tieneRepeticion ? "tu código ya contiene una estructura repetitiva." : "todavía no detecto un bucle.", "Definí qué dato recorrés, dónde empieza y cuál es la condición de finalización.", "¿Qué cambia en cada vuelta para evitar un ciclo infinito?");
           if (/funcion|parametro|return/.test(texto)) return construirRespuestaIA("Funciones", diagnostico.tieneFuncion ? "tu código ya declara una función." : "todavía no detecto una función.", "Definí una tarea única, los datos que recibe y el resultado que devuelve. Probala con un ejemplo pequeño.", "¿La función devuelve un valor o solamente lo muestra?");
           if (/salida|console|mostrar|resultado/.test(texto)) return construirRespuestaIA("Salida del programa", diagnostico.tieneSalida ? "hay una instrucción de salida en tu código." : "no encuentro una salida visible con console.log.", "Compará la variable mostrada con la salida exacta que exige la consigna y verificá cuándo se calcula.", "¿La salida permite comprobar el resultado sin leer el código?");
@@ -5502,17 +5530,17 @@
                   "Vamos a reducir el problema.",
                   diagnostico.esPlantilla ? "todavía no hay un intento ejecutable." : `ya escribiste ${diagnostico.lineasUtiles.length} líneas útiles.`,
                   nivelPista >= 3 && pendientes.length
-                      ? `Buscá en la teoría del módulo el concepto “${pendientes[0]}” y escribí una sola instrucción que lo represente.`
-                      : "Completá esta frase en un comentario: “Mi programa recibe..., hace... y muestra...”.",
+                      ? `Busc? en la teor?a del m?dulo el concepto �${pendientes[0]}� y escrib? una sola instrucci?n que lo represente.`
+                      : "Complet� esta frase en un comentario: “Mi programa recibe..., hace... y muestra...”.",
                   preguntaSocratica || "¿Cuál de esas tres partes podés resolver primero?"
               );
           }
           if (pendientes.length) {
               const accion = nivelPista === 1
-                  ? `Revisá la consigna y localizá dónde debería aparecer “${pendientes[0]}”.`
+                  ? `Revis? la consigna y localiz? d?nde deber?a aparecer �${pendientes[0]}�.`
                   : nivelPista === 2
-                      ? `Escribí en un comentario qué debería hacer “${pendientes[0]}” y convertí ese comentario en una instrucción.`
-                      : `Concentrate solo en “${pendientes[0]}”: agregá la estructura mínima que lo demuestre y ejecutá un caso pequeño.`;
+                      ? `Escrib? en un comentario qu? deber?a hacer �${pendientes[0]}� y convert? ese comentario en una instrucci?n.`
+                      : `Concentrate solo en �${pendientes[0]}�: agreg? la estructura m?nima que lo demuestre y ejecut? un caso peque?o.`;
               return construirRespuestaIA(
                   `Pista ${nivelPista} de 3`,
                   `detecté ${diagnostico.conceptosCumplidos.length ? `como avances ${diagnostico.conceptosCumplidos.join(", ")}, pero ` : ""}falta evidencia clara de ${pendientes.join(", ")}.`,
@@ -5541,35 +5569,17 @@
               linea: "Explicame el error o la línea más importante de mi código.",
               pista1: "Dame una pista de nivel 1: ayudame a ubicar el concepto sin decirme cómo resolverlo.",
               pista2: "Dame una pista de nivel 2: ayudame a convertir el concepto en un paso concreto.",
-              pista3: "Dame una pista de nivel 3: indicame qué cambio mínimo puedo probar ahora.",
-              nivel1: "Solicito nivel 1: recordatorio conceptual.",
-              nivel2: "Solicito nivel 2: pregunta orientadora.",
-              nivel3: "Solicito nivel 3: identificación del error.",
-              nivel4: "Solicito nivel 4: pseudocódigo.",
-              nivel5: "Solicito nivel 5: fragmento parcial.",
-              nivel6: "Solicito nivel 6: solución comentada."
+              pista3: "Dame una pista de nivel 3: indicame qué cambio mínimo puedo probar ahora."
           };
           const pregunta = textos[modo] || textos.pista;
-          const nivel = obtenerNivelAyudaTutor(modo, pregunta);
-          const estado = obtenerEstadoTutor(sectionId, nivel);
-          if (!estado.permitido) {
-              agregarMensajeChatIA(sectionId, "assistant", estado.mensaje, { nivel, tipo: "politica", noConsumeCuota: true });
-              return;
-          }
-          agregarMensajeChatIA(sectionId, "student", pregunta, { nivel });
+          agregarMensajeChatIA(sectionId, "student", pregunta);
           const respuesta = await generarRespuestaChatIASegura(sectionId, pregunta, modo);
-          const falloProveedor = respuesta.includes("el proveedor de IA no respondió");
-          const sinConexion = respuesta.includes("no hay conexión");
-          agregarMensajeChatIA(sectionId, "assistant", respuesta, {
-              nivel,
-              tipo: falloProveedor ? "error-servicio" : sinConexion ? "sin-conexion" : "",
-              proveedor: falloProveedor || sinConexion || !window.firebaseAIRealConfigurada ? "local" : "firebase-ai"
-          });
+          agregarMensajeChatIA(sectionId, "assistant", respuesta);
       }
 
       function limpiarChatIA(sectionId) {
           if (!claseHabilitada || actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
-          if (!confirm("¿Ocultar las consultas de IA de este módulo? La cantidad de consultas utilizadas no se reiniciará.")) return;
+          if (!confirm("¿Limpiar las consultas de IA de este módulo? El docente dejará de ver este historial después de sincronizarse.")) return;
           historialChatIA[sectionId] = [];
           guardarChatIA(sectionId);
           renderizarChatIA(sectionId);
@@ -5582,23 +5592,11 @@
           const input = document.getElementById(`ai-chat-input-${sectionId}`);
           const pregunta = input?.value.trim() || "";
           if (!pregunta) return;
-          const nivel = obtenerNivelAyudaTutor("consulta", pregunta);
-          const estado = obtenerEstadoTutor(sectionId, nivel);
-          if (!estado.permitido) {
-              agregarMensajeChatIA(sectionId, "assistant", estado.mensaje, { nivel, tipo: "politica", noConsumeCuota: true });
-              return;
-          }
           input.value = "";
           input.disabled = true;
-          agregarMensajeChatIA(sectionId, "student", pregunta, { nivel });
+          agregarMensajeChatIA(sectionId, "student", pregunta);
           const respuesta = await generarRespuestaChatIASegura(sectionId, pregunta);
-          const falloProveedor = respuesta.includes("el proveedor de IA no respondió");
-          const sinConexion = respuesta.includes("no hay conexión");
-          agregarMensajeChatIA(sectionId, "assistant", respuesta, {
-              nivel,
-              tipo: falloProveedor ? "error-servicio" : sinConexion ? "sin-conexion" : "",
-              proveedor: falloProveedor || sinConexion || !window.firebaseAIRealConfigurada ? "local" : "firebase-ai"
-          });
+          agregarMensajeChatIA(sectionId, "assistant", respuesta);
           input.disabled = false;
           input.focus();
       }
@@ -5701,12 +5699,12 @@
           const base = mezclarArray(analistaPlantillas).slice(0,4);
           const personalizadas = configuradas.slice(0,2).map(q => ({
               tipo:"SOCRÁTICA",
-              categoria:"SOCRÁTICA DEL DESAFÍO",
+              categoria:"SOCR�TICA DEL DESAFÍO",
               respuestaAbierta:true,
               q:()=>`${q} Fundamentá tu respuesta con una decisión concreta del código, una evidencia y una consecuencia.`
           }));
           const gen = mezclarArray(preguntasSocraticas).slice(0,Math.max(0,2-personalizadas.length));
-          return [...base.map(p=>({...p,categoria:"ANÁLISIS TÉCNICO"})),...personalizadas,...gen.map(p=>({...p,tipo:"SOCRÁTICA",categoria:"SOCRÁTICA"}))].map((p,i)=>{
+          return [...base.map(p=>({...p,categoria:"AN?LISIS T�CNICO"})),...personalizadas,...gen.map(p=>({...p,tipo:"SOCR?TICA",categoria:"SOCR?TICA"}))].map((p,i)=>{
             const respuestaAbierta = p.respuestaAbierta === true || p.tipo === "SOCRÁTICA";
             const opciones = respuestaAbierta ? [] : mezclarArray(p.opciones(code,ideal));
             if (!respuestaAbierta && !opciones.some(x=>x.c)) opciones[0].c=true;
@@ -5740,10 +5738,10 @@
                   <strong>${i + 1}. ${p.q}</strong>
                   <div style="margin:.4rem 0 .7rem;color:var(--text-muted);font-size:.75rem">
                       <span class="analyst-badge">${p.categoria || "ANÁLISIS"}</span>
-                      ${p.respuestaAbierta ? "🟠 Respuesta razonada sobre tu solución" :
-                        p.tipo === "ESTUDIANTE" ? "🔵 Basada en tu código" :
-                        p.tipo === "IA" ? "🟣 Basada en la solución de IA" :
-                        "🟢 Comparación entre ambos códigos"}
+                      ${p.respuestaAbierta ? "ðŸŸ  Respuesta razonada sobre tu solución" :
+                        p.tipo === "ESTUDIANTE" ? "ðŸ”µ Basada en tu código" :
+                        p.tipo === "IA" ? "ðŸŸ£ Basada en la solución de IA" :
+                        "ðŸŸ¢ Comparación entre ambos códigos"}
                       <br>${p.respuestaAbierta
                           ? "Incluí una decisión concreta, una justificación, una evidencia y una consecuencia o mejora."
                           : 'Puede haber <strong>más de una respuesta correcta</strong>.'}
@@ -5759,6 +5757,12 @@
                                  maxlength="900"
                                  placeholder="Escribí entre 3 y 6 oraciones. No alcanza con decir que funciona: explicá por qué y con qué evidencia."></textarea>
                        <div class="analyst-open-counter">Máximo 900 caracteres</div>
+                       <button type="button"
+                               class="btn btn-secondary analyst-explain-question"
+                               onclick="explicarPreguntaAnalista('${sectionId}', ${i}, this)">
+                           <i class="fa-solid fa-lightbulb"></i> Explicame qué pide
+                       </button>
+                       <div class="analyst-question-help" id="analyst-help-${sectionId}-${i}" hidden aria-live="polite"></div>
                    ` : p.opciones.map((op,j) => `
                        <label class="analyst-option">
                            <input type="checkbox"
@@ -5767,6 +5771,13 @@
                            ${String.fromCharCode(65+j)}) ${escaparTextoAnalista(op.t)}
                        </label>
                    `).join("")}
+                   <button type="button"
+                           class="btn btn-secondary analyst-explain-question"
+                           style="${p.respuestaAbierta ? 'display:none' : ''}"
+                           onclick="explicarPreguntaAnalista('${sectionId}', ${i}, this)">
+                       <i class="fa-solid fa-lightbulb"></i> Explicame las opciones
+                   </button>
+                   <div class="analyst-question-help" id="analyst-help-${sectionId}-${i}" hidden aria-live="polite"></div>
                    <div class="analyst-question-feedback"
                         id="analyst-feedback-${sectionId}-${i}"
                         aria-live="polite"></div>
@@ -5776,9 +5787,73 @@
           result.innerHTML = "";
           box.classList.add("active");
            document.getElementById(`analyst-submit-${sectionId}`).disabled = false;
-       }
+      }
 
-       function calificarRespuestaAnalista(marcadas, reales) {
+      async function explicarPreguntaAnalista(sectionId, indice, boton = null) {
+          const preguntas = window.analistaActual?.[sectionId] || [];
+          const pregunta = preguntas[Number(indice)];
+          const salida = document.getElementById(`analyst-help-${sectionId}-${indice}`);
+          if (!pregunta || !salida) return;
+          if (boton?.disabled) return;
+          const textoPregunta = String(pregunta.q || "").trim();
+          const sec = seccionesData.find(item => item.id === sectionId) || {};
+          const esAbierta = pregunta.respuestaAbierta === true || pregunta.formato === "abierta";
+          const modoAyuda = esAbierta ? "pregunta socrática abierta" : "pregunta de selección múltiple";
+          const historial = historialResultados[sectionId] || (historialResultados[sectionId] = {});
+          historial.ayudasAnalista = Array.isArray(historial.ayudasAnalista) ? historial.ayudasAnalista : [];
+          historial.ayudasAnalista.push({
+              fecha: new Date().toISOString(),
+              indice: Number(indice),
+              tipo: esAbierta ? "abierta" : "seleccion-multiple",
+              pregunta: String(pregunta.q || "").trim()
+          });
+          historial.ayudasAnalista = historial.ayudasAnalista.slice(-30);
+          programarGuardadoFirebase();
+          const prompt = [
+              "Necesito entender una pregunta socrática de una actividad de JavaScript.",
+              `Pregunta: ${textoPregunta}`,
+              `Consigna del desafío: ${sec.exerciseDesc || ""}`,
+              "Explicá con lenguaje claro qué me pide la pregunta, qué parte de mi código debo observar y qué evidencia debería mencionar.",
+              "No respondas la pregunta por mí, no escribas código completo y no inventes una respuesta del estudiante."
+          ].join("\n\n");
+          const etiquetaOriginal = boton?.innerHTML || "";
+          if (boton) {
+              boton.disabled = true;
+              boton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Explicando...';
+          }
+          salida.hidden = false;
+          salida.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> La IA está leyendo la pregunta...';
+          try {
+              let respuesta = "";
+              if (window.firebaseAIRealConfigurada && typeof window.consultarTutorIAFirebase === "function") {
+                  respuesta = await generarRespuestaChatIASegura(
+                      sectionId,
+                      `${prompt}\n\nTipo de ayuda solicitada: ${modoAyuda}. ${esAbierta
+                          ? "Enfocate en organizar una explicación propia."
+                          : "Enfocate en enseñar a comparar las opciones sin revelar la correcta."}`,
+                      "consigna"
+                  );
+              } else {
+                  respuesta = [
+                      `Qué te pide: ${textoPregunta}`,
+                      "Cómo encararla: buscá en tu código una decisión concreta, explicá por qué la tomaste y señalá una evidencia observable.",
+                      "Importante: escribí tu propio razonamiento; esta ayuda no incluye una respuesta lista para entregar."
+                  ].join("<br>");
+              }
+              salida.innerHTML = escapeHtml(String(respuesta || "No se pudo generar una explicación.")).replace(/\n/g, "<br>");
+          } catch (error) {
+              console.warn("No se pudo explicar la pregunta socrática:", error);
+              salida.innerHTML = "No se pudo generar la explicación ahora. Revisá la consigna y volvé a intentarlo.";
+          } finally {
+              if (boton) {
+                  boton.disabled = false;
+                  boton.innerHTML = etiquetaOriginal;
+              }
+          }
+      }
+      window.explicarPreguntaAnalista = explicarPreguntaAnalista;
+
+      function calificarRespuestaAnalista(marcadas, reales) {
            const puntosRubrica = normalizarRubricaSocratica(rubricaSocraticaActual).puntos;
            const aciertos = marcadas.filter(x => reales.includes(x)).length;
            const errores = marcadas.filter(x => !reales.includes(x)).length;
@@ -5956,7 +6031,7 @@
           const result = document.getElementById(`analyst-result-${sectionId}`);
 
            if (respondidas < preguntas.length) {
-               result.innerHTML = `⚠️ Debes responder todas las preguntas. Las socráticas requieren una explicación escrita y las técnicas pueden tener varias opciones correctas.`;
+               result.innerHTML = `?? Debes responder todas las preguntas. Las socr?ticas requieren una explicaci?n escrita y las t?cnicas pueden tener varias opciones correctas.`;
                return;
            }
 
@@ -5982,21 +6057,39 @@
           if (!historialResultados[sectionId]) historialResultados[sectionId] = {};
           const notaCodigo = Number(historialResultados[sectionId].notaCodigo ?? historialResultados[sectionId].notaIA ?? 0);
           const evaluacionCodigo = historialResultados[sectionId].evaluacionCodigo || null;
-          const notaFinal = calcularNotaCombinada(notaCodigo, porcentaje, evaluacionCodigo);
-           const limiteFinal = evaluacionCodigo?.sintaxis?.valida === false
-               ? "La calificación automática del módulo se limitó a 3 porque el código contiene un error de sintaxis."
-               : evaluacionCodigo?.ejecucion?.intentada !== false && evaluacionCodigo?.ejecucion?.ok === false
-                   ? "La calificación automática del módulo se limitó a 4 porque el código no se ejecutó correctamente."
-                   : evaluacionCodigo?.ejecucion?.intentada !== false && Number(evaluacionCodigo?.metricas?.comportamiento) < 0.35
-                       ? "La calificación automática del módulo se limitó a 6 porque la salida no demuestra el comportamiento esperado."
+           const notaFinal = calcularNotaCombinada(notaCodigo, porcentaje, evaluacionCodigo, {
+               multiple: porcentaje,
+               socraticas: notaPreguntas,
+               pruebas: evaluacionCodigo?.ejecucion?.intentada
+                   ? (evaluacionCodigo.ejecucion.ok ? 10 : 2)
+                   : 0
+           });
+          const metricasCodigoVista = evaluacionCodigo?.metricas || {};
+          const evidenciasCodigoVista = [
+              Number(metricasCodigoVista.requisitos),
+              Number(metricasCodigoVista.comportamiento),
+              Number(metricasCodigoVista.estructura),
+              Number(metricasCodigoVista.calidad)
+          ].filter(Number.isFinite);
+          const evidenciaCodigoVista = evidenciasCodigoVista.length
+              ? Number((evidenciasCodigoVista.reduce((total, valor) => total + valor, 0) / evidenciasCodigoVista.length * 10).toFixed(1))
+              : notaCodigo;
+           const funcionamientoVista = Number(((evaluacionCodigo?.metricas?.comportamiento || 0) * 10).toFixed(1));
+          const limiteFinal = evaluacionCodigo?.sintaxis?.valida === false
+              ? "La calificación automática del módulo se limitó a 3 porque el código contiene un error de sintaxis."
+              : evaluacionCodigo?.ejecucion?.ok === false
+                  ? "La calificación automática del módulo se limitó a 4 porque el código no se ejecutó correctamente."
+                  : Number(evaluacionCodigo?.metricas?.comportamiento) < 0.35
+                      ? "La calificación automática del módulo se limitó a 6 porque la salida no demuestra el comportamiento esperado."
                       : "";
 
            result.innerHTML =
                `<strong>Calificación automática del módulo: ${notaFinal}/10</strong><br>` +
-               `Código: <strong>${notaCodigo}/10</strong> (70%).<br>` +
-               `Preguntas: <strong>${notaPreguntas}/10</strong> (30%).<br>` +
+               `Funcionamiento y pruebas: <strong>${funcionamientoVista}/10</strong> (25%).<br>` +
+               `Opción múltiple: <strong>${notaPreguntas}/10</strong> (15%).<br>` +
+               `Socráticas: <strong>${notaPreguntas}/10</strong> (15%).<br>` +
+               `Proceso y pruebas registradas: <strong>${evaluacionCodigo?.ejecucion?.intentada ? (evaluacionCodigo.ejecucion.ok ? "10.0" : "2.0") : "0.0"}/10</strong> (5%).<br>` +
                `<strong>Desglose:</strong> ${conteoNiveles.completa} completas (${rubricaAplicada.puntos.completa.toFixed(2)}), ${conteoNiveles.incompleta} correctas incompletas (${rubricaAplicada.puntos.incompleta.toFixed(2)}), ${conteoNiveles.parcial} parciales (${rubricaAplicada.puntos.parcial.toFixed(2)}) y ${conteoNiveles.incorrecta} incorrectas (${rubricaAplicada.puntos.incorrecta.toFixed(2)}).<br>` +
-               `Viabilidad: <strong>${viabilidad}</strong>.<br>` +
               `Excelencia: <strong>${excelencia}</strong>.<br>` +
               `Las preguntas mezclaron evidencias de tu código, de la solución IA, de la comparación entre ambos y situaciones de razonamiento socrático.` +
               (limiteFinal ? `<br><strong>${escaparTextoAnalista(limiteFinal)}</strong>` : "");
@@ -6008,6 +6101,23 @@
           historialResultados[sectionId].notaPreguntas = notaPreguntas;
           historialResultados[sectionId].notaFinal = notaFinal;
           historialResultados[sectionId].notaIA = notaFinal;
+          const metricasCodigo = evaluacionCodigo?.metricas || {};
+          const evidenciasCodigo = [
+              Number(metricasCodigo.requisitos),
+              Number(metricasCodigo.comportamiento),
+              Number(metricasCodigo.estructura),
+              Number(metricasCodigo.calidad)
+          ].filter(Number.isFinite);
+          const evidenciaCodigo = evidenciasCodigo.length
+              ? Number((evidenciasCodigo.reduce((total, valor) => total + valor, 0) / evidenciasCodigo.length * 10).toFixed(1))
+              : notaCodigo;
+          historialResultados[sectionId].desgloseNota = {
+              formula: "codigo_40_funcionamiento_25_multiple_15_socraticas_15_pruebas_5",
+              notaCodigoBase: notaCodigo,
+              evidenciaCodigo,
+              notaPreguntas,
+              notaFinal
+          };
           historialResultados[sectionId].analista = {
               correctas,
               total: preguntas.length,
@@ -6047,7 +6157,7 @@
                   "beforeend",
                   `<div style="margin-top:.8rem;padding:.7rem;border:1px solid rgba(16,185,129,.4);border-radius:6px;color:#a7f3d0">
                       <strong>Calificación automática del módulo: ${notaFinal}/10</strong><br>
-                      Código ${notaCodigo}/10 × 70% + preguntas ${notaPreguntas}/10 × 30%.
+                      C�digo ${notaCodigo}/10 × 70% + preguntas ${notaPreguntas}/10 × 30%.
                   </div>`
               );
           }
@@ -6058,7 +6168,7 @@
           if (!claseHabilitada) return;
           if (actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
 
-          if (!confirm("ATENCIÓN: esta acción mostrará una solución de referencia, realizará una evaluación automática orientativa y bloqueará la actividad. ¿Deseas continuar?")) {
+          if (!confirm("ATENCI�N: esta acci?n mostrar? una soluci?n de referencia, realizar? una evaluaci?n autom?tica orientativa y bloquear? la actividad. ?Deseas continuar?")) {
               return;
           }
 
@@ -6089,25 +6199,13 @@
           const salidaReferencia = resultadoReferencia.ok
               ? (Array.isArray(resultadoReferencia.logs) ? resultadoReferencia.logs.join("\n") : "")
               : "";
-          if (!window.firebaseBackendSeguroConfigurado || typeof window.evaluarCodigoServidorFirebase !== "function") {
-              feedbackText.innerHTML = "<strong>No se pudo entregar:</strong> el backend seguro no está disponible. El código permanece editable y no se registró una calificación.";
-              return;
-          }
-          let evaluacionServidor;
-          try {
-              feedbackText.innerHTML = "<i>Solicitando evaluación autenticada al servidor...</i>";
-              evaluacionServidor = await window.evaluarCodigoServidorFirebase({
-                  classId: idClaseSeguimientoPestanas(),
-                  sectionId,
-                  codigo: code
-              });
-          } catch (error) {
-              console.error("Evaluación segura no disponible", error);
-              const mensaje = error?.message || "No se pudo contactar al evaluador seguro.";
-              feedbackText.innerHTML = `<strong>No se pudo entregar:</strong> ${escaparTextoAnalista(mensaje)} El código permanece editable y no se consumó la entrega.`;
-              return;
-          }
-          const evaluacion = evaluacionServidor.evaluation;
+          const evaluacion = evaluarCodigoPorEvidencias(code, sec, {
+              ok: Boolean(resultadoAlumno.ok),
+              logs: resultadoAlumno.logs || [],
+              salida: salidaAlumno,
+              error: resultadoAlumno.error || "",
+              salidaEsperada: salidaReferencia
+          });
               const diagnostico = generarDiagnosticoIA(evaluacion, sec, {
                   ok: Boolean(resultadoAlumno.ok),
                   salida: salidaAlumno,
@@ -6116,12 +6214,12 @@
               const puntaje = evaluacion.nota;
               let analisis = "";
 
-              if (puntaje === 1) analisis = "❌ <strong>Evaluación Estricta (1/10):</strong> Plantilla inicial sin resolver.";
-              else if (puntaje === 4) analisis = "⚠️ <strong>Evaluación Estricta (4/10):</strong> Código sin estructuras lógicas requeridas.";
-              else if (puntaje === 7) analisis = "🎯 <strong>Evaluación Estricta (7/10):</strong> Alcanza o supera el 70% de desarrollo.";
-              else if (puntaje === 5) analisis = "🔍 <strong>Evaluación Estricta (5/10):</strong> Resolución parcial por debajo del 70%.";
-              else if (puntaje === 3) analisis = "⚠️ <strong>Evaluación Estricta (3/10):</strong> Código demasiado escueto.";
-              else if (puntaje === 10) analisis = "✅ <strong>¡Excelente Trabajo! (10/10):</strong> Cumple rigurosamente con los parámetros ideales.";
+              if (puntaje === 1) analisis = "? <strong>Evaluaci?n Estricta (1/10):</strong> Plantilla inicial sin resolver.";
+              else if (puntaje === 4) analisis = "?? <strong>Evaluaci?n Estricta (4/10):</strong> C?digo sin estructuras l?gicas requeridas.";
+              else if (puntaje === 7) analisis = "ðŸŽ¯ <strong>Evaluación Estricta (7/10):</strong> Alcanza o supera el 70% de desarrollo.";
+              else if (puntaje === 5) analisis = "ðŸ” <strong>Evaluación Estricta (5/10):</strong> Resolución parcial por debajo del 70%.";
+              else if (puntaje === 3) analisis = "?? <strong>Evaluaci?n Estricta (3/10):</strong> C?digo demasiado escueto.";
+              else if (puntaje === 10) analisis = "? <strong>?Excelente Trabajo! (10/10):</strong> Cumple rigurosamente con los par?metros ideales.";
 
               analisis = `<strong>Estimación orientativa estricta (${puntaje}/10):</strong> ${diagnostico.resumen}` +
                   `<br><strong>Guía de mejora:</strong><ol>${diagnostico.pasos.map(x => `<li>${escaparTextoAnalista(x)}</li>`).join("")}</ol>` +
@@ -6136,10 +6234,10 @@
               const conceptos = Array.isArray(sec.conceptosDetectar) ? sec.conceptosDetectar : [];
               const errores = Array.isArray(sec.erroresFrecuentes) ? sec.erroresFrecuentes : [];
               feedbackText.innerHTML = `<strong>Nota del código: ${puntaje}/10 (70% de la calificación automática del módulo)</strong><br><small>La calificación automática se calculará después de entregar todas las preguntas, que representan el 30%. La nota definitiva requiere confirmación docente.</small><br>${analisis}` +
-                (objetivos.length ? `<hr><strong>🎯 Objetivos:</strong><ul>${objetivos.map(x=>`<li>${escaparTextoAnalista(x)}</li>`).join("")}</ul>`:"") +
-                (conceptos.length ? `<strong>🧠 Conceptos que la IA revisa:</strong> ${conceptos.map(x=>escaparTextoAnalista(x)).join(", ")}<br>`:"") +
-                (errores.length ? `<strong>⚠️ Errores frecuentes a revisar:</strong> ${errores.slice(0,3).map(x=>escaparTextoAnalista(x)).join(" · ")}<br>`:"") +
-                `<div style="margin-top:.6rem;color:#a5b4fc"><strong>🚫 Protección IA:</strong> no se entrega código listo para copiar ni se revelan directamente las respuestas.</div>`;
+                (objetivos.length ? `<hr><strong>ðŸŽ¯ Objetivos:</strong><ul>${objetivos.map(x=>`<li>${escaparTextoAnalista(x)}</li>`).join("")}</ul>`:"") +
+                (conceptos.length ? `<strong>ðŸ§  Conceptos que la IA revisa:</strong> ${conceptos.map(x=>escaparTextoAnalista(x)).join(", ")}<br>`:"") +
+                (errores.length ? `<strong>?? Errores frecuentes a revisar:</strong> ${errores.slice(0,3).map(x=>escaparTextoAnalista(x)).join(" ? ")}<br>`:"") +
+                `<div style="margin-top:.6rem;color:#a5b4fc"><strong>ðŸš« Protección IA:</strong> no se entrega código listo para copiar ni se revelan directamente las respuestas.</div>`;
 
               construirAnalista(sectionId, code);
               if (idealDisplay) {
@@ -6171,7 +6269,6 @@
               historialResultados[sectionId].solucionIA = sec.aiSolution;
               historialResultados[sectionId].notaCodigo = puntaje;
               historialResultados[sectionId].evaluacionCodigo = evaluacion;
-              historialResultados[sectionId].evaluacionServidorId = evaluacionServidor.evaluationId;
               historialResultados[sectionId].salida = salidaAlumno;
               historialResultados[sectionId].error = resultadoAlumno.error || "";
               delete historialResultados[sectionId].notaPreguntas;
@@ -6180,6 +6277,7 @@
               historialResultados[sectionId].analisisIA = analisis.replace(/<[^>]*>?/gm, '');
               historialResultados[sectionId].exito = Boolean(resultadoAlumno.ok);
               programarGuardadoFirebase();
+              void window.congelarEntregaDefinitivaActual?.(sectionId);
       }
 
       function generarTextoAnalistaPDF(sectionId) {
@@ -6261,6 +6359,10 @@
           host.__sourceTextarea = textarea;
           textarea.parentNode.insertBefore(host, textarea);
           textarea.classList.add("codemirror-source-hidden");
+          const sectionIdEditor = textarea.id.replace("editor-", "");
+          host.addEventListener("click", () => {
+              iniciarCronometro(sectionIdEditor);
+          });
 
           const bloquearPortapapelesDirecto = evento => {
               if (portapapelesDocentePermitido()) return;
@@ -6689,7 +6791,7 @@
               let posicion = documento.indexOf(termino, view.state.selection.main.to);
               if (posicion < 0) posicion = documento.indexOf(termino);
               if (posicion < 0) {
-                  estadoHerramientas.textContent = `No se encontró “${termino}”.`;
+                  estadoHerramientas.textContent = `No se encontr� “${termino}”.`;
                   return false;
               }
               const coincidencias = documento.split(termino).length - 1;
@@ -6762,32 +6864,11 @@
           document.querySelectorAll('.code-editor').forEach(textarea => {
               inicializarEditorCodeMirror(textarea);
               const sectionIdInicial = textarea.id.replace('editor-', '');
-              const posicionGuardada = leerEstadoSync(`editor_position_${sectionIdInicial}`, null);
-              if (posicionGuardada) {
-                  requestAnimationFrame(() => {
-                      const inicio = Math.max(0, Math.min(textarea.value.length, Number(posicionGuardada.inicio) || 0));
-                      const fin = Math.max(inicio, Math.min(textarea.value.length, Number(posicionGuardada.fin) || inicio));
-                      textarea.selectionStart = inicio;
-                      textarea.selectionEnd = fin;
-                      textarea.scrollTop = Math.max(0, Number(posicionGuardada.scrollTop) || 0);
-                  });
-              }
               actualizarMetricasEditor(sectionIdInicial);
-              const recordarPosicion = () => {
-                  escribirEstadoSync(`editor_position_${sectionIdInicial}`, {
-                      inicio: Number(textarea.selectionStart) || 0,
-                      fin: Number(textarea.selectionEnd) || 0,
-                      scrollTop: Number(textarea.scrollTop) || 0
-                  });
-              };
               textarea.addEventListener('click', (e) => {
                   const secId = e.target.id.replace('editor-', '');
                   iniciarCronometro(secId);
-                  recordarPosicion();
               });
-              textarea.addEventListener('select', recordarPosicion);
-              textarea.addEventListener('keyup', recordarPosicion);
-              textarea.addEventListener('scroll', recordarPosicion, { passive: true });
               textarea.addEventListener('input', (e) => {
                   const secId = e.target.id.replace('editor-', '');
                   if (!actividadesFinalizadas[secId] && !modulosPausados[secId]) {
@@ -6847,14 +6928,11 @@
               }
               if (evento.type === 'drop') return 'pegar';
               if (evento.type === 'beforeinput') {
-                  const accionPorTipo = {
+                  return {
                       insertFromPaste: 'pegar',
                       insertFromDrop: 'pegar',
                       deleteByCut: 'cortar'
-                  }[evento.inputType];
-                  if (accionPorTipo) return accionPorTipo;
-                  if (evento.inputType === 'insertText' && String(evento.data || '').length >= 80) return 'pegar';
-                  return '';
+                  }[evento.inputType] || '';
               }
               if (evento.type === 'keydown') {
                   const tecla = String(evento.key || '').toLowerCase();
@@ -6917,9 +6995,7 @@
           });
 
           document.addEventListener('beforeinput', evento => {
-              const insercionExterna = ['insertFromPaste', 'insertFromDrop', 'deleteByCut'].includes(evento.inputType) ||
-                  (evento.inputType === 'insertText' && String(evento.data || '').length >= 80);
-              if (!insercionExterna) return;
+              if (!['insertFromPaste', 'insertFromDrop', 'deleteByCut'].includes(evento.inputType)) return;
               bloquearEvento(evento);
           }, true);
 
@@ -6951,6 +7027,7 @@
       let profesorUnsubscribe = null;
       let estudiantesProfesor = [];
       let solicitudesPendientesConocidas = null;
+      let solicitudesColaboracionConocidas = null;
       let sonidoSolicitudesActivo = localStorage.getItem('teacher_pending_request_sound') === 'true';
 
       function cambiarSonidoSolicitudes(activo) {
@@ -6985,6 +7062,81 @@
 
       function ocultarAlertaNuevaSolicitud() {
           document.getElementById('alertaNuevaSolicitud')?.classList.remove('active');
+      }
+
+      let alertaColaboracionActiva = false;
+      let tituloOriginalDocumento = document.title;
+      let intervaloTituloColaboracion = null;
+      let intervaloSonidoColaboracion = null;
+
+      function ocultarAlertaColaboracionFlotante() {
+          const alerta = document.getElementById('alertaColaboracionFlotante');
+          if (alerta) alerta.hidden = true;
+          detenerAtencionColaboracion();
+      }
+      window.ocultarAlertaColaboracionFlotante = ocultarAlertaColaboracionFlotante;
+
+      function detenerAtencionColaboracion() {
+          alertaColaboracionActiva = false;
+          if (intervaloTituloColaboracion) clearInterval(intervaloTituloColaboracion);
+          if (intervaloSonidoColaboracion) clearInterval(intervaloSonidoColaboracion);
+          intervaloTituloColaboracion = null;
+          intervaloSonidoColaboracion = null;
+          document.title = tituloOriginalDocumento;
+      }
+
+      function marcarAlertaColaboracionAtendida() {
+          ocultarAlertaColaboracionFlotante();
+      }
+      window.marcarAlertaColaboracionAtendida = marcarAlertaColaboracionAtendida;
+
+      function mostrarAlertaColaboracionFlotante(solicitudes) {
+          if (!solicitudes.length) return;
+          const nombres = solicitudes.map(item => item.estudianteNombre || 'Estudiante');
+          const texto = solicitudes.length === 1
+              ? `ðŸ–ï¸ ${nombres[0]} solicita colaboración`
+              : `ðŸ–ï¸ ${solicitudes.length} estudiantes solicitan colaboración`;
+          const etiqueta = document.getElementById('textoAlertaColaboracionFlotante');
+          const contador = document.getElementById('contadorAlertaColaboracionFlotante');
+          const alerta = document.getElementById('alertaColaboracionFlotante');
+          if (!etiqueta || !alerta) return;
+          etiqueta.textContent = texto;
+          if (contador) contador.textContent = String(solicitudes.length);
+          alerta.hidden = false;
+          alertaColaboracionActiva = true;
+          tituloOriginalDocumento = tituloOriginalDocumento || document.title;
+          if (intervaloTituloColaboracion) clearInterval(intervaloTituloColaboracion);
+          let alternarTitulo = false;
+          intervaloTituloColaboracion = setInterval(() => {
+              if (!alertaColaboracionActiva) return;
+              alternarTitulo = !alternarTitulo;
+              document.title = alternarTitulo ? '🖐️ SOLICITUD DE COLABORACIÓN' : tituloOriginalDocumento;
+          }, 900);
+          reproducirSonidoSolicitud();
+          if (intervaloSonidoColaboracion) clearInterval(intervaloSonidoColaboracion);
+          intervaloSonidoColaboracion = setInterval(() => {
+              if (alertaColaboracionActiva && document.hidden) reproducirSonidoSolicitud();
+          }, 12000);
+      }
+
+      function detectarNuevasSolicitudesColaboracion(datos) {
+          const actuales = [];
+          (Array.isArray(datos) ? datos : []).forEach(estudiante => {
+              const nombre = estudiante?.nombre || estudiante?.displayName || estudiante?.email || 'Estudiante';
+              (Array.isArray(estudiante?.__solicitudesColaboracion) ? estudiante.__solicitudesColaboracion : [])
+                  .forEach(item => actuales.push({
+                      id: `${estudiante.uid || estudiante.id || ''}/${item.sectionId || item.id || ''}`,
+                      estudianteNombre: nombre
+                  }));
+          });
+          const idsActuales = new Set(actuales.map(item => item.id));
+          if (solicitudesColaboracionConocidas === null) {
+              solicitudesColaboracionConocidas = idsActuales;
+              return;
+          }
+          const nuevas = actuales.filter(item => !solicitudesColaboracionConocidas.has(item.id));
+          solicitudesColaboracionConocidas = idsActuales;
+          mostrarAlertaColaboracionFlotante(nuevas);
       }
 
       function mostrarAlertaNuevaSolicitud(nuevas) {
@@ -7034,8 +7186,8 @@
                       Solicitud: ${escapeHtml(fecha)}
                   </p>
                   <div class="pending-request-actions">
-                      <button type="button" class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
-                      <button type="button" class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
+                      <button class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
+                      <button class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
                   </div>
               </article>`;
           }).join('') : '<p style="color:var(--text-muted);margin:0">No hay solicitudes pendientes.</p>';
@@ -7124,8 +7276,8 @@
                   ${antecedentes.length ? `<details style="margin-bottom:.6rem;font-size:.73rem;color:var(--text-muted)"><summary style="cursor:pointer;color:#fca5a5">Antecedentes de rechazo (${antecedentes.length})</summary>${antecedentes.map(a => `<div style="margin-top:.35rem">Motivo: ${escapeHtml(a.motivo || 'Sin motivo')}<br>Responsable: ${escapeHtml(a.rechazadoPor || 'Sin registrar')}</div>`).join('')}</details>` : ''}
                   ${problemas.length ? `<div class="pending-request-warning"><i class="fa-solid fa-triangle-exclamation"></i> No se puede aceptar todavía:<br>${problemas.map(escapeHtml).join('<br>')}</div>` : ''}
                   <div class="pending-request-actions">
-                      <button type="button" class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')" ${seleccionable ? '' : 'disabled'}><i class="fa-solid fa-user-check"></i> Aceptar</button>
-                      <button type="button" class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
+                      <button class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')" ${seleccionable ? '' : 'disabled'}><i class="fa-solid fa-user-check"></i> Aceptar</button>
+                      <button class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
                   </div>
               </article>`;
           }).join('') : '<p style="color:var(--text-muted);margin:0">No hay solicitudes pendientes.</p>';
@@ -7220,7 +7372,7 @@
           const resumen = document.getElementById('resumenEliminacionHistorialJitsi');
           const alcance = document.getElementById('alcanceEliminacionHistorialJitsi');
           const confirmacion = document.getElementById('confirmacionEliminarHistorialJitsi');
-          if (resumen) resumen.textContent = 'Presioná “Revisar documentos” para contar el historial existente.';
+          if (resumen) resumen.textContent = 'Presion� “Revisar documentos” para contar el historial existente.';
           if (alcance) alcance.textContent = 'Todas las clases y fechas';
           if (confirmacion) confirmacion.value = '';
           actualizarConfirmacionEliminarHistorialJitsi();
@@ -8061,7 +8213,7 @@
           const criterioPrincipal = obtenerCriteriosFaltantesActividad(estudiantes, sec.id)[0]?.[0] || "";
           const sugerenciasPorCriterio = {
               "desarrollo suficiente": "Modelar respuestas breves con la estructura decisión, explicación, evidencia y consecuencia.",
-              "justificación causal": "Repasar relaciones de causa y efecto usando conectores como “porque”, “permite”, “evita” y “por lo tanto”.",
+              "justificaci�n causal": "Repasar relaciones de causa y efecto usando conectores como “porque”, “permite”, “evita” y “por lo tanto”.",
               "evidencia del código o de una prueba": "Practicar cómo citar una variable, condición, función o caso de prueba concreto para sostener una afirmación.",
               "consecuencia, límite o mejora": "Trabajar casos límite y pedir que anticipen qué cambia, qué puede fallar y cómo comprobar una mejora."
           };
@@ -8070,7 +8222,7 @@
               sugerencias.push(sugerenciasPorCriterio[criterioPrincipal]);
           }
           if (sec.theory) sugerencias.push(`Reforzar el contenido: ${String(sec.theory).slice(0, 180)}`);
-          if (sec.exerciseTitle) sugerencias.push(`Retomar “${sec.exerciseTitle}” con una entrada alternativa y una explicación paso a paso.`);
+          if (sec.exerciseTitle) sugerencias.push(`Retomar “${sec.exerciseTitle}” con una entrada alternativa y una explicaci�n paso a paso.`);
           return sugerencias.slice(0, 3);
       }
 
@@ -8131,7 +8283,7 @@
           return `<details class="teacher-evolution-data" open>
               <summary><i class="fa-solid fa-table-list"></i> Porcentajes exactos por actividad</summary>
               <div class="teacher-group-report-table"><table>
-                  <thead><tr><th>N.º</th><th>Actividad</th><th>Desafíos</th><th>Respuestas</th><th>Completas</th><th>Incompletas</th><th>Parciales</th><th>Incorrectas</th><th>Riesgo</th><th>Cambio</th></tr></thead>
+                  <thead><tr><th>N.º</th><th>Actividad</th><th>Desaf�os</th><th>Respuestas</th><th>Completas</th><th>Incompletas</th><th>Parciales</th><th>Incorrectas</th><th>Riesgo</th><th>Cambio</th></tr></thead>
                   <tbody>${evolucion.map((item, indice) => `<tr class="${indicesAlerta.has(item.indice) ? "is-risk-row" : ""}">
                       <td>${item.indice}</td>
                       <td><strong>${escapeHtml(item.titulo)}</strong>${indicesAlerta.has(item.indice) ? ' <span class="teacher-risk-badge">Refuerzo</span>' : ""}</td>
@@ -9059,6 +9211,18 @@
           guardarPDFProfesor(doc, `Informe_socratico_${datos.actividad}`);
       }
 
+      function actualizarEstadoVistaDocente() {
+          const panelActivo = Boolean(
+              document.getElementById('panelProfesorModal')?.classList.contains('active')
+          );
+          const detalleActivo = Boolean(
+              document.getElementById('detalleEstudianteProfesorModal')?.classList.contains('active')
+          );
+          document.body.classList.toggle('teacher-view-active', panelActivo || detalleActivo);
+          document.body.classList.toggle('teacher-panel-open', panelActivo);
+          document.body.classList.toggle('teacher-detail-open', detalleActivo);
+      }
+
       async function abrirPanelProfesor() {
           const autorizado = Boolean(
               document.body.classList.contains('teacher-authorized') &&
@@ -9071,6 +9235,7 @@
               return;
           }
           document.getElementById('panelProfesorModal').classList.add('active');
+          actualizarEstadoVistaDocente();
           actualizarBotonPausaCronometros();
           actualizarMantenimientoJitsiAdministrador();
           const controlSonido = document.getElementById('sonidoSolicitudesProfesor');
@@ -9081,9 +9246,11 @@
           prepararFiltroInformeSocratico();
           renderInformeGrupalSocratico();
           iniciarPanelProfesorTiempoReal();
+          void cargarSolicitudesColaboracionDirectas();
       }
       function cerrarPanelProfesor() {
           document.getElementById('panelProfesorModal').classList.remove('active');
+          actualizarEstadoVistaDocente();
           if (profesorUnsubscribe) { profesorUnsubscribe(); profesorUnsubscribe = null; }
           window.__cerrarPanelProfesorFirestore?.();
       }
@@ -9200,6 +9367,8 @@
               filtroProgresoProfesor: '',
               filtroSalidasProfesor: '',
               filtroPortapapelesProfesor: '',
+              filtroReaperturasProfesor: '',
+              filtroFechaReaperturaProfesor: '',
               filtroNotaProfesor: '',
               filtroDescuentoProfesor: '',
               filtroActualizacionProfesor: '',
@@ -9224,28 +9393,40 @@
           document.getElementById('btnLimpiarFiltrosProfesor')?.focus({ preventScroll: true });
       }
 
+      function obtenerFinalizadasEfectivasEstudiante(d = {}) {
+          const declaradas = d?.finalizadas && typeof d.finalizadas === 'object' ? d.finalizadas : {};
+          const resultados = d?.historialResultados && typeof d.historialResultados === 'object' ? d.historialResultados : {};
+          const notasDocente = d?.notasDesafiosDocente && typeof d.notasDesafiosDocente === 'object' ? d.notasDesafiosDocente : {};
+          const finalizadas = { ...declaradas };
+          seccionesData.forEach(sec => {
+              const ajuste = notasDocente[sec.id] || {};
+              const notaDocente = ajuste.nota === null || ajuste.nota === undefined || ajuste.nota === '' ? NaN : Number(ajuste.nota);
+              const resultado = resultados[sec.id] || {};
+              const notaAutomatica = Number(resultado.notaFinal ?? resultado.notaIA);
+              if (Number.isFinite(notaDocente) || Number.isFinite(notaAutomatica)) finalizadas[sec.id] = true;
+          });
+          return finalizadas;
+      }
+
       function calcularProgresoEstudiante(d) {
-          const finalizadas = d.finalizadas || {};
+          const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
           const total = seccionesData.length || 1;
           const completadasValidas = seccionesData.filter(sec => finalizadas[sec.id] === true).length;
           return Math.round((completadasValidas / total) * 100);
       }
       function obtenerNotaDesafioEstudiante(d, sectionId, resultado = null) {
           const ajuste = d?.notasDesafiosDocente?.[sectionId];
-          const valorDocente = ajuste?.notaDocente ?? ajuste?.notaFinalCalculada ?? ajuste?.nota;
-          const notaDocente = normalizarNotaModulo(valorDocente);
-          if (notaDocente !== null) return notaDocente;
-          const verificada = d?.resultadosVerificados?.[sectionId] || {};
-          return obtenerNotaAutomaticaModulo(resultado || {}, verificada);
-      }
-      function evaluacionCodigoTieneError(evaluacion = {}, registro = {}) {
-          return evaluacion?.sintaxis?.valida === false ||
-              (evaluacion?.ejecucion?.intentada !== false && evaluacion?.ejecucion?.ok === false) ||
-              Boolean(registro?.error);
+          const notaDocente = ajuste?.nota === null || ajuste?.nota === undefined || ajuste?.nota === ''
+              ? NaN
+              : Number(ajuste.nota);
+          if (Number.isFinite(notaDocente)) return Math.max(0, Math.min(10, notaDocente));
+          const registro = resultado || d?.historialResultados?.[sectionId] || {};
+          const notaAutomatica = Number(registro.notaFinal ?? registro.notaIA);
+          return Number.isFinite(notaAutomatica) ? Math.max(0, Math.min(10, notaAutomatica)) : null;
       }
       function obtenerNotasDesafiosFinalizadosEstudiante(d) {
           const historial = d?.historialResultados || {};
-          const finalizadas = d?.finalizadas || {};
+          const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
           return seccionesData.reduce((notas, sec) => {
               if (finalizadas[sec.id] !== true) return notas;
               const nota = obtenerNotaDesafioEstudiante(d, sec.id, historial[sec.id] || {});
@@ -9275,14 +9456,15 @@
       }
       function obtenerDetallePromedioEstudiante(d) {
           const historial = d.historialResultados || {};
+          const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
           const actividades = seccionesData.map(sec => {
               const resultado = historial[sec.id] || {};
               const valor = obtenerNotaDesafioEstudiante(d, sec.id, resultado);
               return {
                   id: sec.id,
                   titulo: sec.title,
-                  finalizada: d?.finalizadas?.[sec.id] === true,
-                  nota: d?.finalizadas?.[sec.id] === true && Number.isFinite(valor) ? valor : null
+                  finalizada: finalizadas[sec.id] === true,
+                  nota: finalizadas[sec.id] === true && Number.isFinite(valor) ? valor : null
               };
           });
           const evaluadas = actividades.filter(x => x.nota !== null);
@@ -9299,7 +9481,7 @@
           const idsValidos = new Set(seccionesData.map(sec => sec.id));
           const idControl = idsValidos.has(control.seccionActiva) ? control.seccionActiva : '';
           const idGuardado = idsValidos.has(d?.seccionActiva) ? d.seccionActiva : '';
-          const finalizadas = d?.finalizadas || {};
+          const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
           const siguiente = seccionesData.find(sec => finalizadas[sec.id] !== true) || null;
           const id = idControl || idGuardado || siguiente?.id || '';
           const desafio = seccionesData.find(sec => sec.id === id) || null;
@@ -9322,14 +9504,6 @@
               return ['finalizados', 'corregidos', 'pendientes'].includes(guardado) ? guardado : '';
           } catch (_) {
               return '';
-          }
-      })();
-      const CLAVE_VISIBILIDAD_VALORES_GRAFICO_NOTAS = 'teacher_student_grade_chart_show_values';
-      let mostrarValoresGraficoNotasEstudiante = (() => {
-          try {
-              return sessionStorage.getItem(CLAVE_VISIBILIDAD_VALORES_GRAFICO_NOTAS) !== 'false';
-          } catch (_) {
-              return true;
           }
       })();
       const CLAVE_POSICION_GRAFICO_NOTAS_ESTUDIANTE = 'teacher_student_grade_chart_scroll_left';
@@ -9394,6 +9568,15 @@
               control.classList.toggle('is-active', activo);
               control.setAttribute('aria-pressed', String(activo));
           });
+          const botonRestablecer = grafico.querySelector('.teacher-student-grade-filters .is-reset');
+          if (botonRestablecer) {
+              const deshabilitado = !filtroNormalizado;
+              botonRestablecer.disabled = deshabilitado;
+              botonRestablecer.setAttribute('aria-disabled', String(deshabilitado));
+              botonRestablecer.title = deshabilitado
+                  ? 'Ya se muestran todos los desafios'
+                  : 'Quitar el filtro y mostrar todos los desafios';
+          }
           const etiquetas = {
               finalizados: 'finalizados',
               corregidos: 'corregidos por el docente',
@@ -9415,53 +9598,50 @@
           filtrarGraficoNotasDesafiosEstudiante('', botonTodos);
           botonTodos.focus({ preventScroll: true });
       }
-      function aplicarVisibilidadValoresGraficoNotasEstudiante(grafico, mostrar) {
-          if (!grafico) return;
-          mostrarValoresGraficoNotasEstudiante = mostrar !== false;
-          grafico.classList.toggle('hide-grade-values', !mostrarValoresGraficoNotasEstudiante);
-          const boton = grafico.querySelector('.teacher-student-grade-values-toggle');
-          if (boton) {
-              boton.setAttribute('aria-pressed', String(mostrarValoresGraficoNotasEstudiante));
-              boton.setAttribute('aria-label', mostrarValoresGraficoNotasEstudiante
-                  ? 'Ocultar notas numéricas del gráfico'
-                  : 'Mostrar notas numéricas del gráfico');
-              boton.innerHTML = mostrarValoresGraficoNotasEstudiante
-                  ? '<i class="fa-solid fa-eye-slash"></i> Ocultar notas'
-                  : '<i class="fa-solid fa-eye"></i> Mostrar notas';
-          }
-          try {
-              sessionStorage.setItem(
-                  CLAVE_VISIBILIDAD_VALORES_GRAFICO_NOTAS,
-                  String(mostrarValoresGraficoNotasEstudiante)
-              );
-          } catch (_) {}
+      function abrirDesafioDesdeGraficoNotasEstudiante(sectionId, activador = null) {
+          if (!seccionesData.some(sec => sec.id === sectionId)) return;
+          const selector = document.getElementById('filtroDesafiosDetalleProfesor');
+          const busqueda = document.getElementById('buscarDesafioDetalleProfesor');
+          if (selector) selector.value = '';
+          if (busqueda) busqueda.value = '';
+          filtrarDesafiosDetalleProfesor();
+
+          const desafio = [...document.querySelectorAll(
+              '#listaDesafiosDetalleProfesor .teacher-activity[data-section-id]'
+          )].find(elemento => elemento.dataset.sectionId === sectionId);
+          if (!desafio) return;
+
+          desafio.hidden = false;
+          desafio.open = true;
+          desafio.classList.remove('is-chart-selected');
+          void desafio.offsetWidth;
+          desafio.classList.add('is-chart-selected');
+          desafio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          window.setTimeout(() => {
+              desafio.querySelector('summary')?.focus({ preventScroll: true });
+          }, 280);
+          window.setTimeout(() => desafio.classList.remove('is-chart-selected'), 1800);
+          activador?.setAttribute?.('aria-pressed', 'true');
       }
-      function alternarValoresGraficoNotasEstudiante(boton = null) {
-          const grafico = boton?.closest?.('.teacher-student-grade-chart');
-          if (!grafico) return;
-          aplicarVisibilidadValoresGraficoNotasEstudiante(
-              grafico,
-              grafico.classList.contains('hide-grade-values')
-          );
-      }
+      window.abrirDesafioDesdeGraficoNotasEstudiante = abrirDesafioDesdeGraficoNotasEstudiante;
       function renderGraficoNotasDesafiosEstudiante(d) {
           const historial = d?.historialResultados || {};
           const notasDocente = d?.notasDesafiosDocente || {};
+          const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
           const desafioActual = obtenerDesafioActualEstudiante(d);
+          const limitarNota = valor => {
+              const numero = valor === null || valor === undefined || valor === '' ? NaN : Number(valor);
+              return Number.isFinite(numero) ? Math.max(0, Math.min(10, numero)) : null;
+          };
           const datos = seccionesData.map((sec, indice) => {
               const resultado = historial[sec.id] || {};
-              const resultadoServidor = d?.resultadosVerificados?.[sec.id] || {};
               return {
                   id: sec.id,
                   indice: indice + 1,
                   titulo: sec.title || `Desafío ${indice + 1}`,
-                  automatica: obtenerNotaAutomaticaModulo(resultado, resultadoServidor),
-                  docente: normalizarNotaModulo(
-                      notasDocente[sec.id]?.notaDocente ??
-                      notasDocente[sec.id]?.notaFinalCalculada ??
-                      notasDocente[sec.id]?.nota
-                  ),
-                  finalizada: d?.finalizadas?.[sec.id] === true,
+                  automatica: limitarNota(resultado.notaFinal ?? resultado.notaIA),
+                  docente: limitarNota(notasDocente[sec.id]?.nota),
+                  finalizada: finalizadas[sec.id] === true,
                   actual: sec.id === desafioActual.id
               };
           });
@@ -9506,7 +9686,9 @@
                       <title>${escapeHtml(`Desafío actual: ${item.titulo}`)}</title>
                     </circle>`
                   : '';
-              return `<g class="teacher-student-grade-item" data-grade-finalizada="${item.finalizada}" data-grade-docente="${item.docente !== null}">
+              const etiquetaNavegacion = `Abrir ${item.titulo}`;
+              return `<g class="teacher-student-grade-item is-navigable" data-section-id="${escapeHtml(item.id)}" data-grade-finalizada="${item.finalizada}" data-grade-docente="${item.docente !== null}" role="button" tabindex="0" aria-label="${escapeHtml(etiquetaNavegacion)}" onclick="abrirDesafioDesdeGraficoNotasEstudiante('${escapeHtml(item.id)}', this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); abrirDesafioDesdeGraficoNotasEstudiante('${escapeHtml(item.id)}', this); }">
+                  <rect class="teacher-student-grade-hit-target" x="${(centro - paso * .45).toFixed(1)}" y="${margen.superior - 12}" width="${(paso * .9).toFixed(1)}" height="${altoUtil + 58}" rx="5"></rect>
                   ${etiquetaActual}${barraAutomatica}${barraDocente}${valorAutomatico}${valorDocente}${marcadorActual}
                   <text class="${item.actual ? 'is-current' : ''}" x="${centro.toFixed(1)}" y="${alto - 45}" text-anchor="middle">D${item.indice}</text>
                   <text class="teacher-student-grade-status-label" x="${centro.toFixed(1)}" y="${alto - 25}" text-anchor="middle">${item.finalizada ? 'Finalizado' : (item.actual ? (desafioActual.siguiente ? 'Siguiente' : 'Actual') : 'Pendiente')}</text>
@@ -9515,8 +9697,14 @@
           const tituloActual = desafioActual.desafio?.title || 'Sin desafío informado';
           const estadoActual = desafioActual.trabajandoAhora
               ? 'Trabajando ahora'
-              : (desafioActual.conectado ? 'Desafío abierto' : (desafioActual.id ? 'Último desafío informado' : 'Sin actividad informada'));
+              : (desafioActual.conectado ? 'Desaf?o abierto' : (desafioActual.id ? '�ltimo desaf?o informado' : 'Sin actividad informada'));
           const estadoActualTexto = desafioActual.siguiente ? 'Siguiente desafío' : estadoActual;
+          const conteosFiltros = {
+              todos: datos.length,
+              finalizados: datos.filter(item => item.finalizada).length,
+              corregidos: datos.filter(item => item.docente !== null).length,
+              pendientes: datos.filter(item => !item.finalizada).length
+          };
           return `<section class="teacher-student-grade-chart">
               <header>
                   <div>
@@ -9531,19 +9719,16 @@
               <div class="teacher-student-grade-filter-bar">
                   <div class="teacher-student-grade-filters" role="group" aria-label="Filtrar desafíos del gráfico">
                       <button type="button" class="is-active" data-grade-filter-button="" aria-pressed="true" onclick="filtrarGraficoNotasDesafiosEstudiante('', this)">
-                          <i class="fa-solid fa-layer-group"></i> Todos
+                          <i class="fa-solid fa-layer-group"></i> <span>Todos</span><b>${conteosFiltros.todos}</b>
                       </button>
                       <button type="button" data-grade-filter-button="finalizados" aria-pressed="false" onclick="filtrarGraficoNotasDesafiosEstudiante('finalizados', this)">
-                          <i class="fa-solid fa-circle-check"></i> Finalizados
+                          <i class="fa-solid fa-circle-check"></i> <span>Finalizados</span><b>${conteosFiltros.finalizados}</b>
                       </button>
                       <button type="button" data-grade-filter-button="corregidos" aria-pressed="false" onclick="filtrarGraficoNotasDesafiosEstudiante('corregidos', this)">
-                          <i class="fa-solid fa-pen-to-square"></i> Corregidos
+                          <i class="fa-solid fa-pen-to-square"></i> <span>Corregidos</span><b>${conteosFiltros.corregidos}</b>
                       </button>
                       <button type="button" data-grade-filter-button="pendientes" aria-pressed="false" onclick="filtrarGraficoNotasDesafiosEstudiante('pendientes', this)">
-                          <i class="fa-solid fa-clock"></i> Pendientes
-                      </button>
-                      <button type="button" class="teacher-student-grade-values-toggle" aria-pressed="true" aria-label="Ocultar notas numéricas del gráfico" onclick="alternarValoresGraficoNotasEstudiante(this)">
-                          <i class="fa-solid fa-eye-slash"></i> Ocultar notas
+                          <i class="fa-solid fa-clock"></i> <span>Pendientes</span><b>${conteosFiltros.pendientes}</b>
                       </button>
                       <button type="button" class="is-reset" onclick="restablecerFiltroGraficoNotasEstudiante(this)" title="Volver a mostrar todos los desafíos">
                           <i class="fa-solid fa-arrow-rotate-left"></i> Restablecer filtro
@@ -9556,15 +9741,43 @@
                   <span class="is-teacher">Nota modificada por docente</span>
                   <span class="is-current">Desafío actual</span>
               </div>
-              <div class="teacher-student-grade-chart-scroll" tabindex="0" aria-label="Gráfico desplazable de notas por desafío" onscroll="recordarPosicionGraficoNotasEstudiante(this)">
+              <div class="teacher-student-grade-chart-scroll" tabindex="0" aria-label="Gráfico desplazable de notas por desafío. Seleccioná una columna para abrir ese desafío." onscroll="recordarPosicionGraficoNotasEstudiante(this)">
                   ${hayNotas || desafioActual.id ? `<svg viewBox="0 0 ${ancho} ${alto}" style="min-width:${ancho}px" role="img" aria-label="Notas automáticas y modificadas por el docente en cada desafío">
                       <g class="teacher-student-grade-grid">${ejes}</g>
                       <g class="teacher-student-grade-columns">${columnas}</g>
                   </svg>` : '<div class="teacher-student-grade-empty">Todavía no hay notas ni un desafío activo para mostrar.</div>'}
               </div>
               <div class="teacher-student-grade-filter-empty" hidden>No hay desafíos que coincidan con este filtro.</div>
-              <div class="teacher-student-grade-key">${datos.map(item => `<span class="teacher-student-grade-key-item ${item.actual ? 'is-current' : ''}" data-grade-finalizada="${item.finalizada}" data-grade-docente="${item.docente !== null}" title="${escapeHtml(item.titulo)}"><b>D${item.indice}</b> ${escapeHtml(item.titulo)}</span>`).join('')}</div>
+              <div class="teacher-student-grade-key">${datos.map(item => `<span class="teacher-student-grade-key-item is-navigable ${item.actual ? 'is-current' : ''}" data-grade-finalizada="${item.finalizada}" data-grade-docente="${item.docente !== null}" role="button" tabindex="0" aria-label="Abrir ${escapeHtml(item.titulo)}" title="Abrir ${escapeHtml(item.titulo)}" onclick="abrirDesafioDesdeGraficoNotasEstudiante('${escapeHtml(item.id)}', this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); abrirDesafioDesdeGraficoNotasEstudiante('${escapeHtml(item.id)}', this); }"><b>D${item.indice}</b> ${escapeHtml(item.titulo)}</span>`).join('')}</div>
           </section>`;
+      }
+      function irAlGraficoNotasEstudiante(boton = null) {
+          const grafico = document.querySelector('#detalleEstudianteProfesorContenido .teacher-student-grade-chart');
+          if (!grafico) return;
+          grafico.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          window.setTimeout(() => {
+              grafico.querySelector('button, [tabindex]')?.focus({ preventScroll: true });
+          }, 320);
+          boton?.blur?.();
+      }
+      window.irAlGraficoNotasEstudiante = irAlGraficoNotasEstudiante;
+      function actualizarOffsetsFijosDetalleEstudiante() {
+          const modalBox = document.querySelector('#detalleEstudianteProfesorModal > .modal-box');
+          if (!modalBox) return;
+          const encabezado = modalBox.querySelector('.teacher-detail-student-header');
+          const graficoBarra = modalBox.querySelector('.teacher-student-grade-filter-bar');
+          const altoEncabezado = encabezado?.getBoundingClientRect?.().height || 0;
+          const altoGraficoBarra = graficoBarra?.getBoundingClientRect?.().height || 0;
+          modalBox.style.setProperty('--teacher-detail-header-offset', `${Math.ceil(altoEncabezado)}px`);
+          modalBox.style.setProperty('--teacher-detail-chart-offset', `${Math.ceil(altoEncabezado + altoGraficoBarra + 8)}px`);
+      }
+      if (!window.__offsetsDetalleEstudianteResize) {
+          window.__offsetsDetalleEstudianteResize = true;
+          window.addEventListener('resize', () => {
+              if (document.getElementById('detalleEstudianteProfesorModal')?.classList.contains('active')) {
+                  actualizarOffsetsFijosDetalleEstudiante();
+              }
+          });
       }
       function formatearTiempoProfesor(segundos) {
           const total = Math.max(0, Number(segundos) || 0);
@@ -9574,6 +9787,7 @@
       }
       function cerrarDetalleEstudianteProfesor() {
           document.getElementById('detalleEstudianteProfesorModal').classList.remove('active');
+          actualizarEstadoVistaDocente();
       }
       let detalleEstudianteProfesorIndiceActual = null;
 
@@ -9714,94 +9928,12 @@
               actividad.open = expandir === true;
           });
       }
-      function rubricaPlantillaDesafio(tipo = 'programacion') {
-          const plantillas = {
-              programacion: [
-                  { criterio: 'Funcionamiento', descripcion: 'El programa resuelve la consigna y produce el resultado esperado.', puntajeMaximo: 4 },
-                  { criterio: 'Lógica y conceptos', descripcion: 'Aplica correctamente las estructuras y conceptos solicitados.', puntajeMaximo: 3 },
-                  { criterio: 'Claridad y pruebas', descripcion: 'El código es legible y contempla casos de prueba relevantes.', puntajeMaximo: 3 }
-              ],
-              proceso: [
-                  { criterio: 'Comprensión', descripcion: 'Interpreta la consigna y organiza una estrategia de resolución.', puntajeMaximo: 4 },
-                  { criterio: 'Desarrollo', descripcion: 'Construye una solución coherente y verificable.', puntajeMaximo: 4 },
-                  { criterio: 'Reflexión', descripcion: 'Explica decisiones, errores y mejoras posibles.', puntajeMaximo: 2 }
-              ]
-          };
-          return (plantillas[tipo] || plantillas.programacion).map(item => ({
-              ...item,
-              puntajeObtenido: 0,
-              comentarioDocente: '',
-              evidenciaAsociada: ''
-          }));
-      }
-      function calcularNotaRubrica(rubrica = {}) {
-          const criterios = Array.isArray(rubrica.criterios) ? rubrica.criterios : [];
-          const maximo = criterios.reduce((suma, item) => suma + Math.max(0, Number(item.puntajeMaximo) || 0), 0);
-          const obtenido = criterios.reduce((suma, item) => {
-              const limite = Math.max(0, Number(item.puntajeMaximo) || 0);
-              return suma + Math.max(0, Math.min(limite, Number(item.puntajeObtenido) || 0));
-          }, 0);
-          return maximo > 0 ? Number((obtenido * 10 / maximo).toFixed(1)) : null;
-      }
-      function renderFilaCriterioRubrica(sectionId, criterio = {}, indice = 0) {
-          return `<div class="teacher-rubric-row" data-rubric-row>
-              <label>Criterio<input data-rubric-field="criterio" maxlength="120" value="${escapeHtml(criterio.criterio || '')}" placeholder="Ej.: Funcionamiento"></label>
-              <label>Descripción<input data-rubric-field="descripcion" maxlength="500" value="${escapeHtml(criterio.descripcion || '')}" placeholder="Qué se observa"></label>
-              <label>Máximo<input data-rubric-field="puntajeMaximo" type="number" min="0.1" max="100" step="0.1" value="${Number(criterio.puntajeMaximo || 1)}"></label>
-              <label>Obtenido<input data-rubric-field="puntajeObtenido" type="number" min="0" max="${Number(criterio.puntajeMaximo || 1)}" step="0.1" value="${Number(criterio.puntajeObtenido || 0)}"></label>
-              <label>Comentario docente<input data-rubric-field="comentarioDocente" maxlength="1000" value="${escapeHtml(criterio.comentarioDocente || '')}" placeholder="Devolución específica"></label>
-              <label>Evidencia asociada<input data-rubric-field="evidenciaAsociada" maxlength="500" value="${escapeHtml(criterio.evidenciaAsociada || '')}" placeholder="Código, salida, respuesta o intento"></label>
-              <button class="btn btn-secondary" type="button" onclick="quitarCriterioRubrica('${sectionId}', this)" aria-label="Quitar criterio ${indice + 1}"><i class="fa-solid fa-trash-can"></i></button>
-          </div>`;
-      }
-      function actualizarNotaDesdeRubrica(sectionId) {
-          const rubrica = leerRubricaEditor(sectionId);
-          const nota = calcularNotaRubrica(rubrica);
-          const salida = document.getElementById(`notaRubricaCalculada-${sectionId}`);
-          const input = document.getElementById(`notaDesafioDocente-${sectionId}`);
-          if (salida) salida.textContent = nota === null ? 'Sin cálculo' : `${nota.toFixed(1)}/10`;
-          if (input && nota !== null) input.value = nota.toFixed(1);
-      }
-      function aplicarPlantillaRubrica(sectionId, tipo = 'programacion') {
-          const contenedor = document.getElementById(`criteriosRubrica-${sectionId}`);
-          if (!contenedor) return;
-          contenedor.innerHTML = rubricaPlantillaDesafio(tipo).map((item, indice) =>
-              renderFilaCriterioRubrica(sectionId, item, indice)
-          ).join('');
-          actualizarNotaDesdeRubrica(sectionId);
-      }
-      function agregarCriterioRubrica(sectionId) {
-          const contenedor = document.getElementById(`criteriosRubrica-${sectionId}`);
-          if (!contenedor) return;
-          contenedor.insertAdjacentHTML('beforeend', renderFilaCriterioRubrica(sectionId, {}, contenedor.children.length));
-      }
-      function quitarCriterioRubrica(sectionId, boton) {
-          boton?.closest('[data-rubric-row]')?.remove();
-          actualizarNotaDesdeRubrica(sectionId);
-      }
-      function leerRubricaEditor(sectionId) {
-          const contenedor = document.getElementById(`criteriosRubrica-${sectionId}`);
-          const criterios = [...(contenedor?.querySelectorAll('[data-rubric-row]') || [])].map(fila => {
-              const valor = clave => fila.querySelector(`[data-rubric-field="${clave}"]`)?.value ?? '';
-              return {
-                  criterio: String(valor('criterio')).trim().slice(0, 120),
-                  descripcion: String(valor('descripcion')).trim().slice(0, 500),
-                  puntajeMaximo: Math.max(0, Number(valor('puntajeMaximo')) || 0),
-                  puntajeObtenido: Math.max(0, Number(valor('puntajeObtenido')) || 0),
-                  comentarioDocente: String(valor('comentarioDocente')).trim().slice(0, 1000),
-                  evidenciaAsociada: String(valor('evidenciaAsociada')).trim().slice(0, 500)
-              };
-          }).filter(item => item.criterio || item.descripcion);
-          return { version: 1, criterios };
-      }
       async function guardarNotaDesafioProfesor(indice, sectionId) {
           const d = estudiantesProfesor[indice];
           const input = document.getElementById(`notaDesafioDocente-${sectionId}`);
           const motivoInput = document.getElementById(`motivoNotaDesafioDocente-${sectionId}`);
           const estado = document.getElementById(`estadoNotaDesafioDocente-${sectionId}`);
-          const rubrica = leerRubricaEditor(sectionId);
-          const notaRubrica = calcularNotaRubrica(rubrica);
-          const nota = notaRubrica === null ? Number(input?.value) : notaRubrica;
+          const nota = Number(input?.value);
           if (!d?.uid) {
               alert('No se encontró el identificador Firebase del estudiante.');
               return;
@@ -9824,9 +9956,6 @@
           const motivo = motivoInput?.value.trim() || '';
           const ok = await window.guardarNotaDesafioDocenteFirebase?.(d.uid, sectionId, {
               nota: notaNormalizada,
-              notaDocente: notaNormalizada,
-              notaFinalCalculada: notaNormalizada,
-              rubrica: rubrica.criterios.length ? rubrica : null,
               motivo
           });
           if (!ok) {
@@ -9846,17 +9975,16 @@
               );
               return;
           }
-          const resultadoServidor = d.resultadosVerificados?.[sectionId] || {};
-          const notaAutomatica = obtenerNotaAutomaticaModulo(d.historialResultados?.[sectionId] || {}, resultadoServidor);
+          const notaAutomatica = Number(
+              d.historialResultados?.[sectionId]?.notaFinal ??
+              d.historialResultados?.[sectionId]?.notaIA
+          );
           d.notasDesafiosDocente = {
               ...(d.notasDesafiosDocente || {}),
               [sectionId]: {
                   nota: notaNormalizada,
-                  notaDocente: notaNormalizada,
-                  notaFinalCalculada: notaNormalizada,
-                  rubrica: rubrica.criterios.length ? rubrica : null,
                   motivo,
-                  notaAutomatica,
+                  notaAutomatica: Number.isFinite(notaAutomatica) ? notaAutomatica : null,
                   modificadaPor: window.firebaseTeacherUser?.email || window.firebaseCurrentUser?.email || ''
               }
           };
@@ -9959,12 +10087,6 @@
                           Number.isFinite(Number(evento.valorNuevo))
                           ? `${Number(evento.valorNuevo).toFixed(1)}/10`
                           : 'Sin nota';
-                      const criteriosEvento = Array.isArray(evento.rubricaNueva?.criterios)
-                          ? evento.rubricaNueva.criterios
-                          : [];
-                      const intentoEvento = evento.intento && typeof evento.intento === 'object'
-                          ? evento.intento
-                          : {};
                       return `<article class="teacher-challenge-grade-history-item">
                           <div class="teacher-challenge-grade-history-change">
                               <span>${escapeHtml(anterior)}</span>
@@ -9977,16 +10099,6 @@
                               <span><i class="fa-solid fa-user-shield"></i> ${escapeHtml(evento.docente || 'Docente autorizado')}</span>
                           </div>
                           ${evento.motivo ? `<p><strong>Motivo:</strong> ${escapeHtml(evento.motivo)}</p>` : ''}
-                          ${criteriosEvento.length ? `<details class="teacher-rubric-history"><summary>Ver rúbrica aplicada (${criteriosEvento.length} criterios)</summary>${criteriosEvento.map(criterio =>
-                              `<div><strong>${escapeHtml(criterio.criterio || 'Criterio')}</strong> · ${Number(criterio.puntajeObtenido || 0)}/${Number(criterio.puntajeMaximo || 0)}
-                              ${criterio.comentarioDocente ? `<span>${escapeHtml(criterio.comentarioDocente)}</span>` : ''}
-                              ${criterio.evidenciaAsociada ? `<small>Evidencia: ${escapeHtml(criterio.evidenciaAsociada)}</small>` : ''}</div>`
-                          ).join('')}</details>` : ''}
-                          ${(intentoEvento.codigo || intentoEvento.salida || Number.isFinite(Number(intentoEvento.notaIA)) || Number.isFinite(Number(intentoEvento.notaFinal))) ? `<details class="teacher-rubric-history"><summary>Revisar intento asociado</summary>
-                              <p>Nota automática: ${intentoEvento.notaFinal ?? intentoEvento.notaIA ?? 'Sin nota'}</p>
-                              ${intentoEvento.codigo ? `<pre>${escapeHtml(intentoEvento.codigo)}</pre>` : ''}
-                              ${intentoEvento.salida ? `<pre>${escapeHtml(intentoEvento.salida)}</pre>` : ''}
-                          </details>` : ''}
                       </article>`;
                   }).join('')}
               </div>`;
@@ -10280,8 +10392,24 @@
           const sectionId = todas ? '' : (d.seccionActiva || d.pantallaBloqueadaSeccion || seccionActivaActual || '');
           if (!todas && !sectionId) { alert('No se pudo identificar la actividad actual. Abrí el detalle del estudiante y seleccioná una actividad.'); return; }
           if (!confirm(todas ? `¿Desbloquear todas las actividades finalizadas de ${nombre}?` : `¿Desbloquear la actividad ${sectionId} de ${nombre}?`)) return;
-          const ok = await window.desbloquearActividadesEstudianteFirebase?.(d.uid, sectionId);
+          const motivoDesbloqueo = 'Nuevo intento autorizado por el docente';
+          const ok = await window.desbloquearActividadesEstudianteFirebase?.(d.uid, sectionId, motivoDesbloqueo);
           if (!ok) { alert('No se pudieron desbloquear las actividades. Verificá las reglas de Firestore.'); return; }
+          const idsDesbloqueados = todas ? seccionesData.map(sec => sec.id) : [sectionId];
+          d.intentosDesafio = { ...(d.intentosDesafio || {}) };
+          d.historialDesbloqueosDesafios = Array.isArray(d.historialDesbloqueosDesafios)
+              ? d.historialDesbloqueosDesafios.slice()
+              : [];
+          idsDesbloqueados.forEach(id => {
+              d.intentosDesafio[id] = Number(d.intentosDesafio[id] || 1) + 1;
+              d.historialDesbloqueosDesafios.push({
+                  seccion: id,
+                  intento: d.intentosDesafio[id],
+                  motivo: motivoDesbloqueo,
+                  por: window.firebaseTeacherUser?.email || window.firebaseCurrentUser?.email || 'Docente autorizado',
+                  fecha: new Date().toISOString()
+              });
+          });
           if (d.finalizadas && todas) Object.keys(d.finalizadas).forEach(id => delete d.finalizadas[id]);
           if (d.finalizadas && sectionId) delete d.finalizadas[sectionId];
           renderPanelProfesor();
@@ -10303,6 +10431,18 @@
           }
           d.finalizadas = { ...(d.finalizadas || {}) };
           delete d.finalizadas[sectionId];
+          d.intentosDesafio = { ...(d.intentosDesafio || {}) };
+          d.intentosDesafio[sectionId] = Number(d.intentosDesafio[sectionId] || 1) + 1;
+          d.historialDesbloqueosDesafios = [
+              ...(Array.isArray(d.historialDesbloqueosDesafios) ? d.historialDesbloqueosDesafios : []),
+              {
+                  seccion: sectionId,
+                  intento: d.intentosDesafio[sectionId],
+                  motivo: motivoFinal,
+                  por: window.firebaseTeacherUser?.email || window.firebaseCurrentUser?.email || 'Docente autorizado',
+                  fecha: new Date().toISOString()
+              }
+          ];
           abrirDetalleEstudianteProfesor(indice);
           alert(`"${sec?.title || sectionId}" quedó habilitada para volver a resolver.`);
       }
@@ -10320,7 +10460,7 @@
           modal.className = 'modal-overlay';
           modal.setAttribute('role', 'dialog');
           modal.setAttribute('aria-modal', 'true');
-          modal.innerHTML = `<div class="modal-box teacher-unlock-selector-box" tabindex="-1"><header class="teacher-unlock-selector-header"><div><span class="student-progress-eyebrow">Panel docente</span><h3><i class="fa-solid fa-unlock-keyhole"></i> Desbloquear actividades</h3><p>${escapeHtml(nombre)} · Elegí exactamente qué actividades volver a habilitar.</p></div><button type="button" class="btn btn-secondary teacher-unlock-selector-close" aria-label="Cerrar"><span aria-hidden="true">×</span></button></header><div class="teacher-unlock-selector-toolbar"><button type="button" class="btn btn-secondary" data-unlock-select-all><i class="fa-solid fa-check-double"></i> Seleccionar todas</button><button type="button" class="btn btn-secondary" data-unlock-clear><i class="fa-solid fa-square-minus"></i> Limpiar selección</button><span data-unlock-count>0 seleccionadas</span></div><div class="teacher-unlock-selector-list">${actividades.map(sec => `<label class="teacher-unlock-option"><input type="checkbox" value="${escapeHtml(sec.id)}"><span><strong>${escapeHtml(sec.title || sec.id)}</strong><small>Actividad finalizada · se conservarán respuestas y calificaciones</small></span></label>`).join('')}</div><div class="teacher-unlock-selector-actions"><span class="teacher-unlock-selector-status" role="status"></span><button type="button" class="btn btn-success" data-unlock-confirm disabled><i class="fa-solid fa-unlock"></i> Desbloquear seleccionadas</button></div></div>`;
+          modal.innerHTML = `<div class="modal-box teacher-unlock-selector-box" tabindex="-1"><header class="teacher-unlock-selector-header"><div><span class="student-progress-eyebrow">Panel docente</span><h3><i class="fa-solid fa-unlock-keyhole"></i> Desbloquear actividades</h3><p>${escapeHtml(nombre)} ? Eleg? exactamente qu? actividades volver a habilitar.</p></div><button type="button" class="btn btn-secondary teacher-unlock-selector-close" aria-label="Cerrar"><span aria-hidden="true">�</span></button></header><div class="teacher-unlock-selector-toolbar"><button type="button" class="btn btn-secondary" data-unlock-select-all><i class="fa-solid fa-check-double"></i> Seleccionar todas</button><button type="button" class="btn btn-secondary" data-unlock-clear><i class="fa-solid fa-square-minus"></i> Limpiar selecci?n</button><span data-unlock-count>0 seleccionadas</span></div><div class="teacher-unlock-selector-list">${actividades.map(sec => `<label class="teacher-unlock-option"><input type="checkbox" value="${escapeHtml(sec.id)}"><span><strong>${escapeHtml(sec.title || sec.id)}</strong><small>Actividad finalizada ? se conservar?n respuestas y calificaciones</small></span></label>`).join('')}</div><div class="teacher-unlock-selector-actions"><span class="teacher-unlock-selector-status" role="status"></span><button type="button" class="btn btn-success" data-unlock-confirm disabled><i class="fa-solid fa-unlock"></i> Desbloquear seleccionadas</button></div></div>`;
           document.body.appendChild(modal);
           const cerrar = () => modal.remove();
           modal.querySelector('.teacher-unlock-selector-close').onclick = cerrar;
@@ -10341,9 +10481,24 @@
               const contador = modal.querySelector('[data-unlock-count]');
               boton.disabled = true;
               contador.textContent = 'Guardando desbloqueos...';
-              const ok = await window.desbloquearActividadesEstudianteFirebase?.(d.uid, ids);
+              const motivoDesbloqueo = 'Nuevo intento autorizado por el docente';
+              const ok = await window.desbloquearActividadesEstudianteFirebase?.(d.uid, ids, motivoDesbloqueo);
               if (!ok) { contador.textContent = 'No se pudo guardar. Verificá las reglas de Firestore.'; boton.disabled = false; return; }
-              ids.forEach(id => delete d.finalizadas[id]);
+              d.intentosDesafio = { ...(d.intentosDesafio || {}) };
+              d.historialDesbloqueosDesafios = Array.isArray(d.historialDesbloqueosDesafios)
+                  ? d.historialDesbloqueosDesafios.slice()
+                  : [];
+              ids.forEach(id => {
+                  d.intentosDesafio[id] = Number(d.intentosDesafio[id] || 1) + 1;
+                  d.historialDesbloqueosDesafios.push({
+                      seccion: id,
+                      intento: d.intentosDesafio[id],
+                      motivo: motivoDesbloqueo,
+                      por: window.firebaseTeacherUser?.email || window.firebaseCurrentUser?.email || 'Docente autorizado',
+                      fecha: new Date().toISOString()
+                  });
+                  delete d.finalizadas[id];
+              });
               renderPanelProfesor();
               cerrar();
               alert(`${ids.length} actividad${ids.length === 1 ? '' : 'es'} desbloqueada${ids.length === 1 ? '' : 's'} correctamente.`);
@@ -10402,7 +10557,11 @@
               ? p.correctas
               : opciones.map((op,i)=>(op?.correcta === true || op?.c === true) ? i : null).filter(i=>i !== null);
           const esAbierta = p?.formato === "abierta" || (p?.tipo === "SOCRÁTICA" && Boolean(p?.respuestaTexto));
-          const esCorrecta = esAbierta
+          const esAbiertaEfectiva = esAbierta
+              || String(p?.formato || "").toLowerCase().includes("socr")
+              || String(p?.tipo || "").toLowerCase().includes("socr")
+              || typeof p?.respuestaTexto === "string";
+          const esCorrecta = esAbiertaEfectiva
               ? p?.nivel === "completa"
               : JSON.stringify([...seleccionadas].sort((a,b)=>a-b)) === JSON.stringify([...correctas].sort((a,b)=>a-b));
           const nivel = p?.nivel || (esCorrecta ? "completa" : "incorrecta");
@@ -10418,7 +10577,7 @@
                   ${escapeHtml(p?.categoria || p?.tipo || 'ANÁLISIS')} ·
                   <strong style="color:${colorNivel}">${escapeHtml(etiquetaNivel)} · ${Number(p?.puntos || 0).toFixed(2)}/1,00</strong>
               </div>
-              ${esAbierta ? `
+              ${esAbiertaEfectiva ? `
                   <div class="teacher-socratic-response">
                       <small>Respuesta del estudiante</small>
                       <p>${escapeHtml(p?.respuestaTexto || 'Sin respuesta escrita')}</p>
@@ -10903,6 +11062,128 @@
           </details>`;
       }
 
+      // ============================================================
+      // DATOS PERSONALES DEL ESTUDIANTE — EDICIÓN DOCENTE
+      // El docente autorizado puede modificar nombre, curso, división y turno.
+      // El guardado se realiza por UID en estudiantes/{uid} y no toca progreso,
+      // respuestas, códigos, notas ni historial del estudiante.
+      // ============================================================
+      async function editarDatosEstudianteProfesor(indice) {
+          const estudiante = estudiantesProfesor[indice];
+          if (!estudiante?.uid) {
+              alert('No se pudo identificar al estudiante.');
+              return;
+          }
+
+          const datos = estudiante.estudiante || {};
+          const modal = document.createElement('div');
+          modal.className = 'modal-overlay';
+          modal.style.display = 'flex';
+          modal.style.zIndex = '10080';
+
+          modal.innerHTML = `
+              <div class="modal-box" style="max-width:560px;width:94%;">
+                  <h3><i class="fa-solid fa-user-pen"></i> Modificar datos del estudiante</h3>
+                  <p style="color:var(--text-muted);margin:.4rem 0 1rem;">
+                      Esta modificación está disponible únicamente para docentes autorizados.
+                  </p>
+                  <div class="input-group">
+                      <label for="editarNombreEstudiante">Nombre y Apellido</label>
+                      <input id="editarNombreEstudiante" type="text" maxlength="120" value="${escapeHtml(datos.nombre || '')}">
+                  </div>
+                  <div class="input-group">
+                      <label for="editarCursoEstudiante">Curso</label>
+                      <select id="editarCursoEstudiante">
+                          <option value="">Seleccionar curso</option>
+                          ${['1° Año','2° Año','3° Año','4° Año','5° Año','6° Año','7° Año'].map(c =>
+                              `<option value="${escapeHtml(c)}" ${String(datos.curso || '') === c ? 'selected' : ''}>${escapeHtml(c)}</option>`
+                          ).join('')}
+                      </select>
+                  </div>
+                  <div class="input-group">
+                      <label for="editarDivisionEstudiante">División</label>
+                      <select id="editarDivisionEstudiante">
+                          <option value="">Seleccionar división</option>
+                          ${['A','B','C','D','E'].map(d =>
+                              `<option value="${d}" ${String(datos.division || '').toUpperCase() === d ? 'selected' : ''}>${d}</option>`
+                          ).join('')}
+                      </select>
+                  </div>
+                  <div class="input-group">
+                      <label for="editarTurnoEstudiante">Turno</label>
+                      <select id="editarTurnoEstudiante">
+                          <option value="">Seleccionar turno</option>
+                          ${['Mañana','Tarde','Vespertino','Noche'].map(t =>
+                              `<option value="${escapeHtml(t)}" ${String(datos.turno || '') === t ? 'selected' : ''}>${escapeHtml(t)}</option>`
+                          ).join('')}
+                      </select>
+                  </div>
+                  <div id="editarDatosEstudianteError" role="alert"
+                       style="display:none;color:#fca5a5;margin-top:.6rem;"></div>
+                  <div class="modal-actions" style="margin-top:1rem;">
+                      <button class="btn btn-secondary" type="button" id="cancelarEditarDatosEstudiante">Cancelar</button>
+                      <button class="btn btn-primary" type="button" id="guardarEditarDatosEstudiante">
+                          <i class="fa-solid fa-floppy-disk"></i> Guardar cambios
+                      </button>
+                  </div>
+              </div>`;
+
+          document.body.appendChild(modal);
+
+          const cerrar = () => modal.remove();
+          modal.querySelector('#cancelarEditarDatosEstudiante').onclick = cerrar;
+          modal.addEventListener('click', e => {
+              if (e.target === modal) cerrar();
+          });
+
+          modal.querySelector('#guardarEditarDatosEstudiante').onclick = async () => {
+              const nombre = modal.querySelector('#editarNombreEstudiante').value.trim();
+              const curso = modal.querySelector('#editarCursoEstudiante').value.trim();
+              const division = modal.querySelector('#editarDivisionEstudiante').value.trim().toUpperCase();
+              const turno = modal.querySelector('#editarTurnoEstudiante').value.trim();
+              const error = modal.querySelector('#editarDatosEstudianteError');
+              const boton = modal.querySelector('#guardarEditarDatosEstudiante');
+
+              if (!nombre || !curso || !division || !turno) {
+                  error.textContent = 'Completá nombre, curso, división y turno.';
+                  error.style.display = 'block';
+                  return;
+              }
+
+              boton.disabled = true;
+              boton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+              error.style.display = 'none';
+
+              try {
+                  const ok = await window.guardarDatosEstudianteDocenteFirebase?.(
+                      estudiante.uid,
+                      { nombre, curso, division, turno }
+                  );
+
+                  if (!ok) throw new Error('No autorizado o no se pudieron guardar los datos.');
+
+                  estudiante.estudiante = { ...(estudiante.estudiante || {}), nombre, curso, division, turno };
+                  renderPanelProfesor();
+                  modal.remove();
+
+                  if (document.getElementById('detalleEstudianteProfesorModal')?.classList.contains('active')) {
+                      const nuevoIndice = estudiantesProfesor.findIndex(e => e.uid === estudiante.uid);
+                      if (nuevoIndice >= 0) abrirDetalleEstudianteProfesor(nuevoIndice);
+                  }
+
+                  alert('Los datos del estudiante fueron modificados correctamente.');
+              } catch (e) {
+                  console.error('Error modificando datos del estudiante:', e);
+                  error.textContent = 'No se pudieron guardar los cambios. Verificá que tu cuenta sea un docente autorizado y que las reglas de Firestore permitan esta operación.';
+                  error.style.display = 'block';
+                  boton.disabled = false;
+                  boton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar cambios';
+              }
+          };
+
+          modal.querySelector('#editarNombreEstudiante').focus();
+      }
+
       function abrirDetalleEstudianteProfesor(indice) {
           const d = estudiantesProfesor[indice];
           if (!d) return;
@@ -10912,7 +11193,13 @@
           const chatIA = d.chatIA || {};
           const codigos = d.codigos || {};
           const tiempos = d.tiemposRestantes || {};
-          const finalizadas = d.finalizadas || {};
+          const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
+          const intentosDesafio = d.intentosDesafio && typeof d.intentosDesafio === 'object'
+              ? d.intentosDesafio
+              : {};
+          const historialDesbloqueosDesafios = Array.isArray(d.historialDesbloqueosDesafios)
+              ? d.historialDesbloqueosDesafios
+              : [];
           const previews = d.contadorPrevisualizaciones || {};
           const ayudas = d.ayudasComprension || {};
           const progreso = calcularProgresoEstudiante(d);
@@ -10944,14 +11231,14 @@
               <div style="padding:1rem;border:1px solid rgba(245,158,11,.45);border-radius:8px;background:rgba(245,158,11,.08);margin-bottom:1rem">
                   <strong style="color:#fde68a"><i class="fa-solid fa-user-clock"></i> Solicitud de acceso pendiente</strong>
                   <div class="btn-group" style="margin-top:.75rem">
-                      <button type="button" class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar estudiante</button>
-                      <button type="button" class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar solicitud</button>
+                      <button class="btn btn-success" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar estudiante</button>
+                      <button class="btn btn-danger" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar solicitud</button>
                   </div>
               </div>` : (cuentaRechazada ? `
               <div style="padding:1rem;border:1px solid rgba(239,68,68,.45);border-radius:8px;background:rgba(239,68,68,.08);margin-bottom:1rem">
                   <strong style="color:#fca5a5"><i class="fa-solid fa-user-xmark"></i> Solicitud rechazada</strong>
                   <div style="margin-top:.45rem">Motivo: ${escapeHtml(d.rechazoMotivo || 'Sin motivo registrado')}</div>
-                  <button type="button" class="btn btn-success" style="margin-top:.75rem" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Habilitar cuenta</button>
+                  <button class="btn btn-success" style="margin-top:.75rem" onclick="cambiarEstadoCuentaEstudiante(${indice}, 'activo')"><i class="fa-solid fa-user-check"></i> Habilitar cuenta</button>
               </div>` : '');
           const fecha = d.actualizadoEn?.toDate ? d.actualizadoEn.toDate().toLocaleString() : 'Sin fecha';
           const cantidadDesbloqueos = Number(d.cantidadDesbloqueos || 0);
@@ -10966,28 +11253,27 @@
 
           const actividadesHtml = seccionesData.map((sec, numero) => {
               const r = historial[sec.id] || {};
-              const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
               const ajusteNotaDocente = d.notasDesafiosDocente?.[sec.id] || null;
               const mensajesChat = Array.isArray(chatIA[sec.id]) ? chatIA[sec.id] : [];
+              const ayudasAnalista = Array.isArray(r.ayudasAnalista) ? r.ayudasAnalista : [];
               const preguntas = Array.isArray(r.analista?.preguntas) ? r.analista.preguntas : [];
-              const codigo = resultadoServidor.codigo || r.codigo || codigos[sec.id] || '// Sin código guardado';
+              const codigo = r.codigo || codigos[sec.id] || '// Sin código guardado';
               const salida = r.salida || '// Sin salida de ejecución guardada';
-              const notaAutomatica = obtenerNotaAutomaticaModulo(r, resultadoServidor);
+              const ejecucionRegistrada = Boolean(
+                  r.exito === true || r.exito === false || r.error || r.salida
+              );
+              const estadoEjecucion = r.exito === true
+                  ? 'Ejecución correcta registrada'
+                  : (r.exito === false || r.error
+                      ? 'Ejecución registrada con error'
+                      : (ejecucionRegistrada ? 'Ejecución registrada' : 'Todavía no ejecutado'));
+              const notaAutomatica = r.notaFinal ?? r.notaIA;
               const notaFinal = obtenerNotaDesafioEstudiante(d, sec.id, r);
-              const valorNotaDocente = ajusteNotaDocente?.notaDocente ??
-                  ajusteNotaDocente?.notaFinalCalculada ??
-                  ajusteNotaDocente?.nota;
-              const tieneNotaDocente = valorNotaDocente !== null
-                  && valorNotaDocente !== undefined
-                  && valorNotaDocente !== ''
-                  && Number.isFinite(Number(valorNotaDocente));
-              const criteriosRubricaDocente = Array.isArray(ajusteNotaDocente?.rubrica?.criterios)
-                  ? ajusteNotaDocente.rubrica.criterios
-                  : [];
-              const criteriosRubricaIniciales = criteriosRubricaDocente.length
-                  ? criteriosRubricaDocente
-                  : [];
-               const evaluacionCodigo = resultadoServidor.evaluacionCodigo || r.evaluacionCodigo || null;
+              const tieneNotaDocente = ajusteNotaDocente?.nota !== null
+                  && ajusteNotaDocente?.nota !== undefined
+                  && ajusteNotaDocente?.nota !== ''
+                  && Number.isFinite(Number(ajusteNotaDocente.nota));
+              const evaluacionCodigo = r.evaluacionCodigo || null;
               const ayudaModulo = ayudas[sec.id] || {};
               const palabrasModulo = Object.values(ayudaModulo.palabras || {});
               const consultasPalabrasModulo = palabrasModulo.reduce((total, item) => total + Number(item?.consultas || 0), 0);
@@ -10998,20 +11284,30 @@
                   .join(", ");
               const checklistModuloTotal = generarChecklistConsigna(sec).length;
               const checklistModuloMarcado = Object.values(ayudaModulo.checklist || {}).filter(Boolean).length;
+              const intentosModulo = Math.max(1, Number(intentosDesafio[sec.id] || 1));
+              const desbloqueosModulo = historialDesbloqueosDesafios
+                  .filter(item => String(item?.seccion || '') === sec.id)
+                  .slice()
+                  .reverse();
+              const ultimoDesbloqueoModulo = desbloqueosModulo[0] || null;
+              const fechaDesbloqueoModulo = ultimoDesbloqueoModulo?.fecha
+                  ? new Date(ultimoDesbloqueoModulo.fecha).toLocaleString('es-AR')
+                  : '';
               const estado = finalizadas[sec.id] ? 'Finalizada' : (r.notaCodigo !== undefined ? 'Preguntas pendientes' : 'En curso');
               const formulaActividad = r.notaCodigo !== undefined && r.notaPreguntas !== undefined
                   ? `(${r.notaCodigo} × 0,70) + (${r.notaPreguntas} × 0,30) = ${notaAutomatica}`
                   : 'La fórmula se completará al entregar código y preguntas.';
               const estadosDetalle = [
-                  evaluacionCodigoTieneError(evaluacionCodigo, r) ? 'errores' : '',
-                  (!finalizadas[sec.id] || r.notaPreguntas === undefined || notaAutomatica === null) ? 'pendientes' : '',
+                  (!evaluacionCodigo?.sintaxis?.valida || evaluacionCodigo?.ejecucion?.ok === false || Boolean(r.error)) ? 'errores' : '',
+                  (!finalizadas[sec.id] || r.notaPreguntas === undefined || notaAutomatica === undefined) ? 'pendientes' : '',
                   tieneNotaDocente ? 'modificadas' : '',
                   finalizadas[sec.id] ? 'finalizadas' : '',
                   notaFinal === null ? 'sin-nota' : '',
-                  notaFinal !== null && Number(notaFinal) >= 6 ? 'aprobadas' : '',
-                  notaFinal !== null && Number(notaFinal) < 6 ? 'desaprobadas' : '',
+                  notaFinal !== null && Number(notaFinal) >= 7 ? 'aprobadas' : '',
+                  notaFinal !== null && Number(notaFinal) < 7 ? 'desaprobadas' : '',
                   finalizadas[sec.id] && notaFinal !== null &&
-                      !evaluacionCodigoTieneError(evaluacionCodigo, r) &&
+                      evaluacionCodigo?.sintaxis?.valida !== false &&
+                      evaluacionCodigo?.ejecucion?.ok !== false &&
                       !r.error && !tieneNotaDocente ? 'completas' : ''
               ].filter(Boolean).join(' ');
               const estadoDetalleFinal = estadosDetalle || 'completas';
@@ -11040,25 +11336,39 @@
                           <div class="teacher-detail-stat"><small>Estado</small><strong>${estado}</strong></div>
                           <div class="teacher-detail-stat"><small>Nota del código (70%)</small><strong>${r.notaCodigo !== undefined ? `${r.notaCodigo}/10` : 'Pendiente'}</strong></div>
                           <div class="teacher-detail-stat"><small>Nota de preguntas (30%)</small><strong>${r.notaPreguntas !== undefined ? `${r.notaPreguntas}/10` : 'Pendiente'}</strong></div>
-                          <div class="teacher-detail-stat"><small>Calificación automática</small><strong>${notaAutomatica !== null ? `${notaAutomatica}/10` : 'Pendiente'}</strong></div>
+                          <div class="teacher-detail-stat"><small>Calificación automática</small><strong>${notaAutomatica !== undefined ? `${notaAutomatica}/10` : 'Pendiente'}</strong></div>
                           <div class="teacher-detail-stat ${tieneNotaDocente ? 'teacher-grade-adjusted' : ''}"><small>Nota vigente</small><strong>${notaFinal !== null ? `${notaFinal}/10` : 'Pendiente'}</strong></div>
                           <div class="teacher-detail-stat"><small>Tiempo restante</small><strong>${formatearTiempoProfesor(tiempos[sec.id] ?? 2400)}</strong></div>
                           <div class="teacher-detail-stat"><small>Consultas de nota</small><strong>${Number(previews[sec.id] || 0)}/3</strong></div>
+                          <div class="teacher-detail-stat"><small>Intentos</small><strong>${intentosModulo}</strong></div>
                       </div>
+                      ${ultimoDesbloqueoModulo ? `<div style="padding:.65rem;border-radius:6px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.25);margin-bottom:.8rem;line-height:1.5">
+                          <strong><i class="fa-solid fa-unlock-keyhole"></i> Último desbloqueo</strong><br>
+                          Motivo: ${escapeHtml(ultimoDesbloqueoModulo.motivo || 'Nuevo intento autorizado')}<br>
+                          Docente: ${escapeHtml(ultimoDesbloqueoModulo.por || 'Docente autorizado')}
+                          ${fechaDesbloqueoModulo ? `<br>Fecha: ${escapeHtml(fechaDesbloqueoModulo)}` : ''}
+                      </div>
+                      <details style="margin-bottom:.8rem">
+                          <summary><i class="fa-solid fa-clock-rotate-left"></i> Historial de desbloqueos (${desbloqueosModulo.length})</summary>
+                          <div style="margin-top:.5rem;display:flex;flex-direction:column;gap:.4rem">
+                              ${desbloqueosModulo.map(item => {
+                                  const fecha = item.fecha ? new Date(item.fecha).toLocaleString('es-AR') : 'Sin fecha';
+                                  return `<div style="padding:.45rem .55rem;border-left:3px solid #34d399;background:rgba(52,211,153,.06)">
+                                      <strong>Intento ${Number(item.intento || 1)}</strong> · ${escapeHtml(fecha)}<br>
+                                      <small>${escapeHtml(item.por || 'Docente autorizado')} · ${escapeHtml(item.motivo || 'Sin motivo registrado')}</small>
+                                  </div>`;
+                              }).join('')}
+                          </div>
+                      </details>` : ''}
                       <div style="padding:.65rem;border-radius:6px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.25);margin-bottom:.8rem;">
                           <strong>Cálculo de esta actividad:</strong> ${escapeHtml(formulaActividad)}
-                          <div style="margin-top:.55rem">
-                              <button class="btn btn-secondary" type="button" onclick="mostrarJustificacionNotaAutomaticaProfesor(${indice}, '${sec.id}')">
-                                  <i class="fa-solid fa-circle-info"></i> Justificar nota automática
-                              </button>
-                          </div>
                       </div>
                       <div class="teacher-challenge-grade-editor">
                           <div class="teacher-challenge-grade-heading">
                               <div>
                                   <h4><i class="fa-solid fa-pen-to-square"></i> Calificación del docente</h4>
                                   <p>${tieneNotaDocente
-                                      ? `Esta nota reemplaza la automática en el promedio. Última modificación: ${escapeHtml(ajusteNotaDocente.modificadaPor || 'docente autorizado')}.`
+                                      ? `Esta nota reemplaza la autom?tica en el promedio. �ltima modificaci?n: ${escapeHtml(ajusteNotaDocente.modificadaPor || 'docente autorizado')}.`
                                       : 'Podés reemplazar la nota automática de este desafío sin modificar el código ni las respuestas.'}</p>
                               </div>
                               <span id="estadoNotaDesafioDocente-${sec.id}" class="teacher-challenge-grade-status ${tieneNotaDocente ? 'saved' : ''}">
@@ -11077,25 +11387,6 @@
                                       value="${escapeHtml(ajusteNotaDocente?.motivo || '')}" placeholder="Criterio o fundamento de la corrección">
                               </label>
                           </div>
-                          <details class="teacher-rubric-editor" ${criteriosRubricaIniciales.length ? 'open' : ''}>
-                              <summary><i class="fa-solid fa-list-check"></i> Rúbrica por criterios <span id="notaRubricaCalculada-${sec.id}">${criteriosRubricaIniciales.length ? `${calcularNotaRubrica({ criterios: criteriosRubricaIniciales })?.toFixed(1) || '—'}/10` : 'Opcional'}</span></summary>
-                              <div class="teacher-rubric-toolbar">
-                                  <label>Plantilla reutilizable
-                                      <select id="plantillaRubrica-${sec.id}">
-                                          <option value="programacion">Programación general</option>
-                                          <option value="proceso">Proceso y reflexión</option>
-                                      </select>
-                                  </label>
-                                  <button class="btn btn-secondary" type="button" onclick="aplicarPlantillaRubrica('${sec.id}', document.getElementById('plantillaRubrica-${sec.id}').value)"><i class="fa-solid fa-copy"></i> Aplicar plantilla</button>
-                                  <button class="btn btn-secondary" type="button" onclick="agregarCriterioRubrica('${sec.id}')"><i class="fa-solid fa-plus"></i> Agregar criterio</button>
-                              </div>
-                              <div class="teacher-rubric-criteria" id="criteriosRubrica-${sec.id}" oninput="actualizarNotaDesdeRubrica('${sec.id}')">
-                                  ${criteriosRubricaIniciales.map((criterio, criterioIndice) =>
-                                      renderFilaCriterioRubrica(sec.id, criterio, criterioIndice)
-                                  ).join('')}
-                              </div>
-                              <p class="teacher-rubric-note">La nota de la rúbrica se calcula proporcionalmente sobre 10. Si no hay criterios, se conserva la edición directa de la nota.</p>
-                          </details>
                           <div class="teacher-challenge-grade-actions">
                               ${finalizadas[sec.id] ? `<button class="btn btn-success" type="button" onclick="desbloquearActividadDesdeDetalleProfesor(${indice}, '${sec.id}')">
                                   <i class="fa-solid fa-unlock"></i> Desbloquear para volver a resolver
@@ -11126,6 +11417,10 @@
                               <i class="fa-solid fa-code-branch"></i> Abrir cooperación y mensajes
                           </button>
                       </div>
+                      <div class="teacher-execution-status" style="margin:.35rem 0 .55rem;color:var(--text-muted);font-size:.82rem">
+                          <i class="fa-solid ${r.exito === true ? 'fa-circle-check' : (r.exito === false || r.error ? 'fa-circle-exclamation' : 'fa-clock')}"></i>
+                          ${estadoEjecucion}
+                      </div>
                       <pre class="teacher-code">${escapeHtml(codigo)}</pre>
                       <h4 style="margin-top:.8rem">Salida de ejecución</h4>
                       <pre class="teacher-code" style="color:#7dd3fc">${escapeHtml(salida)}</pre>
@@ -11141,6 +11436,13 @@
                                   </div>`).join('')}</div>`
                               : '<div style="color:var(--text-muted);margin-top:.35rem;">No hay consultas guardadas para este módulo.</div>'}
                       </div>
+                      ${ayudasAnalista.length ? `<div class="teacher-analyst-help-history">
+                          <strong><i class="fa-solid fa-lightbulb"></i> Ayudas solicitadas sobre preguntas</strong>
+                          <span>${ayudasAnalista.length} solicitud${ayudasAnalista.length === 1 ? '' : 'es'} registrada${ayudasAnalista.length === 1 ? '' : 's'}</span>
+                          <ul>${ayudasAnalista.slice().reverse().slice(0, 8).map(item => `
+                              <li>${escapeHtml(item.tipo === 'abierta' ? 'Abierta' : 'Selección múltiple')} · ${escapeHtml(item.pregunta || 'Pregunta sin texto')} · ${escapeHtml(new Date(item.fecha || '').toLocaleString('es-AR'))}</li>
+                          `).join('')}</ul>
+                      </div>` : ''}
                       <div style="margin-top:1rem">
                           ${renderAnalistaViabilidadExcelenciaProfesor(r.analista)}
                       </div>
@@ -11160,7 +11462,7 @@
                   ? 'No registrada'
                   : `${evento.duracionSegundos} segundos`;
               const justificacion = evento.justificacion
-                  ? `<div style="margin-top:.4rem;color:#cbd5e1"><strong>Justificación:</strong> ${escapeHtml(evento.justificacion.motivo || '')} — ${escapeHtml(evento.justificacion.detalle || '')}</div>`
+                  ? `<div style="margin-top:.4rem;color:#cbd5e1"><strong>Justificaci�n:</strong> ${escapeHtml(evento.justificacion.motivo || '')} — ${escapeHtml(evento.justificacion.detalle || '')}</div>`
                   : '<div style="margin-top:.4rem;color:#fbbf24">Sin justificación del estudiante.</div>';
               return `<div class="teacher-question">
                   <strong>Evento ${Number(evento.numero || 0)} · ${escapeHtml(salida)}</strong>
@@ -11211,15 +11513,15 @@
               <div class="teacher-detail-summary">
                   <div class="teacher-detail-stat"><small>Nombre</small><strong>${escapeHtml(e.nombre || d.nombreGoogle || 'Sin nombre')}</strong></div>
                   <div class="teacher-detail-stat"><small>Email</small><strong>${escapeHtml(d.email || 'Sin email')}</strong></div>
-                  <div class="teacher-detail-stat"><small>Curso y división</small><strong>${escapeHtml(`${e.curso || '—'} ${e.division || ''}`)}</strong></div>
+                  <div class="teacher-detail-stat"><small>Curso y divisi�n</small><strong>${escapeHtml(`${e.curso || '—'} ${e.division || ''}`)}</strong></div>
                    <div class="teacher-detail-stat"><small>Turno</small><strong>${escapeHtml(e.turno || '—')}</strong></div>
                    <div class="teacher-detail-stat"><small>Progreso</small><strong>${progreso}%</strong></div>
-                   <div class="teacher-detail-stat teacher-current-challenge-stat"><small>${desafioActualDetalle.siguiente ? 'Siguiente desafío' : 'Desafío actual'}</small><strong>${escapeHtml(desafioActualDetalle.desafio?.title || 'Sin actividad informada')}</strong><span>${desafioActualDetalle.trabajandoAhora ? 'Trabajando ahora' : (desafioActualDetalle.siguiente ? 'Calculado por finalización' : (desafioActualDetalle.id ? 'Último informado' : 'Sin conexión activa'))}</span></div>
+                   <div class="teacher-detail-stat teacher-current-challenge-stat"><small>${desafioActualDetalle.siguiente ? 'Siguiente desaf?o' : 'Desaf?o actual'}</small><strong>${escapeHtml(desafioActualDetalle.desafio?.title || 'Sin actividad informada')}</strong><span>${desafioActualDetalle.trabajandoAhora ? 'Trabajando ahora' : (desafioActualDetalle.siguiente ? 'Calculado por finalizaci?n' : (desafioActualDetalle.id ? '�ltimo informado' : 'Sin conexi?n activa'))}</span></div>
                    <div class="teacher-detail-stat"><small>Desafíos con evaluación socrática</small><strong>${actividadesSocraticasValidas.length}</strong></div>
                   <div class="teacher-detail-stat"><small>Total de respuestas socráticas</small><strong>${respuestasSocraticasValidas}</strong></div>
-                  <div class="teacher-detail-stat"><small>Promedio académico</small><strong>${promedio === '—' ? 'Pendiente' : `${promedio}/10`}</strong></div>
+                  <div class="teacher-detail-stat"><small>Promedio acad�mico</small><strong>${promedio === '—' ? 'Pendiente' : `${promedio}/10`}</strong></div>
                   <div class="teacher-detail-stat"><small>Nota calculada</small><strong>${notaCalculada === '—' ? 'Pendiente' : `${notaCalculada}/10`}</strong></div>
-                  <div class="teacher-detail-stat"><small>Nota definitiva</small><strong>${notaDefinitiva === '—' ? 'Pendiente de confirmación' : `${notaDefinitiva}/10`}</strong></div>
+                  <div class="teacher-detail-stat"><small>Nota definitiva</small><strong>${notaDefinitiva === '—' ? 'Pendiente de confirmaci�n' : `${notaDefinitiva}/10`}</strong></div>
                   <div class="teacher-detail-stat teacher-level-completa"><small>Respuestas completas</small><strong>${resumenNivelesAnalista.completa}</strong></div>
                   <div class="teacher-detail-stat teacher-level-incompleta"><small>Correctas incompletas</small><strong>${resumenNivelesAnalista.incompleta}</strong></div>
                   <div class="teacher-detail-stat teacher-level-parcial"><small>Respuestas parciales</small><strong>${resumenNivelesAnalista.parcial}</strong></div>
@@ -11227,9 +11529,12 @@
                   <div class="teacher-detail-stat"><small>Estado de cuenta</small><strong style="color:${colorCuentaDetalle}">${estadoCuentaDetalle}</strong></div>
                   <div class="teacher-detail-stat"><small>Salidas de pestaña</small><strong>${Number(d.salidasPestana ?? d.salidasPestana ?? 0)}</strong></div>
                   <div class="teacher-detail-stat"><small>Desbloqueos</small><strong>${cantidadDesbloqueos}</strong></div>
-                   <div class="teacher-detail-stat"><small>Última actualización</small><strong>${escapeHtml(fecha)}</strong></div>
+                   <div class="teacher-detail-stat"><small>Última actualizaci�n</small><strong>${escapeHtml(fecha)}</strong></div>
                </div>
                ${graficoNotasDesafios}
+               <button type="button" class="teacher-floating-chart-button" onclick="irAlGraficoNotasEstudiante(this)" title="Ir al gráfico de notas">
+                   <i class="fa-solid fa-chart-column"></i><span>Ir al gráfico</span>
+               </button>
                <div class="teacher-detail-toolbar">
                   <div class="teacher-detail-toolbar-title">
                       <strong><i class="fa-solid fa-layer-group"></i> Desafíos del informe</strong>
@@ -11255,8 +11560,8 @@
                           <option value="modificadas">Nota docente modificada</option>
                           <option value="finalizadas">Finalizados</option>
                           <option value="sin-nota">Sin nota vigente</option>
-                          <option value="aprobadas">Nota vigente 6 o más</option>
-                          <option value="desaprobadas">Nota vigente menor a 6</option>
+                          <option value="aprobadas">Nota vigente 7 o más</option>
+                          <option value="desaprobadas">Nota vigente menor a 7</option>
                           <option value="completas">Completos sin observaciones</option>
                           </select>
                       </label>
@@ -11280,11 +11585,20 @@
                       </button>
                   </div>
               </div>
+              <div style="padding:1rem;border:1px solid rgba(56,189,248,.35);border-radius:8px;background:rgba(56,189,248,.06);margin-bottom:1rem">
+                  <strong><i class="fa-solid fa-user-pen"></i> Datos personales</strong>
+                  <div style="margin-top:.35rem;color:var(--text-muted)">El docente puede corregir nombre, curso, división y turno.</div>
+                  <div style="margin-top:.7rem">
+                      <button class="btn btn-primary" type="button" onclick="editarDatosEstudianteProfesor(${indice})">
+                          <i class="fa-solid fa-user-pen"></i> Modificar datos del estudiante
+                      </button>
+                  </div>
+              </div>
               <div style="${(cuentaPendiente || cuentaRechazada) ? 'display:none;' : ''}padding:1rem;border:1px solid ${cuentaInactiva ? 'rgba(239,68,68,.35)' : 'rgba(16,185,129,.35)'};border-radius:8px;background:${cuentaInactiva ? 'rgba(239,68,68,.06)' : 'rgba(16,185,129,.06)'};margin-bottom:1rem">
                   <strong>Estado institucional: ${cuentaInactiva ? 'INACTIVA' : 'ACTIVA'}</strong>
                   ${cuentaInactiva ? `<div style="margin-top:.35rem">Motivo: ${escapeHtml(d.bajaMotivo || 'Sin motivo')}<br>Fecha: ${escapeHtml(d.bajaFecha ? new Date(d.bajaFecha).toLocaleString() : 'Sin fecha')}<br>Responsable: ${escapeHtml(d.bajaPor || 'Sin registrar')}</div>` : '<div style="margin-top:.35rem;color:var(--text-muted)">La cuenta puede iniciar sesión normalmente.</div>'}
                   <div style="margin-top:.7rem">
-                      <button type="button" class="btn ${cuentaInactiva ? 'btn-success' : 'btn-danger'}" onclick="cambiarEstadoCuentaEstudiante(${indice}, '${cuentaInactiva ? 'activo' : 'inactivo'}')">
+                      <button class="btn ${cuentaInactiva ? 'btn-success' : 'btn-danger'}" onclick="cambiarEstadoCuentaEstudiante(${indice}, '${cuentaInactiva ? 'activo' : 'inactivo'}')">
                           <i class="fa-solid ${cuentaInactiva ? 'fa-user-check' : 'fa-user-slash'}"></i>
                           ${cuentaInactiva ? 'Reactivar cuenta' : 'Dar de baja'}
                       </button>
@@ -11293,14 +11607,14 @@
               <div style="padding:1rem;border:1px solid rgba(56,189,248,.35);border-radius:8px;background:rgba(56,189,248,.06);margin-bottom:1rem">
                   <strong>Control individual del cronómetro: ${cronometroIndividualPausado ? 'PAUSADO' : 'ACTIVO'}</strong>
                   <div class="btn-group" style="margin-top:.7rem">
-                      <button type="button" class="btn ${cronometroIndividualPausado ? 'btn-success' : 'btn-warning'}" onclick="controlarCronometroEstudianteProfesor(${indice}, '${cronometroIndividualPausado ? 'reanudar' : 'pausar'}')">
+                      <button class="btn ${cronometroIndividualPausado ? 'btn-success' : 'btn-warning'}" onclick="controlarCronometroEstudianteProfesor(${indice}, '${cronometroIndividualPausado ? 'reanudar' : 'pausar'}')">
                           <i class="fa-solid ${cronometroIndividualPausado ? 'fa-play' : 'fa-pause'}"></i>
                           ${cronometroIndividualPausado ? 'Reanudar cronómetro' : 'Pausar cronómetro'}
                       </button>
-                      <button type="button" class="btn btn-secondary" onclick="controlarCronometroEstudianteProfesor(${indice}, 'reiniciar')">
+                      <button class="btn btn-secondary" onclick="controlarCronometroEstudianteProfesor(${indice}, 'reiniciar')">
                           <i class="fa-solid fa-clock-rotate-left"></i> Reiniciar a 40:00
                       </button>
-                      <button type="button" class="btn btn-danger" onclick="desbloquearPantallaEstudianteProfesor(${indice})">
+                      <button class="btn btn-danger" onclick="desbloquearPantallaEstudianteProfesor(${indice})">
                           <i class="fa-solid fa-unlock-keyhole"></i> Desbloquear pantalla
                       </button>
                   </div>
@@ -11310,7 +11624,7 @@
                   <div style="margin-top:.4rem;color:var(--text-muted);line-height:1.5">
                     Fecha del bloqueo: ${escapeHtml(d.pantallaBloqueadaEn ? new Date(d.pantallaBloqueadaEn).toLocaleString() : 'Sin bloqueo registrado')}<br>
                     Cantidad de salidas: ${Number(d.pantallaBloqueadaSalidas || d.salidasPestana || 0)}<br>
-                    Última sección: ${escapeHtml(d.pantallaBloqueadaSeccion || 'Sin identificar')}<br>
+                    Última secci�n: ${escapeHtml(d.pantallaBloqueadaSeccion || 'Sin identificar')}<br>
                     Total de desbloqueos: ${cantidadDesbloqueos}<br>
                     Último desbloqueo: ${escapeHtml(ultimoDesbloqueoFecha)}<br>
                     Realizado por: ${escapeHtml(ultimoDesbloqueo.por || 'Sin registrar')}<br>
@@ -11322,7 +11636,7 @@
               <details class="teacher-activity">
                   <summary>Cómo se calculó el promedio académico</summary>
                   <div class="teacher-activity-content">
-                      <p><strong>Fórmula:</strong> suma de las notas vigentes evaluadas ÷ cantidad de actividades evaluadas. Las correcciones docentes reemplazan a la nota automática.</p>
+                      <p><strong>F?rmula:</strong> suma de las notas vigentes evaluadas � cantidad de actividades evaluadas. Las correcciones docentes reemplazan a la nota autom?tica.</p>
                       <p style="margin-top:.5rem;"><strong>Cálculo actual:</strong> ${escapeHtml(formulaPromedio)}</p>
                       <p style="margin-top:.7rem;"><strong>Actividades incluidas (${detallePromedio.evaluadas.length}):</strong></p>
                       <div style="margin-top:.35rem;color:#cbd5e1;line-height:1.5">${notasUsadas}</div>
@@ -11333,7 +11647,7 @@
                   <summary>Registro de cambios de pestaña y revisión docente <small>${eventos.length} evento${eventos.length === 1 ? '' : 's'} · ${revision.estado || 'pendiente'}</small></summary>
                   <div class="teacher-activity-content">
                       <p style="color:var(--text-muted);margin-bottom:.7rem;">Estos eventos son indicadores para revisión; no constituyen por sí solos una prueba de fraude.</p>
-                      <button type="button" class="btn btn-danger" style="margin-bottom:.8rem" onclick="reiniciarSalidasEstudianteProfesor(${indice})">
+                      <button class="btn btn-danger" style="margin-bottom:.8rem" onclick="reiniciarSalidasEstudianteProfesor(${indice})">
                           <i class="fa-solid fa-rotate-left"></i> Reiniciar contador de cambios de pestaña
                       </button>
                       ${eventosHtml}
@@ -11365,14 +11679,14 @@
                               <small style="color:var(--text-muted)">Puede conservar la nota calculada o reemplazarla por otro valor entre 0 y 10. Solo será definitiva al marcar la confirmación.</small>
                           </div>
                           <div style="margin-top:.7rem;line-height:1.5">
-                              Promedio académico: <strong>${promedio === '—' ? 'Pendiente' : `${promedio}/10`}</strong><br>
+                              Promedio acad�mico: <strong>${promedio === '—' ? 'Pendiente' : `${promedio}/10`}</strong><br>
                               Penalización: <strong>-${Number(revision.penalizacion || 0).toFixed(1)}</strong><br>
                               Nota calculada: <strong>${notaCalculada === '—' ? 'Pendiente' : `${notaCalculada}/10`}</strong><br>
-                              Nota definitiva: <strong>${notaDefinitiva === '—' ? 'Pendiente de confirmación docente' : `${notaDefinitiva}/10`}</strong>
+                              Nota definitiva: <strong>${notaDefinitiva === '—' ? 'Pendiente de confirmaci�n docente' : `${notaDefinitiva}/10`}</strong>
                               ${revision.notaConfirmada === true && revision.notaModificadaManualmente === true
                                   ? '<br><small>La nota definitiva fue modificada manualmente por el docente.</small>'
                                   : ''}
-                              ${revision.revisadoPor ? `<br><small>Última revisión: ${escapeHtml(revision.revisadoPor)}</small>` : ''}
+                              ${revision.revisadoPor ? `<br><small>Última revisi�n: ${escapeHtml(revision.revisadoPor)}</small>` : ''}
                           </div>
                           <label style="display:flex;align-items:flex-start;gap:.55rem;margin-top:.8rem;padding:.75rem;border:1px solid rgba(56,189,248,.35);border-radius:7px;background:rgba(56,189,248,.08);cursor:pointer">
                               <input id="confirmarNotaDefinitivaProfesor" type="checkbox" ${revision.notaConfirmada === true ? 'checked' : ''} ${notaCalculada === '—' ? 'disabled' : ''} style="margin-top:.2rem">
@@ -11381,7 +11695,7 @@
                                   <small>Se confirmará el valor ingresado arriba. Si se modifica el descuento desde el editor rápido, deberá confirmarse nuevamente.</small>
                               </span>
                           </label>
-                          <button type="button" class="btn btn-warning" style="margin-top:.8rem" onclick="guardarRevisionSalidasProfesor(${indice})">
+                          <button class="btn btn-warning" style="margin-top:.8rem" onclick="guardarRevisionSalidasProfesor(${indice})">
                               <i class="fa-solid fa-floppy-disk"></i> Guardar decisión y confirmación
                           </button>
                       </div>
@@ -11401,6 +11715,9 @@
               </div>
               <div id="listaDesafiosDetalleProfesor">${actividadesHtml}</div>`;
           document.getElementById('detalleEstudianteProfesorModal').classList.add('active');
+          actualizarEstadoVistaDocente();
+          actualizarOffsetsFijosDetalleEstudiante();
+          window.requestAnimationFrame(actualizarOffsetsFijosDetalleEstudiante);
           const graficoNotas = document.querySelector('#detalleEstudianteProfesorContenido .teacher-student-grade-chart');
           const botonFiltroRecordado = graficoNotas
               ? [...graficoNotas.querySelectorAll('[data-grade-filter-button]')]
@@ -11409,7 +11726,6 @@
           if (botonFiltroRecordado) {
               filtrarGraficoNotasDesafiosEstudiante(ultimoFiltroGraficoNotasEstudiante, botonFiltroRecordado);
           }
-          aplicarVisibilidadValoresGraficoNotasEstudiante(graficoNotas, mostrarValoresGraficoNotasEstudiante);
           restaurarPosicionGraficoNotasEstudiante(graficoNotas);
           window.cargarHistorialAccesosProfesorFirebase?.(d.uid).then(accesos => {
               const contenedor = document.getElementById("historialAccesosProfesor");
@@ -12039,7 +12355,7 @@
           window.__accionesEstudianteDelegadas = true;
           document.addEventListener('click', event => {
               const boton = event.target.closest?.('.btn-abrir-acciones-estudiante');
-              if (!boton || boton.dataset.listenerBound === 'true') return;
+              if (!boton) return;
               const indice = Number(boton.dataset.estudianteIndex);
               if (Number.isInteger(indice)) {
                   event.preventDefault();
@@ -12247,6 +12563,305 @@
           modal.classList.add('active');
       }
 
+      function obtenerFechaReaperturaProfesor(valor) {
+          if (!valor) return 0;
+          try {
+              const fecha = typeof valor?.toDate === 'function'
+                  ? valor.toDate()
+                  : (valor?.seconds !== undefined
+                      ? new Date(Number(valor.seconds) * 1000)
+                      : new Date(valor));
+              const tiempo = fecha instanceof Date ? fecha.getTime() : Date.parse(valor);
+              return Number.isFinite(tiempo) ? tiempo : 0;
+          } catch (_) {
+              return 0;
+          }
+      }
+
+      function obtenerUltimaReaperturaProfesor(d, sectionId) {
+          const historial = Array.isArray(d?.historialDesbloqueosDesafios)
+              ? d.historialDesbloqueosDesafios
+              : [];
+          return historial
+              .filter(item => item && (!sectionId || item.seccion === sectionId))
+              .map(item => ({ item, tiempo: obtenerFechaReaperturaProfesor(item.fecha || item.en) }))
+              .filter(item => item.tiempo > 0)
+              .sort((a, b) => b.tiempo - a.tiempo)[0] || null;
+      }
+
+      function renderSolicitudesColaboracionProfesor(datos) {
+          const contador = document.getElementById('contadorSolicitudesColaboracion');
+          const resumen = document.getElementById('resumenSolicitudesColaboracion');
+          const diagnostico = document.getElementById('diagnosticoSolicitudesColaboracion');
+          const lista = document.getElementById('listaSolicitudesColaboracionProfesor');
+          if (!contador || !resumen || !lista) return;
+
+          const escapar = valor => String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+              '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+          }[caracter]));
+          const aFecha = valor => {
+              if (!valor) return null;
+              if (typeof valor.toDate === 'function') return valor.toDate();
+              if (valor.seconds) return new Date(valor.seconds * 1000);
+              const fecha = new Date(valor);
+              return Number.isNaN(fecha.getTime()) ? null : fecha;
+          };
+          const solicitudes = [];
+          (Array.isArray(datos) ? datos : []).forEach(estudiante => {
+              const items = Array.isArray(estudiante?.__solicitudesColaboracion)
+                  ? estudiante.__solicitudesColaboracion
+                  : [];
+              // La bandeja activa nunca debe mostrar estados históricos.
+              items.filter(item => String(item?.estado || '') === 'pendiente')
+                  .forEach(item => solicitudes.push({
+                  ...item,
+                  estudianteNombre: estudiante.nombre || estudiante.displayName || estudiante.email || 'Estudiante',
+                  estudianteEmail: estudiante.email || '',
+                  estudianteId: estudiante.id || estudiante.uid || ''
+              }));
+          });
+          solicitudes.sort((a, b) => {
+              const fechaA = aFecha(a.solicitudEn)?.getTime() || 0;
+              const fechaB = aFecha(b.solicitudEn)?.getTime() || 0;
+              return fechaB - fechaA;
+          });
+          contador.textContent = String(solicitudes.length);
+          const botonEliminarPendientes = document.getElementById('btnEliminarSolicitudesColaboracionPendientes');
+          if (botonEliminarPendientes) {
+              botonEliminarPendientes.hidden = solicitudes.length === 0;
+              botonEliminarPendientes.disabled = false;
+          }
+          if (diagnostico) {
+              const auth = window.estadoAutorizacionDocente || {};
+              const usuario = window.firebaseTeacherUser || window.firebaseCurrentUser;
+              const estadoLectura = window.ultimoEstadoSolicitudesColaboracion;
+              const filtros = ['filtroCursoProfesor', 'filtroDivisionProfesor', 'filtroTurnoProfesor', 'filtroEstadoProfesor']
+                  .map(id => document.getElementById(id)?.value || '')
+                  .filter(Boolean);
+              diagnostico.textContent = estadoLectura
+                  ? `Firestore: ${estadoLectura.coleccion} · ${estadoLectura.pendientes} pendientes · proyecto ${estadoLectura.proyecto}. `
+                    + `Docente: ${auth.autorizado === true ? 'autorizado' : 'no confirmado'}`
+                    + `${usuario?.email ? ` (${usuario.email})` : ''}. `
+                    + `Filtros activos: ${filtros.length ? filtros.join(', ') : 'ninguno'}.`
+                  : `Firestore: esperando lectura de solicitudesColaboracion. `
+                    + `Docente: ${auth.autorizado === true ? 'autorizado' : 'no confirmado'}`
+                    + `${usuario?.email ? ` (${usuario.email})` : ''}.`;
+              diagnostico.style.color = auth.autorizado === true ? 'var(--text-muted)' : '#fca5a5';
+          }
+          resumen.textContent = solicitudes.length
+              ? `Hay ${solicitudes.length} solicitud${solicitudes.length === 1 ? '' : 'es'} de colaboración registradas.`
+              : 'No hay solicitudes de colaboración registradas.';
+          if (!solicitudes.length) {
+              const detalleError = window.ultimoErrorCooperacion?.message;
+              lista.innerHTML = `<p style="color:var(--text-muted);margin:0">No hay solicitudes de colaboración registradas.${detalleError ? ` <span style="color:#fca5a5">(${escapar(detalleError)})</span>` : ''}</p>`;
+              return;
+          }
+          lista.innerHTML = solicitudes.map(item => {
+              const fecha = aFecha(item.solicitudEn);
+              const fechaTexto = fecha ? fecha.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : 'Fecha no disponible';
+              const titulo = item.sectionTitle || item.sectionName || item.sectionId || 'Desafío sin título';
+              const motivo = item.objetivoCooperacion || item.motivo || 'El estudiante solicita revisar su código.';
+              const estadoSolicitud = String(item.estado || 'pendiente');
+              const esPendiente = estadoSolicitud === 'pendiente';
+              const uid = escapar(item.uid || item.estudianteId);
+              const sectionId = escapar(item.sectionId);
+              return `<article class="pending-request-card" style="border-color:rgba(56,189,248,.38)">
+                  <div style="display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start">
+                    <strong style="display:inline-flex;align-items:center;gap:.45rem;color:#bae6fd">
+                      <i class="fa-solid fa-hand" aria-hidden="true"></i>
+                      <span>${escapar(item.estudianteNombre)}</span>
+                    </strong>
+                    <time datetime="${fecha ? fecha.toISOString() : ''}" style="color:var(--text-muted);font-size:.76rem">${escapar(fechaTexto)}</time>
+                  </div>
+                  <div style="margin-top:.35rem;color:#bae6fd;font-weight:700">${escapar(titulo)} · Estado: ${escapar(estadoSolicitud)}</div>
+                  <p style="margin:.45rem 0 0;color:var(--text-muted);font-size:.84rem">${escapar(motivo)}</p>
+                  ${item.estudianteEmail ? `<div style="margin-top:.35rem;color:var(--text-muted);font-size:.76rem">${escapar(item.estudianteEmail)}</div>` : ''}
+                  <div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.65rem">
+                    ${esPendiente ? `<button class="btn btn-success" type="button" onclick="responderSolicitudColaboracionProfesor('${uid}', '${sectionId}', true, this)">
+                      <i class="fa-solid fa-check"></i> Aceptar
+                    </button>
+                    <button class="btn btn-danger" type="button" onclick="responderSolicitudColaboracionProfesor('${uid}', '${sectionId}', false, this)">
+                      <i class="fa-solid fa-xmark"></i> Rechazar
+                    </button>` : ''}
+                    <button class="btn btn-secondary" type="button" onclick="eliminarSolicitudColaboracionProfesor('${uid}', '${sectionId}', this)">
+                      <i class="fa-solid fa-trash-can"></i> Eliminar
+                    </button>
+                  </div>
+              </article>`;
+          }).join('');
+      }
+
+      async function cargarSolicitudesColaboracionDirectas() {
+          const resumen = document.getElementById('resumenSolicitudesColaboracion');
+          let solicitudes = [];
+          for (let intento = 0; intento < 3 && !solicitudes.length; intento += 1) {
+              solicitudes = await window.obtenerSolicitudesColaboracionDocenteFirebase?.() || [];
+              if (!solicitudes.length) await new Promise(resolve => setTimeout(resolve, 600));
+          }
+          if (!solicitudes.length) {
+              const detalle = window.ultimoErrorCooperacion?.message;
+              if (detalle && resumen) resumen.textContent = `No se pudieron consultar las solicitudes: ${detalle}`;
+              return;
+          }
+          const mapa = new Map((Array.isArray(estudiantesProfesor) ? estudiantesProfesor : [])
+              .map(item => [item.uid || item.id, item]));
+          solicitudes.forEach(item => {
+              const estudiante = mapa.get(item.uid) || {
+                  uid: item.uid,
+                  email: item.solicitadoPor || '',
+                  nombre: item.solicitadoPor || 'Estudiante'
+              };
+              const anteriores = Array.isArray(estudiante.__solicitudesColaboracion)
+                  ? estudiante.__solicitudesColaboracion
+                  : [];
+              if (!anteriores.some(actual => actual.sectionId === item.sectionId)) {
+                  estudiante.__solicitudesColaboracion = [...anteriores, item];
+              }
+              mapa.set(item.uid, estudiante);
+          });
+          estudiantesProfesor = [...mapa.values()];
+          renderSolicitudesColaboracionProfesor(estudiantesProfesor);
+      }
+
+      async function responderSolicitudColaboracionProfesor(uid, sectionId, aceptar, boton) {
+          if (boton?.disabled || boton?.dataset.busy === 'true') return;
+          if (boton) {
+              boton.disabled = true;
+              boton.dataset.busy = 'true';
+          }
+          if (typeof window.responderCooperacionDocenteFirebase !== 'function') {
+              alert('La función de colaboración docente todavía no está disponible. Recargá la página.');
+              return;
+          }
+          let motivo = '';
+          if (!aceptar) {
+              const respuesta = prompt('Motivo del rechazo (opcional):', '');
+              if (respuesta === null) {
+                  if (boton) {
+                      boton.disabled = false;
+                      delete boton.dataset.busy;
+                  }
+                  return;
+              }
+              motivo = respuesta;
+          }
+          const tarjeta = boton?.closest('article');
+          const botones = tarjeta?.querySelectorAll('button');
+          botones?.forEach(item => { item.disabled = true; item.dataset.busy = 'true'; });
+          try {
+              const ok = await window.responderCooperacionDocenteFirebase({
+                  uid,
+                  sectionId,
+                  aceptar,
+                  motivo
+              });
+              if (!ok) throw new Error(window.ultimoErrorCooperacion?.message || 'No se pudo actualizar la solicitud.');
+              if (tarjeta) {
+                  tarjeta.remove();
+                  const contador = document.getElementById('contadorSolicitudesColaboracion');
+                  const actual = Math.max(0, Number(contador?.textContent || 0) - 1);
+                  if (contador) contador.textContent = String(actual);
+                  const resumen = document.getElementById('resumenSolicitudesColaboracion');
+              if (resumen) resumen.textContent = actual
+                      ? `Hay ${actual} solicitud${actual === 1 ? '' : 'es'} de colaboración pendiente${actual === 1 ? '' : 's'}.`
+                      : 'No hay solicitudes de colaboración registradas.';
+                  if (aceptar && typeof window.abrirEditorColaborativoProfesor === 'function') {
+                      window.setTimeout(() => {
+                          window.abrirEditorColaborativoProfesor(uid, sectionId);
+                      }, 150);
+                  }
+              }
+          } catch (error) {
+              botones?.forEach(item => { item.disabled = false; delete item.dataset.busy; });
+              alert(`Solicitud ${aceptar ? 'aceptada' : 'rechazada'}: ${error?.code ? `[${error.code}] ` : ''}${error?.message || 'No se pudo actualizar la solicitud.'}`);
+          }
+      }
+      window.responderSolicitudColaboracionProfesor = responderSolicitudColaboracionProfesor;
+
+      async function eliminarSolicitudColaboracionProfesor(uid, sectionId, boton) {
+          if (typeof window.eliminarSolicitudColaboracionDocenteFirebase !== 'function') {
+              alert('La función de eliminación todavía no está disponible. Recargá la página.');
+              return;
+          }
+          if (!confirm('¿Eliminar esta solicitud de colaboración? Se limpiará también su estado de colaboración y podrá volver a solicitarla.')) {
+              return;
+          }
+          const tarjeta = boton?.closest('article');
+          const botones = tarjeta?.querySelectorAll('button');
+          botones?.forEach(item => { item.disabled = true; });
+          try {
+              const ok = await window.eliminarSolicitudColaboracionDocenteFirebase({ uid, sectionId });
+              if (!ok) throw new Error(window.ultimoErrorCooperacion?.message || 'No se pudo eliminar la solicitud.');
+              tarjeta?.remove();
+              const contador = document.getElementById('contadorSolicitudesColaboracion');
+              const actual = Math.max(0, Number(contador?.textContent || 0) - 1);
+              if (contador) contador.textContent = String(actual);
+              const resumen = document.getElementById('resumenSolicitudesColaboracion');
+              if (resumen) resumen.textContent = actual
+                  ? `Hay ${actual} solicitud${actual === 1 ? '' : 'es'} de colaboración pendiente${actual === 1 ? '' : 's'}.`
+                  : 'No hay solicitudes de colaboración registradas.';
+          } catch (error) {
+              botones?.forEach(item => { item.disabled = false; });
+              alert(`Eliminación de solicitud: ${error?.code ? `[${error.code}] ` : ''}${error?.message || 'No se pudo eliminar la solicitud.'}`);
+          }
+      }
+      window.eliminarSolicitudColaboracionProfesor = eliminarSolicitudColaboracionProfesor;
+
+      async function eliminarSolicitudesColaboracionPendientes() {
+          if (typeof window.obtenerSolicitudesColaboracionDocenteFirebase !== 'function' ||
+              typeof window.eliminarSolicitudColaboracionDocenteFirebase !== 'function') {
+              alert('La función de solicitudes todavía no está disponible. Recargá la página.');
+              return;
+          }
+          const solicitudes = await window.obtenerSolicitudesColaboracionDocenteFirebase() || [];
+          const pendientes = solicitudes.filter(item => item && item.estado === 'pendiente' && item.uid && item.sectionId);
+          if (!pendientes.length) {
+              renderSolicitudesColaboracionProfesor(estudiantesProfesor);
+              return;
+          }
+          if (!confirm(`¿Eliminar ${pendientes.length} solicitud${pendientes.length === 1 ? '' : 'es'} pendiente${pendientes.length === 1 ? '' : 's'}? Esta acción limpiará también el estado de cooperación de cada estudiante.`)) {
+              return;
+          }
+          const boton = document.getElementById('btnEliminarSolicitudesColaboracionPendientes');
+          if (boton) boton.disabled = true;
+          let eliminadas = 0;
+          const fallidas = [];
+          for (const solicitud of pendientes) {
+              try {
+                  const ok = await window.eliminarSolicitudColaboracionDocenteFirebase({
+                      uid: solicitud.uid,
+                      sectionId: solicitud.sectionId
+                  });
+                  if (ok) eliminadas += 1;
+                  else fallidas.push(`${solicitud.uid}/${solicitud.sectionId}: ${window.ultimoErrorCooperacion?.code || 'error'} ${window.ultimoErrorCooperacion?.message || 'sin detalle'}`);
+              } catch (error) {
+                  fallidas.push(`${solicitud.uid}/${solicitud.sectionId}: ${error?.code || 'error'} ${error?.message || 'sin detalle'}`);
+              }
+          }
+          // Reconstruir la bandeja desde Firestore para evitar tarjetas fantasma.
+          estudiantesProfesor = (Array.isArray(estudiantesProfesor) ? estudiantesProfesor : []).map(estudiante => ({
+              ...estudiante,
+              __solicitudesColaboracion: (Array.isArray(estudiante.__solicitudesColaboracion)
+                  ? estudiante.__solicitudesColaboracion
+                  : []).filter(item => !pendientes.some(p => p.uid === item.uid && p.sectionId === item.sectionId))
+          }));
+          await cargarSolicitudesColaboracionDirectas();
+          const resumen = document.getElementById('resumenSolicitudesColaboracion');
+          if (resumen) {
+              const detalleFallos = fallidas.length
+                  ? ` Fallaron ${fallidas.length}: ${fallidas.slice(0, 3).join(' | ')}`
+                  : '';
+              resumen.textContent = eliminadas
+                  ? `${eliminadas} solicitud${eliminadas === 1 ? '' : 'es'} pendiente${eliminadas === 1 ? '' : 's'} eliminada${eliminadas === 1 ? '' : 's'}.${detalleFallos}`
+                  : `No se eliminó ninguna solicitud.${detalleFallos}`;
+          }
+      }
+      window.eliminarSolicitudesColaboracionPendientes = eliminarSolicitudesColaboracionPendientes;
+      const botonEliminarSolicitudesPendientes = document.getElementById('btnEliminarSolicitudesColaboracionPendientes');
+      if (botonEliminarSolicitudesPendientes) {
+          botonEliminarSolicitudesPendientes.addEventListener('click', eliminarSolicitudesColaboracionPendientes);
+      }
+
       function renderPanelProfesor() {
           renderBandejaSolicitudesPendientes();
           detectarDesconexionesProfesor();
@@ -12263,6 +12878,8 @@
           const progresoFiltro = document.getElementById('filtroProgresoProfesor')?.value || '';
           const salidasFiltro = document.getElementById('filtroSalidasProfesor')?.value || '';
           const portapapelesFiltro = document.getElementById('filtroPortapapelesProfesor')?.value || '';
+          const reaperturasFiltro = document.getElementById('filtroReaperturasProfesor')?.value || '';
+          const fechaReaperturaFiltro = document.getElementById('filtroFechaReaperturaProfesor')?.value || '';
           const notaFiltro = document.getElementById('filtroNotaProfesor')?.value || '';
           const descuentoFiltro = document.getElementById('filtroDescuentoProfesor')?.value || '';
           const actualizacionFiltro = document.getElementById('filtroActualizacionProfesor')?.value || '';
@@ -12290,6 +12907,17 @@
               const salidas = Number(d.salidasPestana ?? d.salidasPestana ?? 0);
               const tieneCambios = salidas > 0;
               const resumenPortapapeles = obtenerResumenPortapapeles(d);
+              const historialReaperturas = Array.isArray(d.historialDesbloqueosDesafios)
+                  ? d.historialDesbloqueosDesafios.filter(item => item && item.seccion)
+                  : [];
+              const tieneReaperturas = historialReaperturas.length > 0 ||
+                  Object.values(d.intentosDesafio || {}).some(valor => Number(valor || 0) > 1);
+              const totalIntentosDesafios = Object.values(d.intentosDesafio || {})
+                  .reduce((total, valor) => total + Math.max(0, Number(valor || 0)), 0);
+              const ultimaReapertura = historialReaperturas.reduce((ultima, item) => {
+                  const fecha = obtenerFechaReaperturaProfesor(item?.fecha || item?.en);
+                  return fecha > ultima ? fecha : ultima;
+              }, 0);
               const cumpleProgreso = !progresoFiltro || (
                   progresoFiltro === '0' ? progreso === 0 :
                   progresoFiltro === '100' ? progreso === 100 :
@@ -12309,6 +12937,15 @@
                   || (portapapelesFiltro === 'riesgo-alto' && resumenPortapapeles.riesgo === 'alto')
                   || (portapapelesFiltro === 'riesgo-medio' && resumenPortapapeles.riesgo === 'medio')
                   || (portapapelesFiltro === 'riesgo-bajo' && resumenPortapapeles.riesgo === 'bajo');
+              const cumpleReaperturas = !reaperturasFiltro
+                  || (reaperturasFiltro === 'con-reaperturas' && tieneReaperturas)
+                  || (reaperturasFiltro === 'sin-reaperturas' && !tieneReaperturas);
+              const inicioHoyReapertura = new Date();
+              inicioHoyReapertura.setHours(0, 0, 0, 0);
+              const cumpleFechaReapertura = !fechaReaperturaFiltro
+                  || (fechaReaperturaFiltro === 'hoy' && ultimaReapertura >= inicioHoyReapertura.getTime())
+                  || (fechaReaperturaFiltro === '7d' && ultimaReapertura >= Date.now() - 7 * 24 * 60 * 60 * 1000)
+                  || (fechaReaperturaFiltro === 'antiguas' && ultimaReapertura > 0 && ultimaReapertura < Date.now() - 7 * 24 * 60 * 60 * 1000);
               const cumpleNota = !notaFiltro
                   || (notaFiltro === 'sin-nota' && !Number.isFinite(nota))
                   || (notaFiltro !== 'sin-nota' && (() => {
@@ -12348,18 +12985,18 @@
                 || (bloqueoFiltro === 'activos' && !pantallaBloqueada);
               const hayFiltroActivo = Boolean(
                 q || emailFiltro || curso || division || turno || estadoFiltro ||
-                bloqueoFiltro || progresoFiltro || salidasFiltro || portapapelesFiltro ||
+                bloqueoFiltro || progresoFiltro || salidasFiltro || portapapelesFiltro || reaperturasFiltro || fechaReaperturaFiltro ||
                 notaFiltro || descuentoFiltro || actualizacionFiltro ||
                 orden !== 'actualizacion-desc'
               );
-              d.__panelMeta = { progreso, nota, alerta: alerta.activa, actualizado, conectado, estadoConexion, cuentaInactiva, cuentaPendiente, cuentaRechazada, cronometroPausado, tieneCambios, salidas, intentosPortapapeles: resumenPortapapeles.total };
+              d.__panelMeta = { progreso, nota, alerta: alerta.activa, actualizado, conectado, estadoConexion, cuentaInactiva, cuentaPendiente, cuentaRechazada, cronometroPausado, tieneCambios, salidas, intentosPortapapeles: resumenPortapapeles.total, intentosDesafios: totalIntentosDesafios, ultimaReapertura };
               return (!cuentaPendiente || estadoFiltro === 'solicitudes' || hayFiltroActivo)
                   && (!q || nombre.includes(q) || email.includes(q))
                   && (!emailFiltro || email.includes(emailFiltro))
                   && (!curso || e.curso===curso)
                   && (!division || e.division===division)
                   && (!turno || e.turno===turno)
-              && cumpleEstado && cumpleBloqueo && cumpleProgreso && cumpleSalidas && cumplePortapapeles && cumpleNota && cumpleDescuento && cumpleActualizacion;
+              && cumpleEstado && cumpleBloqueo && cumpleProgreso && cumpleSalidas && cumplePortapapeles && cumpleReaperturas && cumpleFechaReapertura && cumpleNota && cumpleDescuento && cumpleActualizacion;
           }).sort((a,b) => {
               const am=a.__panelMeta||{}, bm=b.__panelMeta||{};
               const texto = (valorA, valorB, direccion='asc') => {
@@ -12382,6 +13019,8 @@
               if (campo === 'nota') return numero(am.nota, bm.nota, direccion);
               if (campo === 'salidas') return numero(am.salidas, bm.salidas, direccion);
               if (campo === 'portapapeles') return numero(am.intentosPortapapeles, bm.intentosPortapapeles, direccion);
+              if (campo === 'intentos') return numero(am.intentosDesafios, bm.intentosDesafios, direccion);
+              if (campo === 'reapertura') return numero(am.ultimaReapertura, bm.ultimaReapertura, direccion);
               if (campo === 'alertas') return Number(bm.alerta)-Number(am.alerta) || (bm.actualizado||0)-(am.actualizado||0);
               return numero(am.actualizado, bm.actualizado, direccion);
           });
@@ -12421,7 +13060,7 @@
               const resumenPortapapelesFila = obtenerResumenPortapapeles(d);
               const riesgoColor = resumenPortapapelesFila.riesgo === 'alto' ? '#fecaca' : (resumenPortapapelesFila.riesgo === 'medio' ? '#fde68a' : '#bfdbfe');
               const portapapelesFilaHtml = resumenPortapapelesFila.total > 0
-                  ? `<div style="margin-top:.35rem;padding:.3rem .45rem;border-radius:5px;background:rgba(239,68,68,.14);color:${riesgoColor};font-size:.7rem;line-height:1.35" title="Copiar: ${resumenPortapapelesFila.conteos.copiar} · Cortar: ${resumenPortapapelesFila.conteos.cortar} · Pegar: ${resumenPortapapelesFila.conteos.pegar} · Últimos 2 min: ${resumenPortapapelesFila.intentosUltimosDosMinutos}">
+                  ? `<div style="margin-top:.35rem;padding:.3rem .45rem;border-radius:5px;background:rgba(239,68,68,.14);color:${riesgoColor};font-size:.7rem;line-height:1.35" title="Copiar: ${resumenPortapapelesFila.conteos.copiar} ? Cortar: ${resumenPortapapelesFila.conteos.cortar} ? Pegar: ${resumenPortapapelesFila.conteos.pegar} ? �ltimos 2 min: ${resumenPortapapelesFila.intentosUltimosDosMinutos}">
                       <i class="fa-solid fa-clipboard-list"></i> Portapapeles: <strong>${resumenPortapapelesFila.total}</strong> · Riesgo <strong>${escapeHtml(resumenPortapapelesFila.riesgo)}</strong>
                     </div>`
                   : '';
@@ -12457,13 +13096,28 @@
               const notaCalculada = calcularNotaProvisionalEstudiante(d);
               const notaHtml = Number.isFinite(notaNumero)
                   ? `<span class="teacher-grade-badge ${notaClase}" title="Nota definitiva confirmada por el docente: ${n}"><i class="fa-solid ${notaIcono}"></i> ${n}</span>`
-                  : `<span class="teacher-grade-badge" title="${notaCalculada === '—' ? 'Sin nota calculada' : `Nota calculada ${notaCalculada}/10, pendiente de confirmación docente`}"><i class="fa-solid fa-clock"></i> ${notaCalculada === '—' ? 'Pendiente' : `${notaCalculada} sin confirmar`}</span>`;
+                  : `<span class="teacher-grade-badge" title="${notaCalculada === '—' ? 'Sin nota calculada' : `Nota calculada ${notaCalculada}/10, pendiente de confirmaci�n docente`}"><i class="fa-solid fa-clock"></i> ${notaCalculada === '—' ? 'Pendiente' : `${notaCalculada} sin confirmar`}</span>`;
               const descuentoPuntos = Math.max(0, Math.min(10, Number(d.revisionSalidas?.penalizacion) || 0));
               const descuentoMotivo = String(d.revisionSalidas?.motivo || '').trim();
               const descuentoTitulo = descuentoPuntos > 0
                   ? `Descuento aplicado: ${descuentoPuntos.toFixed(1)} punto(s)${descuentoMotivo ? `. Motivo: ${descuentoMotivo}` : ''}`
                   : 'Sin descuento de puntos';
               const descuentoHtml = `<span class="teacher-discount-badge ${descuentoPuntos > 0 ? 'has-discount' : ''}" title="${escapeHtml(descuentoTitulo)}"><i class="fa-solid ${descuentoPuntos > 0 ? 'fa-circle-minus' : 'fa-circle-check'}"></i> ${descuentoPuntos > 0 ? `-${descuentoPuntos.toFixed(1)}` : '0.0'}</span>`;
+              const intentosDesafioFila = d.intentosDesafio && typeof d.intentosDesafio === 'object' ? d.intentosDesafio : {};
+              const totalIntentosDesafio = Object.values(intentosDesafioFila).reduce((total, valor) => total + Math.max(0, Number(valor || 0)), 0);
+              const ultimoDesbloqueoFila = Array.isArray(d.historialDesbloqueosDesafios) ? d.historialDesbloqueosDesafios[d.historialDesbloqueosDesafios.length - 1] : null;
+              const ultimoDesbloqueoTitulo = ultimoDesbloqueoFila
+                  ? `Último desbloqueo: ${ultimoDesbloqueoFila.motivo || 'Nuevo intento'} � ${ultimoDesbloqueoFila.fecha ? new Date(ultimoDesbloqueoFila.fecha).toLocaleString('es-AR') : 'Sin fecha'}`
+                  : 'Sin desbloqueos de desafíos registrados';
+              const intentosDesafioHtml = totalIntentosDesafio
+                  ? `<div style="margin-top:.35rem;font-size:.68rem;color:#a7f3d0" title="${escapeHtml(ultimoDesbloqueoTitulo)}"><i class="fa-solid fa-repeat"></i> Intentos de desafíos: ${totalIntentosDesafio}</div>`
+                  : '';
+              const ultimaReaperturaFechaFila = ultimoDesbloqueoFila?.fecha?.toDate
+                  ? ultimoDesbloqueoFila.fecha.toDate().toLocaleString('es-AR')
+                  : (ultimoDesbloqueoFila?.fecha ? new Date(ultimoDesbloqueoFila.fecha).toLocaleString('es-AR') : '');
+              const ultimaReaperturaHtml = ultimoDesbloqueoFila
+                  ? `<div style="font-size:.72rem;line-height:1.35" title="${escapeHtml(ultimoDesbloqueoTitulo)}"><strong>${escapeHtml(ultimaReaperturaFechaFila || 'Sin fecha')}</strong><br><span style="color:var(--text-muted)">${escapeHtml(ultimoDesbloqueoFila.motivo || 'Nuevo intento autorizado')}</span></div>`
+                  : '<span style="color:var(--text-muted)">Sin reaperturas</span>';
               const cantidadSalidas = Number(d.salidasPestana ?? 0);
               const salidasClase = cantidadSalidas >= LIMITE_SALIDAS_PARA_BLOQUEO ? 'tabs-danger' : (cantidadSalidas > 0 ? 'tabs-warning' : '');
               const salidasIcono = cantidadSalidas >= LIMITE_SALIDAS_PARA_BLOQUEO ? 'fa-triangle-exclamation' : (cantidadSalidas > 0 ? 'fa-arrow-up-right-from-square' : 'fa-circle-check');
@@ -12486,12 +13140,35 @@
               const claseAcciones = conectadoFila ? 'btn-success teacher-actions-online' : 'btn-secondary';
               const tituloAcciones = `${etiquetaConexion[0]}. Abrir acciones`;
               const estadoConexionAcciones = `<span class="teacher-actions-online-label"><i class="fa-solid ${etiquetaConexion[1]}"></i> ${etiquetaConexion[0]}${d.__controlEstudiante?.sesionesDuplicadas ? ' · Sesión duplicada' : ''}</span>`;
-          return `<tr class="${bloqueado ? 'teacher-blocked-row' : ''}" style="${!bloqueado && alertaIA.activa ? `background:${alertaIA.nivel === 'alta' ? 'rgba(239,68,68,.045)' : 'rgba(245,158,11,.035)'}` : ''}"><td class="acciones-principales-cell"><button type="button" class="btn ${claseAcciones} btn-abrir-acciones-estudiante" data-estudiante-index="${indice}" data-listener-bound="true" onclick="abrirAccionesEstudiante(${indice})" style="width:100%;justify-content:flex-start;text-align:left;padding:.55rem .7rem" title="${tituloAcciones}"><i class="fa-solid fa-sliders"></i><span>Acciones</span>${estadoConexionAcciones}</button></td><td class="descuento-puntos-cell">${descuentoHtml}</td><td>${escapeHtml(e.nombre||d.nombreGoogle||'Sin nombre')}<div class="code-version-badge" style="margin-top:.4rem;font-size:.68rem;padding:.25rem .45rem"><i class="fa-solid fa-code-branch"></i> Script v${escapeHtml(versionScript)}</div>${alertaHtml}${ayudasFilaHtml}${portapapelesFilaHtml}</td><td>${escapeHtml(d.email||'')}</td><td>${escapeHtml(e.curso||'')}</td><td>${escapeHtml(e.division||'')}</td><td>${escapeHtml(e.turno||'')}</td><td>${estadoHtml}</td><td>${progresoHtml}</td><td>${notaHtml}</td><td>${salidasHtml}</td><td><strong>${Number(d.cantidadDesbloqueos || 0)}</strong></td></tr>`;
-              }).join('') || '<tr><td colspan="12" style="padding:1rem;text-align:center;">No hay estudiantes que coincidan con los filtros.</td></tr>';
+          return `<tr data-estudiante-uid="${escapeHtml(d.uid || '')}" class="${bloqueado ? 'teacher-blocked-row' : ''}" style="${!bloqueado && alertaIA.activa ? `background:${alertaIA.nivel === 'alta' ? 'rgba(239,68,68,.045)' : 'rgba(245,158,11,.035)'}` : ''}"><td class="acciones-principales-cell"><button type="button" class="btn ${claseAcciones} btn-abrir-acciones-estudiante" data-estudiante-index="${indice}" style="width:100%;justify-content:flex-start;text-align:left;padding:.55rem .7rem" title="${tituloAcciones}"><i class="fa-solid fa-sliders"></i><span>Acciones</span>${estadoConexionAcciones}</button></td><td class="descuento-puntos-cell">${descuentoHtml}</td><td>${escapeHtml(e.nombre||d.nombreGoogle||'Sin nombre')}<div class="code-version-badge" style="margin-top:.4rem;font-size:.68rem;padding:.25rem .45rem"><i class="fa-solid fa-code-branch"></i> Script v${escapeHtml(versionScript)}</div>${intentosDesafioHtml}${alertaHtml}${ayudasFilaHtml}${portapapelesFilaHtml}</td><td>${escapeHtml(d.email||'')}</td><td>${escapeHtml(e.curso||'')}</td><td>${escapeHtml(e.division||'')}</td><td>${escapeHtml(e.turno||'')}</td><td>${estadoHtml}</td><td>${progresoHtml}</td><td>${notaHtml}</td><td>${salidasHtml}</td><td>${ultimaReaperturaHtml}</td><td><strong>${Number(d.cantidadDesbloqueos || 0)}</strong></td></tr>`;
+              }).join('') || '<tr><td colspan="13" style="padding:1rem;text-align:center;">No hay estudiantes que coincidan con los filtros.</td></tr>';
+          // BOTÓN VISIBLE: edici�n de datos personales en la primera columna (Acciones).
+          // La versión anterior intentaba agregarlo al último TD y por eso no aparecía.
+          [...document.querySelectorAll('#tablaProfesorBody tr')].forEach((fila, posicion) => {
+              const estudianteFila = rows[posicion];
+              if (!estudianteFila || !fila.dataset.estudianteUid) return;
+              const celdaAcciones = fila.querySelector('.acciones-principales-cell') || fila.children[0];
+              if (!celdaAcciones || celdaAcciones.querySelector('.btn-editar-datos-estudiante-visible')) return;
+              const indiceFila = estudiantesProfesor.indexOf(estudianteFila);
+              if (indiceFila < 0) return;
+              const botonEditar = document.createElement('button');
+              botonEditar.type = 'button';
+              botonEditar.className = 'btn btn-primary btn-editar-datos-estudiante-visible';
+              botonEditar.style.cssText = 'width:100%;margin-top:.45rem;justify-content:flex-start;text-align:left;padding:.5rem .7rem;';
+              botonEditar.title = 'Modificar nombre, curso, división y turno';
+              botonEditar.innerHTML = '<i class="fa-solid fa-user-pen"></i> Modificar datos';
+              botonEditar.addEventListener('click', (evento) => {
+                  evento.preventDefault();
+                  evento.stopPropagation();
+                  editarDatosEstudianteProfesor(indiceFila);
+              });
+              celdaAcciones.appendChild(botonEditar);
+          });
+
           [...document.querySelectorAll('#tablaProfesorBody tr')].forEach((fila, posicion) => {
               const estudiante = rows[posicion];
               if (!estudiante) return;
-              const etiquetasColumnas = ['Acciones','Descuento de puntos','Estudiante','Email','Curso','División','Turno','Estado','Progreso','Nota definitiva','Cambios de pestaña','Desbloqueos'];
+              const etiquetasColumnas = ['Acciones','Descuento de puntos','Estudiante','Email','Curso','Divisi?n','Turno','Estado','Progreso','Nota definitiva','Cambios de pesta?a','�ltima reapertura','Desbloqueos'];
               [...fila.children].forEach((celda, indiceCelda) => {
                   if (etiquetasColumnas[indiceCelda]) celda.setAttribute('data-label', etiquetasColumnas[indiceCelda]);
               });
@@ -12513,8 +13190,8 @@
                   const acciones = fila.querySelector('td:last-child > div');
                   const indiceReal = estudiantesProfesor.indexOf(estudiante);
                   if (acciones) acciones.insertAdjacentHTML('afterbegin', `
-                      <button type="button" class="btn btn-success" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
-                      <button type="button" class="btn btn-danger" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
+                      <button class="btn btn-success" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'activo')"><i class="fa-solid fa-user-check"></i> Aceptar</button>
+                      <button class="btn btn-danger" style="padding:.4rem .65rem" onclick="cambiarEstadoCuentaEstudiante(${indiceReal}, 'rechazado')"><i class="fa-solid fa-user-xmark"></i> Rechazar</button>
                   `);
               }
           });
@@ -12534,6 +13211,21 @@
                   if (texto.includes('ver todo')) boton.title = 'Ver progreso y detalle completo del estudiante';
                   else if (texto.includes('pausar') || texto.includes('reanudar')) boton.title = 'Pausar o reanudar el cronómetro del estudiante';
               });
+              if (!contenedor.querySelector('.btn-editar-datos-estudiante')) {
+                  const botonEditarDatos = document.createElement('button');
+                  botonEditarDatos.className = 'btn btn-primary btn-editar-datos-estudiante';
+                  botonEditarDatos.type = 'button';
+                  botonEditarDatos.title = 'Modificar nombre, curso, división y turno';
+                  botonEditarDatos.innerHTML = '<i class="fa-solid fa-user-pen"></i> Modificar datos personales';
+                  const filaDatos = contenedor.closest('tr');
+                  const uidDatos = filaDatos?.dataset?.estudianteUid || '';
+                  const registroDatos = uidDatos ? estudiantesProfesor.find(r => String(r.uid || '') === uidDatos) : null;
+                  botonEditarDatos.onclick = () => {
+                      const indiceDatos = registroDatos ? estudiantesProfesor.indexOf(registroDatos) : -1;
+                      if (indiceDatos >= 0) editarDatosEstudianteProfesor(indiceDatos);
+                  };
+                  contenedor.appendChild(botonEditarDatos);
+              }
               if (!contenedor.querySelector('.btn-eliminar-estudiante')) {
                   const botonEliminar = document.createElement('button');
                   botonEliminar.className = 'btn btn-danger btn-eliminar-estudiante';
@@ -12542,7 +13234,8 @@
                   botonEliminar.setAttribute('aria-label', 'Eliminar estudiante y su historial');
                   botonEliminar.innerHTML = '<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Eliminar estudiante';
                   const filaActual = contenedor.closest('tr');
-                  const registro = filaActual ? rows.find(r => String(r.email || '') === String(filaActual.querySelector('td:nth-child(3)')?.textContent || '')) : null;
+                  const uidFila = filaActual?.dataset?.estudianteUid || '';
+                  const registro = uidFila ? estudiantesProfesor.find(r => String(r.uid || '') === uidFila) : null;
                   botonEliminar.onclick = () => eliminarEstudianteProfesor(registro);
                   contenedor.appendChild(botonEliminar);
               }
@@ -12553,7 +13246,8 @@
                   botonHistorial.title = 'Ver historial completo de desbloqueos';
                   botonHistorial.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Historial desbloqueos';
                   const filaHistorial = contenedor.closest('tr');
-                  const registroHistorial = filaHistorial ? rows.find(r => String(r.email || '') === String(filaHistorial.querySelector('td:nth-child(4)')?.textContent || '')) : null;
+                  const uidHistorial = filaHistorial?.dataset?.estudianteUid || '';
+                  const registroHistorial = uidHistorial ? estudiantesProfesor.find(r => String(r.uid || '') === uidHistorial) : null;
                   botonHistorial.onclick = () => abrirHistorialDesbloqueos(estudiantesProfesor.indexOf(registroHistorial));
                   contenedor.appendChild(botonHistorial);
               }
@@ -12604,7 +13298,8 @@
           const ok = await window.eliminarEstudianteFirebase?.(estudiante.uid);
           if (!ok) {
               const detalleError = window.ultimoResumenEliminacionEstudiante?.error || '';
-              alert(`No se pudo completar la eliminación total. Verificá la autorización docente y que las reglas de Firebase estén publicadas.${detalleError ? `\n\nDetalle: ${detalleError}` : ''}`);
+              const rutaError = window.ultimoResumenEliminacionEstudiante?.ruta || '';
+              alert(`No se pudo completar la eliminación total. Verificá la autorización docente y que las reglas de Firebase estén publicadas.${detalleError ? `\n\nDetalle: ${detalleError}` : ''}${rutaError ? `\n\nRuta rechazada: ${rutaError}` : ''}`);
               return;
           }
           const resumenEliminacion = window.ultimoResumenEliminacionEstudiante || {};
@@ -12615,18 +13310,24 @@
       async function iniciarPanelProfesorTiempoReal() {
           if (profesorUnsubscribe) profesorUnsubscribe();
           try {
-              const { getFirestore, collection, onSnapshot } = await import('https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js');
-              // Usamos la instancia Firestore ya inicializada dentro del módulo Firebase.
-              if (!window.__firestorePanel) { document.getElementById('estadoPanelProfesor').textContent='Panel disponible cuando las reglas de Firestore permitan consultar la colección estudiantes.'; }
+              // El módulo actividad-firebase.js ya inicializa Firestore y expone
+              // el listener docente. No se debe importar el SDK una segunda vez:
+              // si falla esa red externa, la bandeja queda sin listener.
               const u=window.firebaseTeacherUser || window.firebaseCurrentUser;
-              if (!u) return;
-              // Solicita la colección mediante un evento al módulo Firebase.
+              if (!u) {
+                  document.getElementById('estadoPanelProfesor').textContent = 'Esperando autenticación docente para abrir la bandeja en tiempo real.';
+                  return;
+              }
               window.__abrirPanelProfesorFirestore?.();
               profesorUnsubscribe = () => {
                   window.__cerrarPanelProfesorFirestore?.();
                   profesorUnsubscribe = null;
               };
-          } catch(e) { document.getElementById('estadoPanelProfesor').textContent='Error al conectar con Firebase: '+e.message; }
+          } catch(e) {
+              document.getElementById('estadoPanelProfesor').textContent='Error al conectar con Firebase: '+e.message;
+              const diagnostico = document.getElementById('diagnosticoSolicitudesColaboracion');
+              if (diagnostico) diagnostico.textContent = `No se pudo iniciar el listener de colaboración: ${e.message}`;
+          }
       }
 
 
@@ -12666,7 +13367,7 @@
           const b=document.createElement('button');
           b.className='btn '+(i===desafioEditorActual?'btn-primary':'btn-secondary');
           b.style='display:block;width:100%;text-align:left;margin-bottom:.4rem;';
-          b.textContent=(d.id||('sec-'+(i+1)))+' — '+(d.title||'Sin título');
+          b.textContent=(d.id||('sec-'+(i+1)))+' — '+(d.title||'Sin t�tulo');
           b.onclick=()=>{guardarFormularioDesafioFirebase(false);desafioEditorActual=i;renderListaDesafiosFirebase();renderFormularioDesafioFirebase();};
           el.appendChild(b);
         });
@@ -12685,20 +13386,20 @@
             <div style="grid-column:1/-1"><label>Consigna</label><textarea id="edf_exerciseDesc" style="min-height:120px">${escapeHtml(d.exerciseDesc||'')}</textarea></div>
             <div style="grid-column:1/-1"><label>Código inicial</label><textarea id="edf_initialCode" style="min-height:140px">${escapeHtml(d.initialCode||'')}</textarea></div>
             <div style="grid-column:1/-1"><label>Solución de referencia IA</label><textarea id="edf_aiSolution" style="min-height:160px">${escapeHtml(d.aiSolution||'')}</textarea></div>
-            <div style="grid-column:1/-1"><label>🎯 Objetivos pedagógicos</label><textarea id="edf_objetivos">${escapeHtml(textoArray(d.objetivosPedagogicos))}</textarea></div>
-            <div style="grid-column:1/-1"><label>🧠 Conceptos que debe detectar la IA</label><textarea id="edf_conceptos">${escapeHtml(textoArray(d.conceptosDetectar))}</textarea></div>
-            <div style="grid-column:1/-1"><label>❓ Preguntas socráticas</label><textarea id="edf_preguntas" style="min-height:120px">${escapeHtml(textoArray(d.preguntasSocraticas))}</textarea></div>
+            <div style="grid-column:1/-1"><label>ðŸŽ¯ Objetivos pedagógicos</label><textarea id="edf_objetivos">${escapeHtml(textoArray(d.objetivosPedagogicos))}</textarea></div>
+            <div style="grid-column:1/-1"><label>ðŸ§  Conceptos que debe detectar la IA</label><textarea id="edf_conceptos">${escapeHtml(textoArray(d.conceptosDetectar))}</textarea></div>
+            <div style="grid-column:1/-1"><label>? Preguntas socr?ticas</label><textarea id="edf_preguntas" style="min-height:120px">${escapeHtml(textoArray(d.preguntasSocraticas))}</textarea></div>
             <div style="grid-column:1/-1"><label>⚠️ Errores frecuentes</label><textarea id="edf_errores" style="min-height:120px">${escapeHtml(textoArray(d.erroresFrecuentes))}</textarea></div>
-            <div style="grid-column:1/-1"><label>🚫 Qué NO debe revelar la IA</label><textarea id="edf_norevelar" style="min-height:120px">${escapeHtml(textoArray(d.noRevelarIA))}</textarea></div>
+            <div style="grid-column:1/-1"><label>ðŸš« Qué NO debe revelar la IA</label><textarea id="edf_norevelar" style="min-height:120px">${escapeHtml(textoArray(d.noRevelarIA))}</textarea></div>
           </div>
-          <h4>📊 Criterios de evaluación</h4>
+          <h4>ðŸ“Š Criterios de evaluación</h4>
           <p style="color:var(--text-muted);font-size:.8rem;">Los pesos deben sumar 100.</p>
           <table style="width:100%;border-collapse:collapse;min-width:650px;"><thead><tr><th>Criterio</th><th>Peso</th><th>Indicador</th><th></th></tr></thead><tbody id="edf_criterios"></tbody></table>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;">
-            <button type="button" class="btn btn-secondary" onclick="agregarCriterioFirebase()">➕ Criterio</button>
-            <button type="button" class="btn btn-secondary" onclick="normalizarCriteriosFirebase()">⚖️ Normalizar</button>
-            <button type="button" class="btn btn-primary" onclick="guardarDesafioActualFirebase()">☁️ Guardar desafío</button>
-            <button type="button" class="btn btn-secondary" onclick="guardarLos19Firebase()">☁️ Guardar los 19</button>
+            <button class="btn btn-secondary" onclick="agregarCriterioFirebase()">➕ Criterio</button>
+            <button class="btn btn-secondary" onclick="normalizarCriteriosFirebase()">⚖️ Normalizar</button>
+            <button class="btn btn-primary" onclick="guardarDesafioActualFirebase()">?? Guardar desaf?o</button>
+            <button class="btn btn-secondary" onclick="guardarLos19Firebase()">☁️ Guardar los 19</button>
           </div>`;
         criterios.forEach(c=>agregarFilaCriterioFirebase(c));
         document.querySelectorAll('#formDesafioFirebase input,#formDesafioFirebase textarea').forEach(el => {
@@ -12714,7 +13415,7 @@
         tr.innerHTML=`<td><input data-k="criterio" value="${escapeHtml(c.criterio||'')}"></td>
           <td><input data-k="peso" type="number" min="0" max="100" value="${Number(c.peso)||0}" style="width:80px"></td>
           <td><input data-k="indicador" value="${escapeHtml(c.indicador||'')}"></td>
-          <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">🗑️</button></td>`;
+          <td><button class="btn btn-danger" onclick="this.closest('tr').remove()">�x️</button></td>`;
         document.getElementById('edf_criterios').appendChild(tr);
       }
       function agregarCriterioFirebase(){agregarFilaCriterioFirebase();}
@@ -12740,7 +13441,7 @@
         if(ok){
           seccionesData=seccionesData.map(x=>x.id===d.id?({...x,...d}):x);
           document.getElementById('estadoEditorDesafiosFirebase').textContent='Guardado: '+d.id+' · '+new Date().toLocaleTimeString();
-        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='❌ No se pudo guardar. Revisá las reglas de Firestore.';
+        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='? No se pudo guardar. Revis? las reglas de Firestore.';
       }
       async function guardarLos19Firebase(){
         guardarFormularioDesafioFirebase();
@@ -12750,7 +13451,7 @@
         if(ok){
           seccionesData=JSON.parse(JSON.stringify(desafiosEditorFirebase));
           document.getElementById('estadoEditorDesafiosFirebase').textContent='Los 19 desafíos fueron guardados · '+new Date().toLocaleTimeString();
-        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='❌ No se pudieron guardar los desafíos.';
+        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='? No se pudieron guardar los desaf?os.';
       }
       document.getElementById('buscarDesafioFirebase')?.addEventListener('input',renderListaDesafiosFirebase);
       document.addEventListener('keydown', event => {
@@ -12843,7 +13544,7 @@
           const doc = new jsPDF();
           const e = d.estudiante || {};
           const historial = d.historialResultados || {};
-          const finalizadas = d.finalizadas || {};
+          const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
           const notasDocente = d.notasDesafiosDocente || {};
           const nombre = e.nombre || d.nombreGoogle || d.email || 'Estudiante';
           let y = 18;
@@ -12881,11 +13582,12 @@
 
           seccionesExportar.forEach((sec, indice) => {
               const r = historial[sec.id] || {};
-              const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
-              const evaluacion = resultadoServidor.evaluacionCodigo || r.evaluacionCodigo || {};
+              const evaluacion = r.evaluacionCodigo || {};
               const ajuste = notasDocente[sec.id] || {};
               const notaVigente = obtenerNotaDesafioEstudiante(d, sec.id, r);
-              const codigo = resultadoServidor.codigo || r.codigo || d.codigos?.[sec.id] || '// Sin código guardado';
+              const reaperturaDesafio = obtenerUltimaReaperturaProfesor(d, sec.id);
+              const intentosDesafio = Math.max(1, Number(d.intentosDesafio?.[sec.id] || 1));
+              const codigo = r.codigo || d.codigos?.[sec.id] || '// Sin código guardado';
               if (y > 248) {
                   doc.addPage();
                   y = 18;
@@ -12895,7 +13597,8 @@
               doc.setFontSize(11);
               y = agregarTextoPDFProfesor(doc, `${indice + 1}. ${sec.title}`, y);
               doc.setFontSize(8.5);
-              y = agregarTextoPDFProfesor(doc, `Estado: ${finalizadas[sec.id] ? 'Finalizada' : 'Pendiente'} · Código verificado: ${resultadoServidor.verificadaServidor === true ? (resultadoServidor.notaCodigo ?? resultadoServidor.evaluacionCodigo?.nota ?? 'Pendiente') : 'Pendiente'} · Nota vigente: ${notaVigente ?? 'Pendiente'}${ajuste.nota !== undefined && ajuste.nota !== null ? ' (corrección docente)' : ''}`, y);
+              y = agregarTextoPDFProfesor(doc, `Estado: ${finalizadas[sec.id] ? 'Finalizada' : 'Pendiente'} · Nota automática: ${r.notaFinal ?? r.notaIA ?? 'Pendiente'} · Nota vigente: ${notaVigente ?? 'Pendiente'}${ajuste.nota !== undefined && ajuste.nota !== null ? ' (corrección docente)' : ''}`, y);
+              y = agregarTextoPDFProfesor(doc, `Intentos: ${intentosDesafio} ? �ltima reapertura: ${reaperturaDesafio ? formatearFechaPDF(reaperturaDesafio.item.fecha || reaperturaDesafio.item.en) : 'Sin reaperturas registradas'} ? Motivo: ${reaperturaDesafio?.item?.motivo || 'Sin motivo registrado'}`, y);
               doc.setFont('helvetica', 'normal');
               y = agregarTextoPDFProfesor(doc, `Consigna: ${sec.exerciseDesc || 'Sin consigna'}`, y);
               if (evaluacion.nota !== undefined) {
@@ -12983,13 +13686,13 @@
           };
           const contarSituacionDesafios = d => {
               const historial = d.historialResultados || {};
-              const finalizadas = d.finalizadas || {};
+              const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
               return seccionesData.reduce((resumen, sec) => {
                   const resultado = historial[sec.id] || {};
-                   const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
-                   const evaluacion = resultadoServidor.evaluacionCodigo || resultado.evaluacionCodigo || {};
+                  const evaluacion = resultado.evaluacionCodigo || {};
                   const nota = obtenerNotaDesafioEstudiante(d, sec.id, resultado);
-                  const conError = evaluacionCodigoTieneError(evaluacion, resultado);
+                  const conError = evaluacion.sintaxis?.valida === false ||
+                      evaluacion.ejecucion?.ok === false || Boolean(resultado.error);
                   const pendiente = !finalizadas[sec.id] ||
                       resultado.notaPreguntas === undefined || nota === null;
                   if (conError) resumen.errores += 1;
@@ -13056,7 +13759,7 @@
               y = agregarTextoPDFProfesor(
                   doc,
                   `${indice + 1}. ${e.nombre || d.nombreGoogle || 'Sin nombre'} · ${d.email || 'Sin email'}\n` +
-                  `Estado: ${textoEstadoCuenta(d)} · Progreso: ${calcularProgresoEstudiante(d)}% · Promedio: ${calcularNotaEstudiante(d)}/10 · Nota definitiva: ${notaDefinitiva === '—' ? 'Pendiente' : `${notaDefinitiva}/10`} · Errores: ${item.errores} · Pendientes: ${item.pendientes} · Correcciones docentes: ${item.modificadas}`,
+                  `Estado: ${textoEstadoCuenta(d)} ? Progreso: ${calcularProgresoEstudiante(d)}% ? Promedio: ${calcularNotaEstudiante(d)}/10 ? Nota definitiva: ${notaDefinitiva === '�' ? 'Pendiente' : `${notaDefinitiva}/10`} ? Errores: ${item.errores} ? Pendientes: ${item.pendientes} ? Correcciones docentes: ${item.modificadas}`,
                   y,
                   { altoLinea: 4 }
               );
@@ -13068,7 +13771,7 @@
               y = 18;
               const e = d.estudiante || {};
               const historial = d.historialResultados || {};
-              const finalizadas = d.finalizadas || {};
+              const finalizadas = obtenerFinalizadasEfectivasEstudiante(d);
               const notasDocente = d.notasDesafiosDocente || {};
               const revision = d.revisionSalidas || {};
               const eventos = Array.isArray(d.eventosSalidasPestana) ? d.eventosSalidasPestana : [];
@@ -13087,8 +13790,8 @@
               y = agregarTextoPDFProfesor(doc, [
                   `Email: ${d.email || 'Sin email'} · UID: ${d.uid || 'Sin registrar'}`,
                   `Grupo: ${grupo} · Estado: ${textoEstadoCuenta(d)}`,
-                  `Última actualización: ${formatearFechaPDF(d.actualizadoEn)}`,
-                  `Progreso: ${calcularProgresoEstudiante(d)}% · Promedio académico: ${calcularNotaEstudiante(d)}/10 · Nota calculada: ${calcularNotaProvisionalEstudiante(d)}/10 · Nota definitiva: ${calcularNotaDefinitivaEstudiante(d) === '—' ? 'Pendiente' : `${calcularNotaDefinitivaEstudiante(d)}/10`}`,
+                  `Última actualizaci�n: ${formatearFechaPDF(d.actualizadoEn)}`,
+                  `Progreso: ${calcularProgresoEstudiante(d)}% ? Promedio acad?mico: ${calcularNotaEstudiante(d)}/10 ? Nota calculada: ${calcularNotaProvisionalEstudiante(d)}/10 ? Nota definitiva: ${calcularNotaDefinitivaEstudiante(d) === '�' ? 'Pendiente' : `${calcularNotaDefinitivaEstudiante(d)}/10`}`,
                   `Desafíos finalizados: ${resumen.finalizadas}/${seccionesData.length} · Con errores: ${resumen.errores} · Pendientes: ${resumen.pendientes} · Notas docentes: ${resumen.modificadas}`,
                   d.estadoCuenta === 'inactivo' ? `Baja: ${d.bajaMotivo || 'Sin motivo'} · Fecha: ${formatearFechaPDF(d.bajaFecha)} · Responsable: ${d.bajaPor || 'Sin registrar'}` : '',
                   d.estadoCuenta === 'rechazado' ? `Rechazo: ${d.rechazoMotivo || 'Sin motivo'} · Fecha: ${formatearFechaPDF(d.rechazadoEn)} · Responsable: ${d.rechazadoPor || 'Sin registrar'}` : ''
@@ -13109,7 +13812,7 @@
                   `Confirmación de nota final: ${revision.notaConfirmada === true ? 'Confirmada' : 'Pendiente'}${revision.notaModificadaManualmente === true ? ' · Modificada manualmente por el docente' : ''}`,
                   `Cambios de pestaña: ${Number(d.salidasPestana || 0)} · Pantalla bloqueada: ${d.pantallaBloqueada === true ? 'Sí' : 'No'} · Desbloqueos: ${Number(d.cantidadDesbloqueos || 0)}`,
                   d.ultimoDesbloqueo || d.desbloqueoPantalla
-                      ? `Último desbloqueo: ${formatearFechaPDF((d.ultimoDesbloqueo || d.desbloqueoPantalla).en)} · Docente: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).por || 'Sin registrar'} · Motivo: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).motivo || 'Sin motivo'}`
+                      ? `�ltimo desbloqueo: ${formatearFechaPDF((d.ultimoDesbloqueo || d.desbloqueoPantalla).en)} ? Docente: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).por || 'Sin registrar'} ? Motivo: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).motivo || 'Sin motivo'}`
                       : 'Último desbloqueo: sin registros'
               ].join('\n'), y, { altoLinea: 4.2 });
 
@@ -13140,17 +13843,18 @@
 
               seccionesData.forEach((sec, desafioIndice) => {
                   const r = historial[sec.id] || {};
-                  const resultadoServidor = d.resultadosVerificados?.[sec.id] || {};
-                  const evaluacion = resultadoServidor.evaluacionCodigo || r.evaluacionCodigo || {};
+                  const evaluacion = r.evaluacionCodigo || {};
                   const ajuste = notasDocente[sec.id] || {};
                   const notaVigente = obtenerNotaDesafioEstudiante(d, sec.id, r);
-                  const notaAutomatica = obtenerNotaAutomaticaModulo(r, resultadoServidor);
-                  const codigo = resultadoServidor.codigo || r.codigo || codigos[sec.id] || '// Sin código guardado';
+                  const notaAutomatica = r.notaFinal ?? r.notaIA;
+                  const codigo = r.codigo || codigos[sec.id] || '// Sin código guardado';
                   const mensajes = Array.isArray(chatIA[sec.id]) ? chatIA[sec.id] : [];
                   const ayudaModulo = ayudas[sec.id] || {};
                   const consultasPalabras = Object.values(ayudaModulo.palabras || {})
                       .reduce((total, item) => total + Number(item?.consultas || 0), 0);
                   const historialNotaDesafio = historialNotasDesafios.filter(item => item.sectionId === sec.id);
+                  const reaperturaDesafio = obtenerUltimaReaperturaProfesor(d, sec.id);
+                  const intentosDesafio = Math.max(1, Number(d.intentosDesafio?.[sec.id] || 1));
                   if (y > 235) {
                       doc.addPage();
                       y = 18;
@@ -13164,6 +13868,7 @@
                   y = agregarTextoPDFProfesor(doc, [
                       `Estado: ${finalizadas[sec.id] ? 'Finalizado' : 'Pendiente'}`,
                       `Nota del código (70%): ${r.notaCodigo ?? 'Pendiente'} · Nota de preguntas (30%): ${r.notaPreguntas ?? 'Pendiente'} · Nota automática: ${notaAutomatica ?? 'Pendiente'} · Nota vigente: ${notaVigente ?? 'Pendiente'}${ajuste.nota !== undefined && ajuste.nota !== null ? ' (corregida por docente)' : ''}`,
+                      `Intentos: ${intentosDesafio} ? �ltima reapertura: ${reaperturaDesafio ? formatearFechaPDF(reaperturaDesafio.item.fecha || reaperturaDesafio.item.en) : 'Sin reaperturas registradas'} ? Motivo: ${reaperturaDesafio?.item?.motivo || 'Sin motivo registrado'}`,
                       `Tiempo restante: ${formatearTiempoProfesor(tiempos[sec.id] ?? 2400)} · Consultas de nota previa: ${Number(previews[sec.id] || 0)}/3`,
                       `Ayudas pedagógicas: palabras consultadas ${consultasPalabras} · pasos abiertos ${Number(ayudaModulo.pasosVistos || 0)} · material de apoyo ${Number(ayudaModulo.materialApoyoVistas || 0)} · verificación ${Number(ayudaModulo.verificacion?.intentos || 0)} intento(s)`
                   ].join('\n'), y, { altoLinea: 4 });
@@ -13266,7 +13971,7 @@
                   `Reforzar ${item.titulo}`,
                   `Nota vigente: ${item.nota.toFixed(1)}/10.`,
                   item.teoria
-                      ? `Repasá “${item.teoria}” y volvé a resolver “${item.ejercicio || item.titulo}” explicando cada decisión y probando al menos dos casos.`
+                      ? `Repas� “${item.teoria}” y volv� a resolver “${item.ejercicio || item.titulo}” explicando cada decisi�n y probando al menos dos casos.`
                       : "Revisá la solución, explicá cada decisión y comprobala con al menos dos casos de prueba."
               );
           });
@@ -13303,7 +14008,7 @@
           const criterioPrincipal = Object.entries(criterios).sort((a, b) => b[1] - a[1])[0];
           const accionesCriterio = {
               "desarrollo suficiente": "Escribí respuestas de al menos tres ideas conectadas: qué hiciste, cómo funciona y cómo lo comprobaste.",
-              "justificación causal": "Usá conectores como “porque”, “permite”, “evita” y “por lo tanto” para relacionar código y resultado.",
+              "justificaci�n causal": "Us� conectores como “porque”, “permite”, “evita” y “por lo tanto” para relacionar c�digo y resultado.",
               "evidencia del código o de una prueba": "Citá una variable, condición, función o resultado de prueba concreto en cada explicación.",
               "consecuencia, límite o mejora": "Incluí un caso límite, una posible falla o una mejora y explicá cómo la verificarías."
           };
@@ -13344,7 +14049,7 @@
                   `Preparar el próximo desafío: ${proxima.titulo}`,
                   `Avance actual: ${progreso}% del trayecto.`,
                   proxima.teoria
-                      ? `Leé primero “${proxima.teoria}”, identificá los conceptos nuevos y escribí dos ejemplos breves antes de resolver el desafío.`
+                      ? `Le? primero �${proxima.teoria}�, identific? los conceptos nuevos y escrib? dos ejemplos breves antes de resolver el desaf?o.`
                       : "Revisá la consigna, identificá entradas, proceso y salida, y planificá dos casos de prueba."
               );
           }
@@ -13481,176 +14186,10 @@
           setTimeout(() => modal.querySelector(".student-progress-modal-box")?.focus({ preventScroll: true }), 0);
       }
 
-      function cerrarProgresoEstudiante() {
-          document.getElementById("progresoEstudianteModal")?.classList.remove("active");
-          document.body.classList.remove("student-progress-modal-open");
-          document.getElementById("btnAbrirProgresoEstudiante")?.focus({ preventScroll: true });
-      }
-
-      function obtenerModeloRutaAprendizajeActual() {
-          const borradores = {};
-          seccionesData.forEach(sec => {
-              const guardado = getLocalStorage(`draft_editor-${sec.id}`);
-              if (guardado && guardado !== sec.initialCode) borradores[sec.id] = true;
-          });
-          return crearModeloRutaAprendizaje(seccionesData, {
-              seccionActiva: seccionActivaActual,
-              finalizadas: actividadesFinalizadas,
-              notasDocente: notasDesafiosDocente,
-              historial: historialResultados,
-              resultadosVerificados: resultadosVerificadosEstudiante,
-              ayudas: ayudasComprension,
-              tiempos: tiemposRestantes,
-              borradores
-          });
-      }
-
-      function etiquetaEstadoRuta(estado) {
-          return {
-              pendiente: "Pendiente",
-              en_curso: "En curso",
-              finalizado: "Finalizado",
-              corregido: "Corregido",
-              requiere_revision: "Requiere revisión"
-          }[estado] || "Pendiente";
-      }
-
-      function actualizarFiltroRutaAprendizaje(campo, valor) {
-          if (!["unidad", "estado", "dificultad"].includes(campo)) return;
-          filtrosRutaAprendizaje = { ...filtrosRutaAprendizaje, [campo]: valor || "" };
-          renderRutaAprendizaje();
-      }
-
-      function limpiarFiltrosRutaAprendizaje() {
-          filtrosRutaAprendizaje = { unidad: "", estado: "", dificultad: "" };
-          renderRutaAprendizaje();
-      }
-
-      function irADesafioDesdeRuta(sectionId) {
-          if (!seccionesData.some(item => item.id === sectionId)) return;
-          cerrarRutaAprendizaje();
-          switchSection(sectionId);
-          document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-
-      function abrirRutaAprendizaje() {
-          if (!cuentaEstudianteActiva) {
-              alert("Ingresá como estudiante para ver tu ruta de aprendizaje.");
-              return;
+          function cerrarProgresoEstudiante() {
+              document.getElementById("progresoEstudianteModal")?.classList.remove("active");
+              document.body.classList.remove("student-progress-modal-open");
           }
-          const modal = document.getElementById("rutaAprendizajeModal");
-          if (!modal) return;
-          renderRutaAprendizaje();
-          modal.classList.add("active");
-          document.body.classList.add("learning-path-modal-open");
-          setTimeout(() => modal.querySelector(".learning-path-modal-box")?.focus({ preventScroll: true }), 0);
-      }
-
-      function cerrarRutaAprendizaje() {
-          document.getElementById("rutaAprendizajeModal")?.classList.remove("active");
-          document.body.classList.remove("learning-path-modal-open");
-          document.getElementById("btnAbrirRutaAprendizaje")?.focus({ preventScroll: true });
-      }
-
-      function renderRutaAprendizaje() {
-          const contenedor = document.getElementById("rutaAprendizajeContenido");
-          if (!contenedor) return;
-          const modelo = obtenerModeloRutaAprendizajeActual();
-          const resumenBoton = document.getElementById("resumenBotonRuta");
-          const actual = modelo.desafios.find(item => item.id === modelo.actualId);
-          if (resumenBoton) {
-              resumenBoton.textContent = actual
-                  ? `${modelo.progreso}% · Actual: ${actual.titulo.replace(/^\d+\.\s*/, "")}`
-                  : "Todavía no hay desafíos disponibles";
-          }
-          if (!modelo.desafios.length) {
-              contenedor.innerHTML = `<div class="learning-path-empty"><i class="fa-solid fa-route" aria-hidden="true"></i><h3>La ruta todavía está vacía</h3><p>Cuando haya desafíos disponibles aparecerán en este espacio.</p></div>`;
-              return;
-          }
-          const visibles = filtrarRutaAprendizaje(modelo, filtrosRutaAprendizaje);
-          const completados = modelo.desafios.filter(item => item.finalizada).length;
-          const bloqueados = modelo.desafios.filter(item => item.bloqueado).length;
-          const opcionesUnidad = modelo.unidades.map(item =>
-              `<option value="${escapeHtml(item.nombre)}" ${filtrosRutaAprendizaje.unidad === item.nombre ? "selected" : ""}>${escapeHtml(item.nombre)}</option>`
-          ).join("");
-          contenedor.innerHTML = `
-              <div class="learning-path-summary" aria-label="Resumen de la ruta">
-                  <div><small>Completados</small><strong>${completados}/${modelo.desafios.length}</strong></div>
-                  <div><small>Progreso</small><strong>${modelo.progreso}%</strong></div>
-                  <div><small>Desafío actual</small><strong>${actual ? actual.indice : "—"}</strong></div>
-                  <div><small>Bloqueados</small><strong>${bloqueados}</strong></div>
-              </div>
-              <section class="learning-path-units" aria-labelledby="rutaUnidadesTitulo">
-                  <header><h3 id="rutaUnidadesTitulo">Progreso por unidad</h3></header>
-                  <div>${modelo.unidades.map(unidad => `
-                      <article>
-                          <span><strong>${escapeHtml(unidad.nombre)}</strong><small>${unidad.completados}/${unidad.total}</small></span>
-                          <div role="progressbar" aria-label="${escapeHtml(unidad.nombre)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${unidad.progreso}"><i style="width:${unidad.progreso}%"></i></div>
-                      </article>`).join("")}</div>
-              </section>
-              <section class="learning-path-competencies" aria-labelledby="rutaCompetenciasTitulo">
-                  <h3 id="rutaCompetenciasTitulo">Competencias trabajadas</h3>
-                  <div>${modelo.competencias.map(item => `<span><i class="fa-solid fa-check" aria-hidden="true"></i>${escapeHtml(item.nombre)} <small>${item.completados}/${item.desafios}</small></span>`).join("")}</div>
-              </section>
-              <section class="learning-path-recommendations" aria-labelledby="rutaRecomendacionesTitulo">
-                  <header><div><h3 id="rutaRecomendacionesTitulo">Recomendaciones de repaso</h3><small>Reglas basadas en notas, errores, ayudas e intentos incompletos.</small></div></header>
-                  ${modelo.recomendaciones.length ? `<div>${modelo.recomendaciones.map(item => `
-                      <article class="is-${item.prioridad}">
-                          <span>${item.prioridad === "alta" ? "Prioridad alta" : "Repaso sugerido"}</span>
-                          <h4>${escapeHtml(item.titulo)}</h4>
-                          <p>${escapeHtml(item.detalle)}</p>
-                          <button class="btn btn-secondary" type="button" onclick="irADesafioDesdeRuta('${item.sectionId}')">Abrir desafío</button>
-                      </article>`).join("")}</div>` : `<p class="learning-path-inline-empty">No hay recomendaciones de repaso por el momento.</p>`}
-              </section>
-              <section class="learning-path-challenges" aria-labelledby="rutaDesafiosTitulo">
-                  <header><div><h3 id="rutaDesafiosTitulo">Desafíos del trayecto</h3><small>Los bloqueos son orientativos y no impiden consultar un desafío.</small></div></header>
-                  <div class="learning-path-filters" aria-label="Filtros de la ruta">
-                      <label><span>Unidad</span><select onchange="actualizarFiltroRutaAprendizaje('unidad',this.value)"><option value="">Todas</option>${opcionesUnidad}</select></label>
-                      <label><span>Estado</span><select onchange="actualizarFiltroRutaAprendizaje('estado',this.value)">
-                          <option value="">Todos</option>
-                          <option value="pendiente" ${filtrosRutaAprendizaje.estado === "pendiente" ? "selected" : ""}>Pendiente</option>
-                          <option value="en_curso" ${filtrosRutaAprendizaje.estado === "en_curso" ? "selected" : ""}>En curso</option>
-                          <option value="finalizado" ${filtrosRutaAprendizaje.estado === "finalizado" ? "selected" : ""}>Finalizado</option>
-                          <option value="corregido" ${filtrosRutaAprendizaje.estado === "corregido" ? "selected" : ""}>Corregido</option>
-                          <option value="requiere_revision" ${filtrosRutaAprendizaje.estado === "requiere_revision" ? "selected" : ""}>Requiere revisión</option>
-                          <option value="bloqueado" ${filtrosRutaAprendizaje.estado === "bloqueado" ? "selected" : ""}>Bloqueado</option>
-                      </select></label>
-                      <label><span>Dificultad</span><select onchange="actualizarFiltroRutaAprendizaje('dificultad',this.value)">
-                          <option value="">Todas</option>
-                          ${["Inicial", "Intermedia", "Avanzada"].map(valor => `<option value="${valor}" ${filtrosRutaAprendizaje.dificultad === valor ? "selected" : ""}>${valor}</option>`).join("")}
-                      </select></label>
-                      <button class="btn btn-secondary" type="button" onclick="limpiarFiltrosRutaAprendizaje()"><i class="fa-solid fa-filter-circle-xmark"></i> Limpiar</button>
-                  </div>
-                  ${visibles.length ? `<nav class="learning-path-list" aria-label="Navegación por desafíos">${visibles.map(item => `
-                      <article class="learning-path-item is-${item.estado} ${item.bloqueado ? "is-blocked" : ""}" ${item.id === modelo.actualId ? 'aria-current="step"' : ""}>
-                          <div class="learning-path-index" aria-hidden="true">${item.indice}</div>
-                          <div class="learning-path-item-main">
-                              <div class="learning-path-item-heading">
-                                  <h4>${escapeHtml(item.titulo)}</h4>
-                                  <span class="learning-path-status">${item.bloqueado ? '<i class="fa-solid fa-lock" aria-hidden="true"></i> Prerrequisito pendiente' : escapeHtml(etiquetaEstadoRuta(item.estado))}</span>
-                              </div>
-                              <p>${escapeHtml(item.unidad)}</p>
-                              <div class="learning-path-meta">
-                                  <span><i class="fa-regular fa-clock" aria-hidden="true"></i>${item.minutos} min</span>
-                                  <span><i class="fa-solid fa-signal" aria-hidden="true"></i>${escapeHtml(item.dificultad)}</span>
-                                  ${Number.isFinite(item.nota) ? `<span><i class="fa-solid fa-star" aria-hidden="true"></i>${item.nota.toFixed(1)}/10</span>` : ""}
-                              </div>
-                              <div class="learning-path-competency-tags">${item.competencias.map(nombre => `<span>${escapeHtml(nombre)}</span>`).join("")}</div>
-                          </div>
-                          <button class="btn btn-primary" type="button" onclick="irADesafioDesdeRuta('${item.id}')" aria-label="Abrir ${escapeHtml(item.titulo)}">Abrir</button>
-                      </article>`).join("")}</nav>` : `<p class="learning-path-inline-empty">No hay desafíos que coincidan con los filtros seleccionados.</p>`}
-              </section>`;
-      }
-
-      document.getElementById("rutaAprendizajeModal")?.addEventListener("click", event => {
-          if (event.target?.id === "rutaAprendizajeModal") cerrarRutaAprendizaje();
-      });
-
-      document.addEventListener("keydown", event => {
-          if (event.key === "Escape" && document.getElementById("rutaAprendizajeModal")?.classList.contains("active")) {
-              cerrarRutaAprendizaje();
-          }
-      });
 
       document.getElementById("progresoEstudianteModal")?.addEventListener("click", event => {
           if (event.target?.id === "progresoEstudianteModal") cerrarProgresoEstudiante();
@@ -13662,9 +14201,34 @@
           }
       });
 
+      function filtrarGraficoNotasEstudiante(filtro, boton = null) {
+          const grafico = boton?.closest?.(".student-progress-chart-section") ||
+              document.querySelector(".student-progress-chart-section");
+          if (!grafico) return;
+          const normalizado = filtro || "";
+          grafico.querySelectorAll("[data-student-grade-filter]").forEach(control => {
+              const activo = control.dataset.studentGradeFilter === normalizado;
+              control.classList.toggle("is-active", activo);
+              control.setAttribute("aria-pressed", String(activo));
+          });
+          let visibles = 0;
+          grafico.querySelectorAll(".student-progress-chart-item").forEach(item => {
+              const coincide = !normalizado ||
+                  (normalizado === "finalizados" && item.dataset.finalizada === "true") ||
+                  (normalizado === "corregidos" && item.dataset.corregida === "true") ||
+                  (normalizado === "pendientes" && item.dataset.finalizada !== "true");
+              item.classList.toggle("is-filtered-out", !coincide);
+              if (coincide) visibles++;
+          });
+          const estado = grafico.querySelector(".student-grade-filter-status");
+          if (estado) estado.textContent = `${visibles} desafíos mostrados`;
+          const vacio = grafico.querySelector(".student-grade-filter-empty");
+          if (vacio) vacio.hidden = visibles > 0;
+      }
+
       function renderInformeVisualEstudiante() {
           const contenedor = document.getElementById("informeVisualEstudianteContenido");
-          if (!contenedor || !cuentaEstudianteActiva) return;
+          if (!contenedor || (!cuentaEstudianteActiva && !document.body.classList.contains("teacher-authorized"))) return;
           const datos = obtenerSeguimientoRecomendacionesEstudiante();
           const totalRespuestas = datos.actividades.reduce(
               (suma, item) => suma + Number(item.respuestasSocraticas || 0),
@@ -13691,13 +14255,7 @@
                   <div><small>Respuestas socráticas</small><strong>${totalRespuestas}</strong><span>Solo desafíos finalizados</span></div>
                   <div><small>Plan personal</small><strong>${completadas}/${datos.recomendaciones.length}</strong><span>${enProgreso} en progreso</span></div>
               </div>
-              <section class="student-progress-chart-section">
-                  <header><div><i class="fa-solid fa-chart-column"></i><strong>Gráfico de calificaciones</strong></div><small>Escala de 0 a 10 por desafío</small></header>
-                  <div class="student-progress-chart" role="img" aria-label="Gráfico de calificaciones por desafío">${datos.actividades.map(actividad => {
-                      const nota = Number.isFinite(actividad.nota) ? Math.max(0, Math.min(10, actividad.nota)) : 0;
-                      return `<div class="student-progress-chart-item" title="${escapeHtml(`${actividad.titulo}: ${Number.isFinite(actividad.nota) ? actividad.nota.toFixed(1) : 'sin nota'}`)}"><div class="student-progress-chart-track"><span class="${colores(actividad)}" style="height:${nota * 10}%"></span></div><strong>${Number.isFinite(actividad.nota) ? actividad.nota.toFixed(1) : '—'}</strong><small>${actividad.indice}</small></div>`;
-                  }).join('')}</div>
-              </section>
+              <div id="graficoNotasDesafiosEstudianteVisual"></div>
               <section class="student-heatmap-section">
                   <header><div><i class="fa-solid fa-grip"></i><strong>Calificaciones por desafío</strong></div>
                       <div class="student-heatmap-legend">
@@ -13740,6 +14298,29 @@
                       </article>`).join("")}</div>
                   <p id="estadoInformeVisualEstudiante" class="student-report-save-status">Estados sincronizados con tu progreso.</p>
               </section>`;
+          const graficoDocenteEstudiante = renderGraficoNotasDesafiosEstudiante({
+              historialResultados,
+              notasDesafiosDocente,
+              finalizadas: obtenerFinalizadasEfectivasEstudiante({ historialResultados, notasDesafiosDocente, finalizadas: actividadesFinalizadas }),
+              seccionActiva: seccionActivaActual || '',
+              __controlEstudiante: {
+                  seccionActiva: seccionActivaActual || '',
+                  estadoConexion: 'trabajando'
+              }
+          });
+          const graficoEstudiante = document.getElementById("graficoNotasDesafiosEstudianteVisual");
+          if (graficoEstudiante) {
+              graficoEstudiante.innerHTML = graficoDocenteEstudiante || "";
+              const grafico = graficoEstudiante.querySelector('.teacher-student-grade-chart');
+              const botonFiltro = grafico
+                  ? [...grafico.querySelectorAll('[data-grade-filter-button]')]
+                      .find(control => control.dataset.gradeFilterButton === ultimoFiltroGraficoNotasEstudiante)
+                  : null;
+              if (botonFiltro) {
+                  filtrarGraficoNotasDesafiosEstudiante(ultimoFiltroGraficoNotasEstudiante, botonFiltro);
+              }
+              restaurarPosicionGraficoNotasEstudiante(grafico);
+          }
       }
 
       async function exportarResultadosPDF() {
@@ -14104,7 +14685,7 @@
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
           const formulaGeneral = doc.splitTextToSize(
-              "Fórmula: suma de las notas vigentes de las actividades evaluadas ÷ cantidad de actividades evaluadas. Cuando existe una corrección docente, esa nota reemplaza a la automática en el promedio. Las actividades pendientes no se incluyen.",
+              "F?rmula: suma de las notas vigentes de las actividades evaluadas � cantidad de actividades evaluadas. Cuando existe una correcci?n docente, esa nota reemplaza a la autom?tica en el promedio. Las actividades pendientes no se incluyen.",
               180
           );
           doc.text(formulaGeneral, 14, yPos);
@@ -14138,7 +14719,7 @@
               doc.text(lineasSuma, 14, yPos);
               yPos += lineasSuma.length * 4 + 1;
               doc.text(
-                  `División: ${sumaNotasFinales.toFixed(1)} ÷ ${actividadesEvaluadasPDF.length} actividades = ${promedioFinal}/10`,
+                  `Divisi�n: ${sumaNotasFinales.toFixed(1)} ÷ ${actividadesEvaluadasPDF.length} actividades = ${promedioFinal}/10`,
                   14,
                   yPos
               );
@@ -14251,7 +14832,7 @@
                   yPos += 5;
                   if (res.notaCodigo !== undefined && res.notaPreguntas !== undefined && notaFinalModulo !== undefined) {
                       const formulaModulo =
-                          `Cálculo: (${res.notaCodigo} × 0,70) + (${res.notaPreguntas} × 0,30) = ${notaFinalModulo}/10`;
+                          `C�lculo: (${res.notaCodigo} × 0,70) + (${res.notaPreguntas} × 0,30) = ${notaFinalModulo}/10`;
                       doc.text(formulaModulo, 14, yPos);
                       yPos += 5;
                   }
@@ -14302,3 +14883,7 @@
               doc.save(`Reporte_JS_${nombre.replace(/\s+/g, '_')}.pdf`);
           }
       }
+
+      // Exponer explícitamente las acciones docentes usadas por botones dinámicos.
+      window.abrirAccionesEstudiante = abrirAccionesEstudiante;
+      window.abrirDetalleEstudianteProfesor = abrirDetalleEstudianteProfesor;

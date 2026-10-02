@@ -1,0 +1,24 @@
+MODO COOPERACIÓN DOCENTE–ESTUDIANTE 2.1
+
+CAMBIO REALIZADO
+El docente autorizado puede abrir el editor colaborativo de cualquier estudiante desde el Panel Profesor sin esperar la aceptación del estudiante.
+
+RECORRIDO
+Panel Profesor → estudiante → desafío → Cooperación/Editar → el editor abre en modo docente.
+
+PERMISOS
+- El docente debe estar autenticado y autorizado en docentesAutorizados (o ser el administrador principal configurado en el proyecto).
+- El estudiante no recibe ni necesita una autorización para que el docente abra el editor.
+- El estudiante conserva su control normal cuando trabaja como estudiante.
+- No se abre el acceso a otros estudiantes: el UID del estudiante sigue formando parte de la ruta de Firestore.
+
+IMPORTANTE SOBRE FIREBASE
+El cambio de JavaScript no reemplaza las reglas de Firestore. Las reglas publicadas deben permitir a un docente autorizado leer/escribir:
+  estudiantes/{uid}/colaboracionCodigo/{sectionId}
+  estudiantes/{uid}/colaboracionCodigo/{sectionId}/actualizaciones/{id}
+  estudiantes/{uid}/colaboracionCodigo/{sectionId}/presencia/{id}
+  estudiantes/{uid}/colaboracionCodigo/{sectionId}/mensajes/{id}
+
+La condición debe verificar la identidad del docente y su autorización en docentesAutorizados. No debe concederse acceso general a todos los usuarios autenticados.
+
+El estudiante sigue limitado a su propio UID.

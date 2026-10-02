@@ -1935,31 +1935,19 @@ service cloud.firestore {
               : (
                   get(
                     /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
-                  ).data.get('estadoConsentimiento', 'sin_solicitud') == 'aceptado' &&
-                  get(
-                    /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
-                  ).data.get('modoCooperacionActiva', false) == true &&
-                  get(
-                    /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
-                  ).data.get('edicionCooperativaPausada', false) == false
+                  ).data.get('modoCooperacionActiva', false) == false ||
+                  (
+                    get(
+                      /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                    ).data.get('estadoConsentimiento', 'sin_solicitud') == 'aceptado' &&
+                    get(
+                      /databases/$(database)/documents/estudiantes/$(uid)/colaboracionCodigo/$(sectionId)
+                    ).data.get('edicionCooperativaPausada', false) == false
+                  )
                 )
           );
         allow update: if false;
         allow delete: if false;
-      }
-
-      match /versiones/{versionId} {
-        allow get, list: if ownsDocument(uid) || isTeacher();
-        allow create: if (isActiveStudent(uid) || isTeacher()) &&
-          request.resource.data.uid == uid &&
-          request.resource.data.sectionId == sectionId &&
-          request.resource.data.id == versionId &&
-          request.resource.data.codigo is string &&
-          request.resource.data.codigo.size() <= 30000 &&
-          request.resource.data.rol in ['estudiante', 'docente'] &&
-          request.resource.data.autorUid == request.auth.uid &&
-          request.resource.data.creadoEn == request.time;
-        allow update, delete: if false;
       }
 
       // Presencia y posicin de seleccin de los participantes conectados.
@@ -2649,103 +2637,6 @@ service cloud.firestore {
     match /desafios/{desafioId} {
       allow read: if signedIn();
       allow create, update, delete: if isTeacher();
-    }
-
-    match /estudiantes/{uid}/entregasDefinitivas/{sectionId} {
-      allow get: if ownsDocument(uid) || isTeacher();
-      allow list: if isTeacher();
-      allow create: if isActiveStudent(uid) &&
-        request.resource.data.uid == uid &&
-        request.resource.data.sectionId == sectionId &&
-        request.resource.data.estado == 'definitiva' &&
-        request.resource.data.entregadoPor == request.auth.uid &&
-        request.resource.data.entregadoEn == request.time &&
-        request.resource.data.codigo is string &&
-        request.resource.data.codigo.size() <= 30000 &&
-         request.resource.data.pruebas is list &&
-         request.resource.data.respuestas is map;
-      allow update, delete: if false;
-
-      match /intentos/{intentoId} {
-        allow get, list: if ownsDocument(uid) || isTeacher();
-        allow create: if isActiveStudent(uid) &&
-          request.resource.data.keys().hasAll([
-            'uid',
-            'sectionId',
-            'intento',
-            'intentoId',
-            'codigo',
-            'pruebas',
-            'respuestas',
-            'errores',
-            'entregadoPor',
-            'entregadoEn',
-            'estado'
-          ]) &&
-          request.resource.data.keys().hasOnly([
-            'uid',
-            'sectionId',
-            'intento',
-            'intentoId',
-            'codigo',
-            'pruebas',
-            'respuestas',
-            'errores',
-            'ayudaUsada',
-            'versionCodigo',
-            'entregadoPor',
-            'entregadoEmail',
-            'entregadoEn',
-            'estado'
-          ]) &&
-          request.resource.data.uid == uid &&
-          request.resource.data.sectionId == sectionId &&
-          request.resource.data.intentoId == intentoId &&
-          request.resource.data.intento is int &&
-          request.resource.data.intento >= 1 &&
-          request.resource.data.codigo is string &&
-          request.resource.data.codigo.size() > 0 &&
-          request.resource.data.codigo.size() <= 30000 &&
-          request.resource.data.pruebas is list &&
-          request.resource.data.respuestas is map &&
-          request.resource.data.errores is list &&
-          request.resource.data.entregadoPor == request.auth.uid &&
-          request.resource.data.entregadoEn == request.time &&
-          request.resource.data.estado == 'definitiva';
-        allow update, delete: if false;
-      }
-    }
-
-    match /estudiantes/{uid}/evaluaciones/{sectionId} {
-      allow get, list: if ownsDocument(uid) || isTeacher();
-      allow create, update: if isTeacher() &&
-        request.resource.data.uid == uid &&
-        request.resource.data.sectionId == sectionId &&
-        request.resource.data.actualizadoPor == authenticatedEmail() &&
-        request.resource.data.actualizadoEn == request.time &&
-        (
-          request.resource.data.final == null ||
-          (
-            request.resource.data.final is number &&
-            request.resource.data.final >= 0 &&
-            request.resource.data.final <= 10
-          )
-        );
-      allow delete: if false;
-    }
-
-    match /estudiantes/{uid}/colaboracionCodigo/{sectionId}/eventos/{eventoId} {
-      allow get, list: if ownsDocument(uid) || isTeacher();
-      allow create: if (isActiveStudent(uid) || isTeacher()) &&
-        request.resource.data.uid == uid &&
-        request.resource.data.sectionId == sectionId &&
-        request.resource.data.id == eventoId &&
-        request.resource.data.tipo is string &&
-        request.resource.data.tipo.size() > 0 &&
-        request.resource.data.tipo.size() <= 80 &&
-        request.resource.data.autorUid == request.auth.uid &&
-        request.resource.data.creadoEn == request.time;
-      allow update, delete: if false;
     }
 
     // Todo lo no declarado queda denegado.

@@ -123,15 +123,13 @@ function claseDominio(d){
 }
 function cargarFormulario(c={}){
  const poner=(id,v)=>{const x=document.getElementById(id);if(x&&document.activeElement!==x)x.value=v??""};
- poner("configLimiteSalidas",c.limiteSalidas??5);poner("configDuracionMinima",c.duracionMinimaSegundos??3);poner("configAvisoOffline",c.avisoSinConexionSegundos??30);poner("configAlertaOffline",c.alertaSinConexionSegundos??120);poner("configRetencionDias",c.retencionDias??180);poner("configNivelMaximoTutor",c.nivelMaximoTutor??6);poner("configLimiteConsultasTutor",c.limiteConsultasTutor??12);
+ poner("configLimiteSalidas",c.limiteSalidas??5);poner("configDuracionMinima",c.duracionMinimaSegundos??3);poner("configAvisoOffline",c.avisoSinConexionSegundos??30);poner("configAlertaOffline",c.alertaSinConexionSegundos??120);poner("configRetencionDias",c.retencionDias??180);
  poner("configDominiosPermitidos",(c.dominiosPermitidos||[]).join("\n"));poner("configDominiosAlerta",(c.dominiosAlerta||[]).join("\n"));poner("configDominiosIgnorados",(c.dominiosIgnorados||[]).join("\n"));
  const b=document.getElementById("configBloqueoAutomatico");if(b&&document.activeElement!==b)b.checked=c.bloqueoAutomatico!==false;
- const tutor=document.getElementById("configTutorHabilitado");if(tutor&&document.activeElement!==tutor)tutor.checked=c.tutorHabilitado!==false;
- const formal=document.getElementById("configEvaluacionFormal");if(formal&&document.activeElement!==formal)formal.checked=c.evaluacionFormal===true;
 }
 async function guardarConfiguracion(){
  const estado=document.getElementById("estadoConfiguracionSeguimiento"),valor=id=>document.getElementById(id)?.value||"";
- const c={limiteSalidas:Number(valor("configLimiteSalidas"))||5,duracionMinimaSegundos:Number(valor("configDuracionMinima"))||0,avisoSinConexionSegundos:Number(valor("configAvisoOffline"))||30,alertaSinConexionSegundos:Number(valor("configAlertaOffline"))||120,retencionDias:Number(valor("configRetencionDias"))||180,bloqueoAutomatico:document.getElementById("configBloqueoAutomatico")?.checked!==false,tutorHabilitado:document.getElementById("configTutorHabilitado")?.checked!==false,evaluacionFormal:document.getElementById("configEvaluacionFormal")?.checked===true,nivelMaximoTutor:Number(valor("configNivelMaximoTutor"))||6,limiteConsultasTutor:Number(valor("configLimiteConsultasTutor"))||12,dominiosPermitidos:valor("configDominiosPermitidos"),dominiosAlerta:valor("configDominiosAlerta"),dominiosIgnorados:valor("configDominiosIgnorados")};
+ const c={limiteSalidas:Number(valor("configLimiteSalidas"))||5,duracionMinimaSegundos:Number(valor("configDuracionMinima"))||0,avisoSinConexionSegundos:Number(valor("configAvisoOffline"))||30,alertaSinConexionSegundos:Number(valor("configAlertaOffline"))||120,retencionDias:Number(valor("configRetencionDias"))||180,bloqueoAutomatico:document.getElementById("configBloqueoAutomatico")?.checked!==false,dominiosPermitidos:valor("configDominiosPermitidos"),dominiosAlerta:valor("configDominiosAlerta"),dominiosIgnorados:valor("configDominiosIgnorados")};
  if(estado)estado.textContent="Guardando...";
  const ok=await window.guardarConfiguracionSeguimientoFirebase?.(c);
  if(estado){estado.className=`tracking-status-badge ${ok?"ok":"danger"}`;estado.textContent=ok?"Configuración guardada":"No se pudo guardar"}
@@ -149,8 +147,7 @@ function asegurarPaneles(){
   <div class="tracking-config-field"><label>Salidas antes del bloqueo<input id="configLimiteSalidas" type="number" min="1" max="50"></label></div><div class="tracking-config-field"><label>Duración mínima (segundos)<input id="configDuracionMinima" type="number" min="0" max="300"></label></div><div class="tracking-config-field"><label>Aviso sin conexión (segundos)<input id="configAvisoOffline" type="number" min="15" max="600"></label></div><div class="tracking-config-field"><label>Interrupción después de (segundos)<input id="configAlertaOffline" type="number" min="60" max="3600"></label></div><div class="tracking-config-field"><label>Conservar historial (días)<input id="configRetencionDias" type="number" min="1" max="3650"></label></div><div class="tracking-config-field"><label><input id="configBloqueoAutomatico" type="checkbox"> Bloqueo automático</label></div>
   <div class="tracking-config-field wide"><label>Dominios permitidos<textarea id="configDominiosPermitidos" placeholder="developer.mozilla.org"></textarea></label></div><div class="tracking-config-field wide"><label>Dominios que generan alerta<textarea id="configDominiosAlerta" placeholder="chatgpt.com"></textarea></label></div><div class="tracking-config-field wide"><label>Dominios ignorados<textarea id="configDominiosIgnorados" placeholder="accounts.google.com"></textarea></label></div></div>
   <div class="tracking-config-actions"><button class="btn btn-primary" id="guardarConfiguracionSeguimiento" type="button"><i class="fa-solid fa-floppy-disk"></i> Guardar configuración</button><button class="btn btn-secondary" id="restaurarConfiguracionSeguimiento" type="button"><i class="fa-solid fa-arrow-rotate-left"></i> Restaurar recomendados</button></div><p class="tracking-config-note"><i class="fa-solid fa-user-shield"></i> Las alertas requieren revisión docente y nunca descuentan puntos automáticamente. No se guarda la URL completa.</p>`;
-  p.querySelector(".tracking-config-grid")?.insertAdjacentHTML("beforeend",`<div class="tracking-config-field"><label><input id="configTutorHabilitado" type="checkbox"> Tutor habilitado</label></div><div class="tracking-config-field"><label><input id="configEvaluacionFormal" type="checkbox"> Evaluación formal</label></div><div class="tracking-config-field"><label>Nivel máximo del tutor<input id="configNivelMaximoTutor" type="number" min="1" max="6"></label></div><div class="tracking-config-field"><label>Consultas por desafío<input id="configLimiteConsultasTutor" type="number" min="1" max="50"></label></div>`);
-  filtros.parentNode.insertBefore(p,filtros);document.getElementById("guardarConfiguracionSeguimiento").onclick=guardarConfiguracion;document.getElementById("restaurarConfiguracionSeguimiento").onclick=()=>cargarFormulario({limiteSalidas:5,duracionMinimaSegundos:3,bloqueoAutomatico:true,avisoSinConexionSegundos:30,alertaSinConexionSegundos:120,retencionDias:180,tutorHabilitado:true,evaluacionFormal:false,nivelMaximoTutor:6,limiteConsultasTutor:12});
+  filtros.parentNode.insertBefore(p,filtros);document.getElementById("guardarConfiguracionSeguimiento").onclick=guardarConfiguracion;document.getElementById("restaurarConfiguracionSeguimiento").onclick=()=>cargarFormulario({limiteSalidas:5,duracionMinimaSegundos:3,bloqueoAutomatico:true,avisoSinConexionSegundos:30,alertaSinConexionSegundos:120,retencionDias:180});
  }
  if(!document.getElementById("incidenciasSeguimientoProfesor")){const p=document.createElement("section");p.id="incidenciasSeguimientoProfesor";p.className="tracking-incidents-panel";const r=document.getElementById("resumenProfesor");r?.parentNode.insertBefore(p,r)}
  cargarFormulario(window.configuracionSeguimientoActual||{});
@@ -167,7 +164,7 @@ function asegurarPestanasPanelDocente(){
  const contenido=document.querySelector("#panelProfesorModal .teacher-panel-content");if(!contenido)return;
  if(document.getElementById("teacherWorkspaceTabs")){asegurarCentroMovilDocente();actualizarBadgesPestanas();return}
  const referencias={
-  estado:document.getElementById("estadoClaseProfesor"),alerta:document.getElementById("alertaNuevaSolicitud"),solicitudes:document.getElementById("solicitudesPendientesProfesor"),docentes:document.getElementById("cantidadDocentesAutorizados")?.closest("details"),leyenda:contenido.querySelector(".teacher-icon-legend"),config:document.getElementById("configuracionSeguimientoProfesor"),incidencias:document.getElementById("incidenciasSeguimientoProfesor"),resumen:document.getElementById("resumenProfesor"),resumenIA:document.getElementById("resumenConsultasIAProfesor"),filtros:document.getElementById("filtrosPanelProfesor"),tabla:contenido.querySelector(".teacher-table-scroll"),estadoPanel:document.getElementById("estadoPanelProfesor"),tituloFiltros:[...contenido.querySelectorAll(".teacher-section-title")].find(x=>x.textContent.includes("Filtros")),calculo:[...contenido.children].find(x=>x.tagName==="DIV"&&x.textContent.includes("Cómo se calcula"))
+  estado:document.getElementById("estadoClaseProfesor"),alerta:document.getElementById("alertaNuevaSolicitud"),solicitudes:document.getElementById("solicitudesPendientesProfesor"),colaboracion:document.getElementById("solicitudesColaboracionProfesor"),docentes:document.getElementById("cantidadDocentesAutorizados")?.closest("details"),leyenda:contenido.querySelector(".teacher-icon-legend"),config:document.getElementById("configuracionSeguimientoProfesor"),incidencias:document.getElementById("incidenciasSeguimientoProfesor"),resumen:document.getElementById("resumenProfesor"),resumenIA:document.getElementById("resumenConsultasIAProfesor"),filtros:document.getElementById("filtrosPanelProfesor"),tabla:contenido.querySelector(".teacher-table-scroll"),estadoPanel:document.getElementById("estadoPanelProfesor"),tituloFiltros:[...contenido.querySelectorAll(".teacher-section-title")].find(x=>x.textContent.includes("Filtros")),calculo:[...contenido.children].find(x=>x.tagName==="DIV"&&x.textContent.includes("Cómo se calcula"))
  };
  const pestañas=[["resumen","fa-chart-pie","Resumen"],["estudiantes","fa-users","Estudiantes"],["seguimiento","fa-shield-halved","Seguimiento"],["solicitudes","fa-user-clock","Solicitudes"],["docentes","fa-user-shield","Docentes"]];
  const nav=document.createElement("nav");nav.id="teacherWorkspaceTabs";nav.className="teacher-workspace-tabs";nav.setAttribute("aria-label","Secciones del panel docente");nav.innerHTML=pestañas.map(x=>`<button class="teacher-workspace-tab" type="button" data-teacher-tab="${x[0]}" data-tab-label="${x[2]}" data-tooltip="${x[2]} · 0" aria-label="${x[2]}: 0" title="${x[2]}" aria-controls="teacherWorkspacePanel-${x[0]}"><i class="fa-solid ${x[1]}" aria-hidden="true"></i><span>${x[2]}</span><span class="teacher-workspace-tab-count" data-tab-count="${x[0]}">0</span></button>`).join("");
@@ -175,14 +172,14 @@ function asegurarPestanasPanelDocente(){
   resumen:crearPanelDocente("resumen","Resumen general","Estado de la clase, alertas y métricas principales."),
   estudiantes:crearPanelDocente("estudiantes","Estudiantes","Filtros, calificaciones, progreso y acciones individuales."),
   seguimiento:crearPanelDocente("seguimiento","Seguimiento y bloqueo","Límite de salidas, conexión de la extensión, dominios y retención."),
-  solicitudes:crearPanelDocente("solicitudes","Solicitudes de acceso","Altas pendientes y aprobación de estudiantes."),
+  solicitudes:crearPanelDocente("solicitudes","Solicitudes","Altas pendientes y solicitudes de colaboración con código."),
   docentes:crearPanelDocente("docentes","Docentes autorizados","Cuentas que pueden administrar el panel y sus registros.")
  };
  contenido.prepend(nav);Object.values(paneles).forEach(p=>contenido.appendChild(p));
  [referencias.estado,referencias.alerta,referencias.incidencias,referencias.resumen,referencias.resumenIA].filter(Boolean).forEach(x=>paneles.resumen.appendChild(x));
  [referencias.leyenda,referencias.tituloFiltros,referencias.filtros,referencias.calculo,referencias.tabla,referencias.estadoPanel].filter(Boolean).forEach(x=>paneles.estudiantes.appendChild(x));
  [referencias.config].filter(Boolean).forEach(x=>paneles.seguimiento.appendChild(x));
- [referencias.solicitudes].filter(Boolean).forEach(x=>paneles.solicitudes.appendChild(x));
+ [referencias.solicitudes,referencias.colaboracion].filter(Boolean).forEach(x=>paneles.solicitudes.appendChild(x));
  [referencias.docentes].filter(Boolean).forEach(x=>paneles.docentes.appendChild(x));
  [...contenido.children].filter(x=>x!==nav&&!Object.values(paneles).includes(x)).forEach(x=>paneles.resumen.appendChild(x));
  asegurarCentroMovilDocente(paneles.estudiantes);
@@ -247,7 +244,7 @@ function activarPestanaDocente(id){
  const valido=["resumen","estudiantes","seguimiento","solicitudes","docentes"].includes(id)?id:"resumen";document.querySelectorAll(".teacher-workspace-tab").forEach(b=>{const activo=b.dataset.teacherTab===valido;b.classList.toggle("active",activo);b.setAttribute("aria-selected",String(activo));b.tabIndex=activo?0:-1});document.querySelectorAll(".teacher-workspace-panel").forEach(p=>{const activo=p.dataset.teacherPanel===valido;p.classList.toggle("active",activo);p.hidden=!activo});guardarPreferencia("teacher_panel_active_tab",valido);const panel=document.querySelector(`#teacherWorkspacePanel-${valido}`);if(window.matchMedia("(max-width: 900px)").matches){document.getElementById("panelProfesorModal")?.scrollTo({top:0,behavior:"auto"});desplazarA(panel)}else desplazarA(panel);
 }
 function actualizarBadgesPestanas(){
- const datos=Array.isArray(estudiantesProfesor)?estudiantesProfesor:[],activos=datos.filter(x=>x.estadoCuenta==="activo"),pendientes=datos.filter(x=>x.estadoCuenta==="pendiente").length,problemas=activos.filter(x=>{const e=estadoExtension(x);return x.pantallaBloqueada===true||["sin-conexion","interrumpida","no-instalada"].includes(e.codigo)||claseDominio(x.seguimientoExtension?.dominioActual).clase==="danger"}).length,valores={resumen:problemas,estudiantes:datos.length,seguimiento:problemas,solicitudes:pendientes,docentes:Array.isArray(window.TEACHER_EMAILS)?window.TEACHER_EMAILS.length:0};Object.entries(valores).forEach(([id,n])=>{const x=document.querySelector(`[data-tab-count="${id}"]`),boton=document.querySelector(`[data-teacher-tab="${id}"]`);if(x)x.textContent=String(n);if(boton){const etiqueta=boton.dataset.tabLabel||id;boton.dataset.tooltip=`${etiqueta} · ${n}`;boton.setAttribute("aria-label",`${etiqueta}: ${n}`);boton.title=`${etiqueta}: ${n}`}});
+ const datos=Array.isArray(estudiantesProfesor)?estudiantesProfesor:[],activos=datos.filter(x=>x.estadoCuenta==="activo"),pendientes=datos.filter(x=>x.estadoCuenta==="pendiente").length,colaboraciones=datos.reduce((total,estudiante)=>total+(Array.isArray(estudiante?.__solicitudesColaboracion)?estudiante.__solicitudesColaboracion.length:0),0),problemas=activos.filter(x=>{const e=estadoExtension(x);return x.pantallaBloqueada===true||["sin-conexion","interrumpida","no-instalada"].includes(e.codigo)||claseDominio(x.seguimientoExtension?.dominioActual).clase==="danger"}).length,valores={resumen:problemas,estudiantes:datos.length,seguimiento:problemas,solicitudes:pendientes+colaboraciones,docentes:Array.isArray(window.TEACHER_EMAILS)?window.TEACHER_EMAILS.length:0};Object.entries(valores).forEach(([id,n])=>{const x=document.querySelector(`[data-tab-count="${id}"]`),boton=document.querySelector(`[data-teacher-tab="${id}"]`);if(x)x.textContent=String(n);if(boton){const etiqueta=boton.dataset.tabLabel||id;boton.dataset.tooltip=`${etiqueta} · ${n}`;boton.setAttribute("aria-label",`${etiqueta}: ${n}`);boton.title=`${etiqueta}: ${n}`}});
 }
 function limiteActual(){return Math.max(1,Math.min(50,Number(window.configuracionSeguimientoActual?.limiteSalidas)||5))}
 function actualizarIndicadorLimite(valor=limiteActual()){
@@ -810,10 +807,13 @@ function activarChatColaborativoDocente(uid,sectionId){
 }
 function renderPresenciaEditorColaborativo(modal,participantes=[]){
  const aviso=modal?.querySelector("#editorColaborativoPresencia");if(!aviso)return;
+ const accesoDocente=modal.dataset.rolColaborativo==="docente";
  const pausada=modal.dataset.edicionCooperativaPausada==="true",consentimiento=modal.dataset.consentimientoCooperativo||"sin_solicitud",uidDocente=uidSesionColaborativa("docente"),activos=(participantes||[]).filter(item=>item?.autorUid);
  const escribiendo=activos.filter(item=>item.escribiendo===true&&item.autorUid!==uidDocente);
  actualizarEstadoCursoCooperativo(modal,consentimiento==="aceptado"?(pausada?"paused":modal.__crdtSession?"active":"waiting"):consentimiento==="finalizado"||consentimiento==="rechazado"?"closed":"waiting");
  aviso.className=`teacher-collab-presence${pausada?" is-paused":escribiendo.length?" is-typing":""}`;
+ if(accesoDocente && pausada && consentimiento==="aceptado"){aviso.innerHTML='<i class="fa-solid fa-pause"></i><span>Edición pausada por el docente.</span>';return;}
+ if(accesoDocente){aviso.innerHTML=`<i class="fa-solid fa-chalkboard-user"></i><span>Acceso docente directo${activos.length?` · ${activos.length} participante${activos.length===1?"":"s"} conectado${activos.length===1?"":"s"}`:""}.</span>`;return;}
  if(consentimiento==="pendiente"){aviso.innerHTML='<i class="fa-solid fa-arrows-rotate"></i><span>Preparando la cooperación.</span>';return;}
  if(consentimiento==="rechazado"){aviso.innerHTML='<i class="fa-solid fa-circle-xmark"></i><span>La cooperación no está activa.</span>';return;}
  if(consentimiento==="finalizado"){aviso.innerHTML='<i class="fa-solid fa-circle-stop"></i><span>La cooperación fue finalizada.</span>';return;}
@@ -840,15 +840,21 @@ function actualizarEstadoCursoCooperativo(modal,estado="waiting"){
 }
 function actualizarPausaEditorColaborativo(modal,modo={}){
  if(!modal)return;
- const pausada=modo.pausada===true,aceptada=modo.consentimiento==="aceptado"&&modo.activa===true,pendiente=modo.consentimiento==="pendiente";
+ const accesoDocente=modal.dataset.rolColaborativo==="docente";
+ const pausada=modo.pausada===true;
+ const pausaAplicada=pausada && (!accesoDocente || modo.consentimiento==="aceptado" || modo.activa===true);
+ const aceptada=accesoDocente || (modo.consentimiento==="aceptado"&&modo.activa===true);
+ const pendiente=!accesoDocente && modo.consentimiento==="pendiente";
  modal.dataset.edicionCooperativaPausada=String(pausada===true);
  modal.dataset.consentimientoCooperativo=modo.consentimiento||"sin_solicitud";
  const boton=modal.querySelector("#pausarEdicionCooperativa"),editor=modal.querySelector("#editorColaborativoCodigo");
- if(boton){boton.disabled=!aceptada;boton.innerHTML=`<i class="fa-solid ${pausada?"fa-play":"fa-pause"}"></i> ${pausada?"Reanudar edición":"Pausar edición"}`;boton.className=`btn ${pausada?"btn-success":"btn-warning"}`;boton.setAttribute("aria-pressed",String(pausada===true));}
- if(editor){const bloqueado=!aceptada||pausada;editor.disabled=bloqueado;editor.__setCodeMirrorDisabled?.(bloqueado);}
+ if(boton){boton.disabled=accesoDocente ? modo.consentimiento!=="aceptado" : !aceptada;boton.innerHTML=`<i class="fa-solid ${pausaAplicada?"fa-play":"fa-pause"}"></i> ${pausaAplicada?"Reanudar edición":"Pausar edición"}`;boton.className=`btn ${pausaAplicada?"btn-success":"btn-warning"}`;boton.setAttribute("aria-pressed",String(pausaAplicada));}
+ if(editor){editor.disabled=pausaAplicada;editor.__setCodeMirrorDisabled?.(pausaAplicada);}
  const estado=modal.querySelector("#editorColaborativoEstado");
  if(estado){
-  estado.textContent=pendiente?"Solicitud enviada · esperando aceptación":aceptada?(pausada?"Cooperación activa · edición pausada":"Cooperación activa · edición compartida habilitada"):modo.consentimiento==="rechazado"?"El estudiante rechazó la solicitud":modo.consentimiento==="finalizado"?"Cooperación finalizada":"Preparando cooperación";
+  estado.textContent=accesoDocente
+   ? (pausaAplicada?"Acceso docente directo · edición pausada":"Acceso docente directo · no requiere autorización del estudiante")
+   : pendiente?"Solicitud enviada · esperando aceptación":aceptada?(pausada?"Cooperación activa · edición pausada":"Cooperación activa · edición compartida habilitada"):modo.consentimiento==="rechazado"?"El estudiante rechazó la solicitud":modo.consentimiento==="finalizado"?"Cooperación finalizada":"Preparando cooperación";
  }
  renderPresenciaEditorColaborativo(modal,modal.__participantesColaborativos||[]);
 }
@@ -982,14 +988,15 @@ async function abrirEditorColaborativoProfesor(referenciaEstudiante,sectionId){
  asegurarEditorColaborativoDocente();
  const modal=document.getElementById("editorColaborativoDocenteModal"),sec=(typeof seccionesData!=="undefined"?seccionesData:[]).find(x=>x.id===sectionId),codigo=d.codigos?.[sectionId]||d.historialResultados?.[sectionId]?.codigo||"";
  const editor=document.getElementById("editorColaborativoCodigo"),estado=document.getElementById("editorColaborativoEstado"),salida=document.getElementById("editorColaborativoGuardado");
- modal.dataset.uid=d.uid;modal.dataset.sectionId=sectionId;modal.dataset.studentIndex=String(indice);
+ modal.dataset.uid=d.uid;modal.dataset.sectionId=sectionId;modal.dataset.studentIndex=String(indice);modal.dataset.rolColaborativo="docente";
  actualizarEstadoCursoCooperativo(modal,"waiting");
  document.getElementById("editorColaborativoAlumno").textContent=`${d.estudiante?.nombre||d.nombreGoogle||d.email||"Estudiante"} · ${sec?.title||sectionId}`;
- editor.value=codigo;editor.__syncCodeMirror?.(codigo);editor.disabled=true;editor.__setCodeMirrorDisabled?.(true);
+  editor.value=codigo;editor.__syncCodeMirror?.(codigo);editor.disabled=false;editor.__setCodeMirrorDisabled?.(false);
  estado.textContent="Verificando la cuenta docente...";salida.textContent="Preparando colaboración";salida.className="";
  modal.classList.add("active");
  try{
-  const autorizado=await window.autorizarDocenteFirebase?.();
+ const usuarioDocente=window.firebaseTeacherUser||window.firebaseCurrentUser;
+ const autorizado=Boolean(usuarioDocente)&&Boolean(await window.esDocenteAutorizadoFirebase?.());
   if(!autorizado)throw new Error("teacher-not-authorized");
   if(modal.__crdtSession){
    const cerrada=await modal.__crdtSession.destroy();
@@ -1009,13 +1016,13 @@ async function abrirEditorColaborativoProfesor(referenciaEstudiante,sectionId){
    modal.__quitarModoCooperacion=modal.__crdtSession.onModoCooperacion?.(modo=>actualizarPausaEditorColaborativo(modal,modo))||null;
    activarChatColaborativoDocente(d.uid,sectionId);
    const modoActual=modal.__crdtSession.getModoCooperacion?.()||{};
-   if(!(modoActual.consentimiento==="aceptado"&&modoActual.activa===true)){
-    const objetivo=`Acompañamiento docente en ${sec?.title||sectionId}: revisar el razonamiento, probar el código y acordar el siguiente paso.`;
-    await modal.__crdtSession.solicitarCooperacion?.(objetivo);
-    salida.textContent="Cooperación activada. Sincronización automática disponible.";
-   }else{
-    salida.textContent="Sincronización automática activa";
-   }
+   actualizarPausaEditorColaborativo(modal,modoActual);
+   salida.textContent=modal.dataset.edicionCooperativaPausada==="true" && modoActual.consentimiento==="aceptado"
+    ? "Acceso docente directo · edición pausada"
+    : "Acceso docente directo · cambios sincronizados automáticamente";
+    // El docente autorizado conserva edición directa del documento compartido.
+    editor.disabled=false;
+    editor.__setCodeMirrorDisabled?.(false);
    salida.className="success";
  }catch(error){
   actualizarEstadoCursoCooperativo(modal,"error");
@@ -1024,7 +1031,7 @@ async function abrirEditorColaborativoProfesor(referenciaEstudiante,sectionId){
   const codigoError=String(error?.code||error?.message||"");
   const detalle=codigoError.includes("permission-denied")?"Firestore rechazó la colaboración. Publicá la versión actualizada de reglas.txt.":codigoError.includes("teacher-not-authorized")?"La cuenta docente no está autorizada.":codigoError.includes("firebase-not-ready")?"Firebase todavía no está listo. Recargá la página e intentá nuevamente.":String(error?.message||"Revisá la conexión y las reglas de Firestore.");
   estado.textContent="No se pudo iniciar la colaboración";salida.textContent=detalle;salida.className="danger";
-  editor.disabled=true;editor.__setCodeMirrorDisabled?.(true);
+   editor.disabled=false;editor.__setCodeMirrorDisabled?.(false);
  }
 }
 window.abrirEditorColaborativoProfesor=abrirEditorColaborativoProfesor;
@@ -1180,7 +1187,7 @@ function decorarSalidas(){
    let meta=tarjeta.querySelector(".tab-review-meta");if(!meta){meta=document.createElement("div");meta.className="tab-review-meta";insight.after(meta)}
   meta.innerHTML=`<span class="tab-review-badge ${claseEstado}"><i class="fa-solid ${icono}"></i> ${escapeHtml(textoEstado)}</span>${r.contabiliza===false?'<span class="tab-review-badge pending"><i class="fa-solid fa-eye-slash"></i> Excluida del conteo</span>':""}${r.motivo?`<span class="tab-review-badge info">${escapeHtml(r.motivo)}</span>`:""}${(r.etiquetas||[]).map(x=>`<span class="tab-review-tag">${escapeHtml(x)}</span>`).join("")}${r.observacion?`<span class="tracking-cell-detail" style="flex-basis:100%"><b>Observación:</b> ${escapeHtml(r.observacion)}</span>`:""}`;
   let acciones=tarjeta.querySelector(".tab-excursion-actions");if(!acciones){acciones=document.createElement("div");acciones.className="tab-excursion-actions";tarjeta.appendChild(acciones)}
-  acciones.innerHTML='<button type="button" class="btn btn-primary" data-action="review"><i class="fa-solid fa-clipboard-check"></i> Revisar</button><button type="button" class="btn btn-secondary" data-action="audit"><i class="fa-solid fa-clock-rotate-left"></i> Auditoría</button><button type="button" class="btn btn-secondary" data-action="copy"><i class="fa-solid fa-copy"></i> Copiar resumen</button><button type="button" class="btn btn-secondary" data-action="toggle"><i class="fa-solid fa-route"></i> Ocultar recorrido</button>';
+  acciones.innerHTML='<button class="btn btn-primary" data-action="review"><i class="fa-solid fa-clipboard-check"></i> Revisar</button><button class="btn btn-secondary" data-action="audit"><i class="fa-solid fa-clock-rotate-left"></i> Auditoría</button><button class="btn btn-secondary" data-action="copy"><i class="fa-solid fa-copy"></i> Copiar resumen</button><button class="btn btn-secondary" data-action="toggle"><i class="fa-solid fa-route"></i> Ocultar recorrido</button>';
   acciones.querySelector('[data-action="review"]').onclick=()=>abrirRevisionSalida(grupo.id);acciones.querySelector('[data-action="audit"]').onclick=()=>abrirAuditoriaSalida(grupo.id);acciones.querySelector('[data-action="copy"]').onclick=()=>copiarResumenGrupo(grupo);
   acciones.querySelector('[data-action="toggle"]').onclick=e=>{const ruta=tarjeta.querySelector(".tab-excursion-route"),oculta=ruta.style.display==="none";ruta.style.display=oculta?"":"none";e.currentTarget.innerHTML=`<i class="fa-solid fa-route"></i> ${oculta?"Ocultar":"Mostrar"} recorrido`};
  });
@@ -1300,86 +1307,8 @@ async function cargarResumenSeguimientoEstudiante(){
 }
 window.actualizarResumenSeguimientoEstudiante=cargarResumenSeguimientoEstudiante;
 
-let tableroCursoFiltrosInicializado=false;
-let tableroCursoVista=[];
-function tableroCursoFecha(d){
- const valores=[d?.ultimaActividad,d?.actualizadoEn,d?.presenciaActualizadaEn,d?.presenciaActualizadaEnCliente];
- for(const valor of valores){const n=ms(valor);if(n)return n}
- return 0;
-}
-function tableroCursoDificultad(d){
- const alerta=typeof obtenerAlertaConsultasIA==="function"?obtenerAlertaConsultasIA(d):{};
- const progreso=Number(typeof calcularProgresoEstudiante==="function"?calcularProgresoEstudiante(d):0)||0;
- const nota=typeof calcularNotaDefinitivaEstudiante==="function"?calcularNotaDefinitivaEstudiante(d):"—";
- return Boolean(alerta?.activa||d?.pantallaBloqueada===true||(progreso<25&&tableroCursoFecha(d)>0)||(nota!=="—"&&Number(nota)<4));
-}
-function tableroCursoRegistro(d){
- const e=d?.estudiante||{},actividad=tableroCursoFecha(d),ahora=Date.now(),reciente=actividad>0&&(ahora-actividad)<=15*60*1000;
- const progreso=Math.max(0,Math.min(100,Number(typeof calcularProgresoEstudiante==="function"?calcularProgresoEstudiante(d):0)||0));
- const notaTexto=typeof calcularNotaDefinitivaEstudiante==="function"?calcularNotaDefinitivaEstudiante(d):"—";
- const nota=notaTexto==="—"?null:Number(notaTexto);
- const alerta=typeof obtenerAlertaConsultasIA==="function"?obtenerAlertaConsultasIA(d):{};
- const alertas=(alerta?.activa?1:0)+(d?.pantallaBloqueada===true?1:0)+(d?.estadoCuenta==="pendiente"?1:0);
- return {d,e,nombre:txt(e.nombre||d?.nombreGoogle||d?.email||"Estudiante sin nombre"),email:txt(d?.email),curso:txt(e.curso),division:txt(e.division),turno:txt(e.turno),estado:txt(d?.estadoCuenta||"sin estado"),desafio:txt(d?.seccionActiva||"Sin desafío"),progreso,nota,notaTexto,actividad,reciente,dificultad:tableroCursoDificultad(d),alertas,alerta};
-}
-function tableroCursoValores(id,items,placeholder){
- const control=document.getElementById(id);if(!control)return;
- const anterior=control.value;const valores=[...new Set(items.map(x=>x||"").filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
- control.innerHTML=`<option value="">${placeholder}</option>`+valores.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
- if(valores.includes(anterior))control.value=anterior;
-}
-function tableroCursoAsegurarFiltros(){
- const contenedor=document.getElementById("tableroCursoFiltros");if(!contenedor)return;
- if(tableroCursoFiltrosInicializado)return;
- contenedor.innerHTML=`<label>Curso<select id="tableroFiltroCurso"><option value="">Todos</option></select></label>
- <label>División<select id="tableroFiltroDivision"><option value="">Todas</option></select></label>
- <label>Turno<select id="tableroFiltroTurno"><option value="">Todos</option></select></label>
- <label>Estado<select id="tableroFiltroEstado"><option value="">Todos</option><option value="activo">Activos</option><option value="pendiente">Pendientes</option><option value="inactivo">Inactivos</option></select></label>
- <label>Actividad<select id="tableroFiltroActividad"><option value="">Cualquier actividad</option><option value="reciente">Actividad reciente</option><option value="sin-reciente">Sin actividad reciente</option></select></label>
- <label>Dificultades<select id="tableroFiltroDificultad"><option value="">Todos</option><option value="si">Con dificultades</option><option value="no">Sin dificultades</option></select></label>
- <label>Orden<select id="tableroOrden"><option value="nombre">Nombre</option><option value="progreso-desc">Progreso: mayor primero</option><option value="nota-desc">Nota: mayor primero</option><option value="actividad-desc">Última actividad: reciente</option><option value="alertas-desc">Alertas: mayor primero</option></select></label>`;
- contenedor.querySelectorAll("select").forEach(x=>x.addEventListener("change",renderTableroCurso));
- const exportar=document.getElementById("btnExportarTableroCurso");if(exportar)exportar.onclick=exportarTableroCursoCsv;
- tableroCursoFiltrosInicializado=true;
-}
-function tableroCursoFiltrados(){
- const registros=estudiantesProfesor.map(tableroCursoRegistro);
- tableroCursoValores("tableroFiltroCurso",registros.map(x=>x.curso),"Todos");
- tableroCursoValores("tableroFiltroDivision",registros.map(x=>x.division),"Todas");
- tableroCursoValores("tableroFiltroTurno",registros.map(x=>x.turno),"Todos");
- const valor=id=>document.getElementById(id)?.value||"";
- const curso=valor("tableroFiltroCurso"),division=valor("tableroFiltroDivision"),turno=valor("tableroFiltroTurno"),estado=valor("tableroFiltroEstado"),actividad=valor("tableroFiltroActividad"),dificultad=valor("tableroFiltroDificultad");
- const lista=registros.filter(x=>(!curso||x.curso===curso)&&(!division||x.division===division)&&(!turno||x.turno===turno)&&(!estado||x.estado===estado)&&(!actividad||(actividad==="reciente"?x.reciente:!x.reciente))&&(!dificultad||(dificultad==="si"?x.dificultad:!x.dificultad)));
- const orden=valor("tableroOrden")||"nombre",numero=(a,b)=>Number(a||0)-Number(b||0);
- lista.sort((a,b)=>orden==="progreso-desc"?numero(b.progreso,a.progreso):orden==="nota-desc"?numero(b.nota,a.nota):orden==="actividad-desc"?numero(b.actividad,a.actividad):orden==="alertas-desc"?numero(b.alertas,a.alertas):a.nombre.localeCompare(b.nombre,"es"));
- return lista;
-}
-function tableroCursoRenderResumen(){
- const contenedor=document.getElementById("tableroCursoResumen");if(!contenedor)return;
- const registros=estudiantesProfesor.map(tableroCursoRegistro),notas=registros.filter(x=>Number.isFinite(x.nota)).map(x=>x.nota);
- const promedioProgreso=registros.length?(registros.reduce((s,x)=>s+x.progreso,0)/registros.length).toFixed(0):0;
- const promedioNota=notas.length?(notas.reduce((s,x)=>s+x,0)/notas.length).toFixed(1):"—";
- const activos=registros.filter(x=>x.estado==="activo").length,pendientes=registros.filter(x=>x.estado==="pendiente").length,sinActividad=registros.filter(x=>!x.reciente).length;
- contenedor.innerHTML=[["Estudiantes",registros.length],["Activos",activos],["Pendientes",pendientes],["Sin actividad reciente",sinActividad],["Progreso medio",`${promedioProgreso}%`],["Nota media",promedioNota]].map(x=>`<div class="course-dashboard-stat"><small>${x[0]}</small><strong>${x[1]}</strong></div>`).join("");
-}
-function renderTableroCurso(){
- const estado=document.getElementById("tableroCursoProfesorEstado"),tabla=document.getElementById("tableroCursoTabla");if(!estado||!tabla)return;
- tableroCursoAsegurarFiltros();tableroCursoRenderResumen();
- if(!estudiantesProfesor.length){estado.textContent="No hay estudiantes autorizados para mostrar.";tabla.innerHTML='<div class="course-dashboard-empty"><i class="fa-solid fa-users"></i> No hay datos disponibles para este curso.</div>';return}
- tableroCursoVista=tableroCursoFiltrados();estado.textContent=`Mostrando ${tableroCursoVista.length} de ${estudiantesProfesor.length} estudiantes autorizados.`;
- if(!tableroCursoVista.length){tabla.innerHTML='<div class="course-dashboard-empty"><i class="fa-solid fa-filter-circle-xmark"></i> Ningún estudiante coincide con los filtros.</div>';return}
- tabla.innerHTML=`<table class="course-dashboard-table"><thead><tr><th>Estudiante</th><th>Curso / división / turno</th><th>Estado</th><th>Desafío actual</th><th>Progreso</th><th>Última actividad</th><th>Nota media</th><th>Alertas</th><th>Detalle</th></tr></thead><tbody>${tableroCursoVista.map(x=>`<tr><td><strong>${escapeHtml(x.nombre)}</strong><small>${escapeHtml(x.email||"Sin correo")}</small></td><td>${escapeHtml(x.curso||"—")} / ${escapeHtml(x.division||"—")} / ${escapeHtml(x.turno||"—")}</td><td>${escapeHtml(x.estado)}</td><td>${escapeHtml(x.desafio)}</td><td>${x.progreso}%</td><td>${x.actividad?escapeHtml(new Date(x.actividad).toLocaleString("es-AR")):"Sin actividad reciente"}</td><td>${escapeHtml(x.notaTexto)}</td><td class="${x.alertas?"course-dashboard-alert":""}">${x.alertas?`${x.alertas} alerta${x.alertas===1?"":"s"}`:"Sin alertas"}</td><td><button type="button" class="btn btn-secondary btn-tablero-detalle" data-uid="${escapeHtml(x.d.uid||"")}">Ver</button></td></tr>`).join("")}</tbody></table>`;
- tabla.querySelectorAll(".btn-tablero-detalle").forEach(b=>b.onclick=()=>{const item=tableroCursoVista.find(x=>String(x.d.uid)===String(b.dataset.uid));if(!item)return;const detalle=document.getElementById("tableroCursoDetalle");detalle.hidden=false;detalle.innerHTML=`<h4>${escapeHtml(item.nombre)}</h4><div class="course-dashboard-detail-grid"><span><strong>Correo:</strong> ${escapeHtml(item.email||"—")}</span><span><strong>Estado:</strong> ${escapeHtml(item.estado)}</span><span><strong>Progreso:</strong> ${item.progreso}%</span><span><strong>Nota media:</strong> ${escapeHtml(item.notaTexto)}</span><span><strong>Desafío:</strong> ${escapeHtml(item.desafio)}</span><span><strong>Alertas:</strong> ${item.alertas}</span></div>`;});
-}
-function exportarTableroCursoCsv(){
- if(!tableroCursoVista.length){alert("No hay estudiantes visibles para exportar.");return}
- const filas=[["Nombre","Correo","Curso","Division","Turno","Estado","Desafio actual","Progreso","Ultima actividad","Nota media","Alertas"],...tableroCursoVista.map(x=>[x.nombre,x.email,x.curso,x.division,x.turno,x.estado,x.desafio,`${x.progreso}%`,x.actividad?new Date(x.actividad).toISOString():"",x.notaTexto,x.alertas])];
- const csv=filas.map(f=>f.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n"),blob=new Blob(["\ufeff",csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`tablero_curso_${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-window.renderTableroCurso=renderTableroCurso;
-
 const renderOriginal=typeof renderPanelProfesor==="function"?renderPanelProfesor:null;
-if(renderOriginal)renderPanelProfesor=function(){renderOriginal();asegurarPaneles();mejorarTabla();renderTableroCurso()};
+if(renderOriginal)renderPanelProfesor=function(){renderOriginal();asegurarPaneles();mejorarTabla()};
 const limpiarOriginal=typeof limpiarFiltrosProfesor==="function"?limpiarFiltrosProfesor:null;
 if(limpiarOriginal)limpiarFiltrosProfesor=function(){limpiarOriginal();const e=document.getElementById("filtroSeguimientoProfesor"),d=document.getElementById("filtroDominioSeguimientoProfesor");if(e)e.value="";if(d)d.value="";filtrarTabla()};
 const historialOriginal=typeof abrirHistorialPestanas==="function"?abrirHistorialPestanas:null;
@@ -1391,7 +1320,7 @@ if(historialOriginal)abrirHistorialPestanas=async function(indice){
  decorarSalidas();aplicarFiltrosHistorial();
 };
 window.addEventListener("estado-inicio-clase",e=>setTimeout(()=>{cargarFormulario(e.detail?.configuracionSeguimiento||window.configuracionSeguimientoActual||{});if(document.getElementById("panelProfesorModal")?.classList.contains("active"))renderPanelProfesor()},0));
-window.addEventListener("profesor-data",()=>setTimeout(()=>{mejorarTabla();renderTableroCurso();if(document.getElementById("mensajeriaDocenteModal")?.classList.contains("active"))renderHistorialMensajesDocente()},0));
+window.addEventListener("profesor-data",()=>setTimeout(()=>{mejorarTabla();if(document.getElementById("mensajeriaDocenteModal")?.classList.contains("active"))renderHistorialMensajesDocente()},0));
 window.addEventListener("firebase-auth-changed",()=>setTimeout(()=>{cargarResumenSeguimientoEstudiante();iniciarAlertasChatCooperativoEstudiante();iniciarConsentimientosCooperacionEstudiante()},80));
 window.addEventListener("estado-cuenta-estudiante",()=>setTimeout(()=>{iniciarAlertasChatCooperativoEstudiante();iniciarConsentimientosCooperacionEstudiante()},80));
 window.addEventListener("seccion-estudiante-cambiada",()=>setTimeout(iniciarAlertasChatCooperativoEstudiante,40));
