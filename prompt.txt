@@ -1,24 +1,24 @@
-Actuá como desarrollador senior experto en HTML, CSS, JavaScript, Firebase, Firestore, Authentication, Yjs/CRDT, colaboración en tiempo real y evaluación educativa con IA. Analizá y corregí DIRECTAMENTE el proyecto existente, sin crear una solución independiente ni romper funciones actuales.
+ActuÃ¡ como desarrollador senior experto en HTML, CSS, JavaScript, Firebase, Firestore, Authentication, Yjs/CRDT, colaboraciÃ³n en tiempo real y evaluaciÃ³n educativa con IA. Analiz y corregÃ­ DIRECTAMENTE el proyecto existente, sin crear una soluciÃ³n independiente ni romper funciones actuales.
 
-1. COLABORACIÓN: DOCENTE y ESTUDIANTE deben editar simultáneamente EL MISMO CÓDIGO HTML/CSS/JS, pudiendo leer, escribir, modificar, borrar, agregar y ejecutar. Sin recargar ni volver a solicitar colaboración. Revisá editor, Yjs, listeners, onSnapshot, permisos, solicitudes, sincronización, conflictos y sobrescrituras. Si ya existe Yjs, reutilizalo.
-2. PERSISTENCIA: Guardar cambios en Firestore y recuperarlos al volver al desafío. Evitar pérdida, sobrescrituras y loops editor?Firestore?onSnapshot?editor. Usar debounce, versiones, actualizadoPor, actualizadoEn y presencia. No guardar cada tecla.
-3. SEGURIDAD: Revisar Authentication y Firestore Rules. Solo el estudiante y docente autorizado pueden acceder según corresponda. No usar allow read/write:true, contraseñas ocultas, localStorage ni seguridad solo frontend.
-4. SOLICITUDES: Eliminar duplicados, estados pendientes incorrectos y bloqueos. Una vez aceptada la colaboración, abrir directamente el editor compartido.
-5. PRESENCIA/ESTADO: Mostrar Guardando, Guardado, Sincronizando y Sin conexión, además de usuarios conectados y último modificador.
-6. HISTORIAL: Guardar versiones importantes con versión, autor y fecha, permitiendo recuperar versiones anteriores. No crear una versión por cada tecla.
-7. ACTIVIDAD: Registrar inicio, colaboración, cambios, ejecuciones, pruebas, ayudas, entrega, correcciones y evaluación.
-8. NOTAS: Eliminar completamente “Mostrar/Ocultar notas” y todo su HTML, CSS, JS, listeners, variables y funciones.
-9. EVALUACIÓN: Crear una nota REALISTA basada en evidencias, no solo respuestas correctas. Evaluar código, objetivo, requisitos, lógica, sintaxis, conceptos, funcionamiento, pruebas, opción múltiple, socráticas, correcciones y proceso. Adaptar ponderaciones al desafío. Mostrar componentes, fortalezas y mejoras.
-10. CÓDIGO/PRUEBAS: Comprobar requisitos, funcionamiento, sintaxis, lógica, funciones y conceptos. Permitir casos de prueba por desafío, entradas/resultados esperados y errores. Ejecutar código de forma segura.
-11. SOCRÁTICAS: Evaluar comprensión, razonamiento, pertinencia, conceptos y justificación, no longitud. La IA puede analizar y sugerir, pero NO decidir arbitrariamente la nota final y debe admitir “evidencia insuficiente”.
-12. “EXPLICAME QUÉ PIDE”: Agregar a cada pregunta socrática y opción múltiple el botón “?? EXPLICAME QUÉ PIDE”. Debe explicar qué se pregunta, concepto evaluado, qué considerar, pistas, preguntas guía y errores a evitar, SIN dar respuestas ni soluciones. Flujo: PREGUNTA?INTERPRETACIÓN?CONCEPTO?PISTAS?GUÍA?RESPUESTA DEL ESTUDIANTE.
-13. RETROALIMENTACIÓN: Antes de entregar, mostrar errores, pistas y sugerencias sin resolver. Después, devolución basada en evidencias.
-14. ENTREGA: Guardar una versión definitiva e independiente para evaluar. Cambios posteriores no deben modificar esa evaluación.
+1. COLABORACIN: DOCENTE y ESTUDIANTE deben editar simultÃºneamente EL MISMO CDIGO HTML/CSS/JS, pudiendo leer, escribir, modificar, borrar, agregar y ejecutar. Sin recargar ni volver a solicitar colaboraciÃ³n. RevisÃ¡ editor, Yjs, listeners, onSnapshot, permisos, solicitudes, sincronizaciÃ³n, conflictos y sobrescrituras. Si ya existe Yjs, reutilizalo.
+2. PERSISTENCIA: Guardar cambios en Firestore y recuperarlos al volver al desafÃ­o. Evitar pÃ©rdida, sobrescrituras y loops editor?Firestore?onSnapshot?editor. Usar debounce, versiones, actualizadoPor, actualizadoEn y presencia. No guardar cada tecla.
+3. SEGURIDAD: Revisar Authentication y Firestore Rules. Solo el estudiante y docente autorizado pueden acceder segn corresponda. No usar allow read/write:true, contraseas ocultas, localStorage ni seguridad solo frontend.
+4. SOLICITUDES: Eliminar duplicados, estados pendientes incorrectos y bloqueos. Una vez aceptada la colaboraciÃ³n, abrir directamente el editor compartido.
+5. PRESENCIA/ESTADO: Mostrar Guardando, Guardado, Sincronizando y Sin conexiÃ³n, ademÃ¡s de usuarios conectados y Ãšltimo modificador.
+6. HISTORIAL: Guardar versiones importantes con versin, autor y fecha, permitiendo recuperar versiones anteriores. No crear una versin por cada tecla.
+7. ACTIVIDAD: Registrar inicio, colaboraciÃ³n, cambios, ejecuciones, pruebas, ayudas, entrega, correcciones y evaluaciÃ³n.
+8. NOTAS: Eliminar completamente Mostrar/Ocultar notasÃ­ y todo su HTML, CSS, JS, listeners, variables y funciones.
+9. EVALUACIN: Crear una nota REALISTA basada en evidencias, no solo respuestas correctas. Evaluar cÃ³digo, objetivo, requisitos, lgica, sintaxis, conceptos, funcionamiento, pruebas, opciÃ³n mÃºltiple, socrÃ¡ticas, correcciones y proceso. Adaptar ponderaciones al desafÃ­o. Mostrar componentes, fortalezas y mejoras.
+10. CDIGO/PRUEBAS: Comprobar requisitos, funcionamiento, sintaxis, lgica, funciones y conceptos. Permitir casos de prueba por desafÃ­o, entradas/resultados esperados y errores. Ejecutar cÃ³digo de forma segura.
+11. SOCRTICAS: Evaluar comprensiÃ³n, razonamiento, pertinencia, conceptos y justificaciÃ³n, no longitud. La IA puede analizar y sugerir, pero NO decidir arbitrariamente la nota final y debe admitir evidencia insuficiente.
+12. EXPLICAME QU PIDE: Agregar a cada pregunta socrÃ¡tica y opciÃ³n mÃºltiple el botÃºn ?? EXPLICAME QU PIDE. Debe explicar quÃ© se pregunta, concepto evaluado, quÃ© considerar, pistas, preguntas gua y errores a evitar, SIN dar respuestas ni soluciones. Flujo: PREGUNTA?INTERPRETACIN?CONCEPTO?PISTAS?GUA?RESPUESTA DEL ESTUDIANTE.
+13. RETROALIMENTACIN: Antes de entregar, mostrar errores, pistas y sugerencias sin resolver. Despus, devolucin basada en evidencias.
+14. ENTREGA: Guardar una versin definitiva e independiente para evaluar. Cambios posteriores no deben modificar esa evaluaciÃ³n.
 15. INTENTOS: Permitir nuevos intentos cuando el docente los habilite, conservando historial y notas.
-16. NOTAS: Separar, si es posible, Nota automática, Nota docente y Nota final. El docente puede revisar/corregir con evidencia.
-17. PROCESO: Conservar código, pruebas, errores, correcciones, respuestas, ayudas, colaboración y versión final. No penalizar automáticamente el uso de ayudas; registrarlo para el docente.
-18. DETECCIÓN PEDAGÓGICA: Detectar conceptos con dificultades recurrentes y señalar qué contenidos necesitan refuerzo.
-19. PANEL DOCENTE: Mostrar progreso, desafíos, código, errores, conceptos a reforzar, colaboraciones, intentos, notas y retroalimentación.
-20. AUDITORÍA: Verificar edición simultánea, sincronización, persistencia, seguridad, solicitudes, ausencia de loops/listeners duplicados, eliminación de Mostrar/Ocultar notas, evaluación completa, historial, entregas congeladas, EXPLICAME QUÉ PIDE y ausencia de errores de consola/código muerto.
-    Al finalizar informar: problemas encontrados, correcciones, archivos modificados, cambios en Firestore/Rules, arquitectura de colaboración, fórmula de evaluación, pruebas realizadas y pendientes.
-    NO SIMULES LA COLABORACIÓN: IMPLEMENTALA REALMENTE SOBRE EL PROYECTO EXISTENTE.
+16. NOTAS: Separar, si es posible, Nota automtica, Nota docente y Nota final. El docente puede revisar/corregir con evidencia.
+17. PROCESO: Conservar cÃ³digo, pruebas, errores, correcciones, respuestas, ayudas, colaboraciÃ³n y versin final. No penalizar automticamente el uso de ayudas; registrarlo para el docente.
+18. DETECCIN PEDAGGICA: Detectar conceptos con dificultades recurrentes y seÃ±alar quÃ© contenidos necesitan refuerzo.
+19. PANEL DOCENTE: Mostrar progreso, desafÃ­os, cÃ³digo, errores, conceptos a reforzar, colaboraciones, intentos, notas y retroalimentacin.
+20. AUDITORA: Verificar edicin simultÃºnea, sincronizaciÃ³n, persistencia, seguridad, solicitudes, ausencia de loops/listeners duplicados, eliminacin de Mostrar/Ocultar notas, evaluaciÃ³n completa, historial, entregas congeladas, EXPLICAME QU PIDE y ausencia de errores de consola/cÃ³digo muerto.
+    Al finalizar informar: problemas encontrados, correcciones, archivos modificados, cambios en Firestore/Rules, arquitectura de colaboraciÃ³n, fÃ³rmula de evaluaciÃ³n, pruebas realizadas y pendientes.
+    NO SIMULES LA COLABORACIN: IMPLEMENTALA REALMENTE SOBRE EL PROYECTO EXISTENTE.

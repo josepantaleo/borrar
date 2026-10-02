@@ -182,7 +182,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
           "Sos un tutor de JavaScript para estudiantes de nivel secundario.",
           "Respondé en español rioplatense, con tono claro y respetuoso.",
           "Ayud?? con pistas progresivas; no entregues la soluci??n completa ni c??digo listo para copiar.",
-          "Us?? el diagn??stico local y el c??digo del estudiante para se�alar un �nico pr??ximo paso verificable.",
+          "Us?? el diagn??stico local y el c??digo del estudiante para señalar un único pr??ximo paso verificable.",
           `M??dulo: ${parametros.nombreModulo}`,
           `Consigna: ${parametros.consigna}`,
           `Modo: ${parametros.modo}`,
@@ -814,7 +814,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
           const referencia = doc(database, "controlClase", idClaseActual());
           const estadoActual = await getDoc(referencia);
           if (!estadoActual.exists() || estadoActual.data()?.iniciada !== true) {
-            alert("Primero inici?? la clase. Despu�s podr??s pausar, continuar o reiniciar los cron??metros.");
+            alert("Primero inici?? la clase. Despus podr??s pausar, continuar o reiniciar los cron??metros.");
             return false;
           }
           const payload = {
@@ -1136,7 +1136,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
       }
       window.mostrarAlertaMensajeRecibido = mostrarAlertaMensajeRecibido;
 
-      // Señal liviana e independiente del progreso y del c�?digo completo.
+      // Señal liviana e independiente del progreso y del c?digo completo.
       // Permite que el panel docente detecte al estudiante aunque no haya un guardado pendiente.
       window.actualizarControlEstudianteFirebase = async function(estado = {}) {
         const user = window.firebaseCurrentUser || await window.firebaseAuthReady;
@@ -1238,7 +1238,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
             error: error?.code || error?.message || "Error de presencia",
             ultimoLatido: Date.now()
           });
-          console.warn("No se pudo actualizar la señal de conexi�?n del estudiante:", error);
+          console.warn("No se pudo actualizar la señal de conexi?n del estudiante:", error);
           return false;
         }
       };
@@ -2138,7 +2138,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
             persona.className = `collaboration-presence-person${item.inactivo ? " is-idle" : ""}`;
             const nombre = item.propio ? "Vos" : String(item.nombre || "Participante");
             const rol = item.rol === "docente" ? "Docente" : "Estudiante";
-            persona.title = `${nombre} ?? ${rol} ?? ${item.inactivo ? "se�al demorada" : "en l??nea"}`;
+            persona.title = `${nombre} ?? ${rol} ?? ${item.inactivo ? "señal demorada" : "en l??nea"}`;
             const punto = document.createElement("i");
             punto.className = "fa-solid fa-circle";
             const etiqueta = document.createElement("span");
@@ -2181,7 +2181,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
               <button type="button" aria-label="Quitar cita" title="Quitar cita"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <form class="collaboration-chat-composer">
-              <textarea maxlength="600" rows="2" placeholder="Escrib?? un mensaje sobre esta actividad�" aria-label="Mensaje de cooperaci??n"></textarea>
+              <textarea maxlength="600" rows="2" placeholder="Escrib?? un mensaje sobre esta actividad" aria-label="Mensaje de cooperaci??n"></textarea>
               <button class="btn btn-primary collaboration-chat-send" type="submit" title="Enviar mensaje" aria-label="Enviar mensaje">
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
@@ -3821,7 +3821,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
           });
           return true;
         } catch (error) {
-          console.error("Error guardando la rúbrica socr�?tica:", error);
+          console.error("Error guardando la rúbrica socr?tica:", error);
           return false;
         }
       };
@@ -4113,7 +4113,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
               };
               return true;
             } catch (errorMinimo) {
-              console.error("Tambi�n fall?? la escritura m??nima del contador:", errorMinimo);
+              console.error("Tambin fall?? la escritura m??nima del contador:", errorMinimo);
               window.ultimoErrorReinicioSalidas = {
                 code: errorMinimo?.code || "",
                 message: errorMinimo?.message || "",
@@ -4944,7 +4944,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/fireba
           await lote.commit();
           return true;
         } catch (error) {
-          console.error("Error guardando revisi�?n de pestaña:", error);
+          console.error("Error guardando revisi?n de pestaña:", error);
           window.ultimoErrorRevisionPestana = { code: error?.code || "", message: error?.message || "" };
           return false;
         }

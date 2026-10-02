@@ -6,7 +6,7 @@
   const texto = value => String(value ?? "").trim();
   const corregirCodificacion = value => {
     let actual = String(value ?? "");
-    for (let ronda = 0; ronda < 3 && /(?:Ã|Â|â|ï¿½)/.test(actual); ronda += 1) {
+    for (let ronda = 0; ronda < 3 && /[\u00c3\u00c2\u00e2\u00ef\u00ufffd]/.test(actual); ronda += 1) {
       try {
         const bytes = Uint8Array.from([...actual].map(caracter => {
           const codigo = caracter.codePointAt(0);
