@@ -9430,8 +9430,18 @@
               return notas;
           }, []);
       }
+      function obtenerNotaEntregaEspecialEstudiante(d, campo) {
+          const entrega = d?.[campo] || {};
+          if (entrega.submitted !== true && !entrega.code && !entrega.challenge) return null;
+          const confirmada = Number(entrega.confirmedGrade);
+          const automatica = Number(entrega.grade);
+          if (Number.isFinite(confirmada)) return Math.max(0, Math.min(10, confirmada));
+          return Number.isFinite(automatica) ? Math.max(0, Math.min(10, automatica)) : null;
+      }
       function calcularNotaEstudiante(d) {
           const notas = obtenerNotasDesafiosFinalizadosEstudiante(d).map(item => item.nota);
+          const notaProyectoFinal = obtenerNotaEntregaEspecialEstudiante(d, 'proyectoFinal');
+          if (notaProyectoFinal !== null) notas.push(notaProyectoFinal);
           if (!notas.length) return 'â€”';
           return (notas.reduce((a,b)=>a+b,0)/notas.length).toFixed(1);
       }
@@ -9464,6 +9474,16 @@
               };
           });
           const evaluadas = actividades.filter(x => x.nota !== null);
+          const notaProyectoFinal = obtenerNotaEntregaEspecialEstudiante(d, 'proyectoFinal');
+          if (notaProyectoFinal !== null) {
+              actividades.push({
+                  id: 'proyecto-final',
+                  titulo: 'Proyecto Final',
+                  finalizada: true,
+                  nota: notaProyectoFinal
+              });
+              evaluadas.push(actividades[actividades.length - 1]);
+          }
           const suma = evaluadas.reduce((total,x)=>total+x.nota,0);
           return {
               actividades,

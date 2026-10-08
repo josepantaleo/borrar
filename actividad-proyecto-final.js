@@ -63,7 +63,8 @@
       return Number.isFinite(grade) ? Math.max(0, Math.min(10, grade)) : null;
     }).filter((grade) => grade !== null);
     const project = projectData();
-    if (project.submitted && Number.isFinite(Number(project.grade))) grades.push(Number(project.grade));
+    const projectGrade = Number(project.confirmedGrade ?? project.grade);
+    if (project.submitted && Number.isFinite(projectGrade)) grades.push(Math.max(0, Math.min(10, projectGrade)));
     return grades.length ? Number((grades.reduce((a, b) => a + b, 0) / grades.length).toFixed(2)) : null;
   }
 
