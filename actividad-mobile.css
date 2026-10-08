@@ -82,6 +82,60 @@
     overflow-wrap: anywhere;
   }
 
+  #firebaseAccountBox {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch !important;
+    gap: .75rem !important;
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  #firebaseAccountBox .firebase-account {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: .6rem;
+    min-width: 0;
+    width: 100%;
+  }
+
+  #firebaseAccountBox .firebase-account > div {
+    min-width: 0;
+  }
+
+  #firebaseAccountBox #firebaseUserName,
+  #firebaseAccountBox #firebaseUserEmail {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #firebaseAccountBox .firebase-status {
+    grid-column: 1 / -1;
+    justify-self: start;
+    max-width: 100%;
+    margin-top: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #firebaseAccountBox .btn-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .5rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  #firebaseAccountBox .btn-group .btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+
   .teacher-panel-toolbar,
   .teacher-action-buttons,
   .student-actions-grid,

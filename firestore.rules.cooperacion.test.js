@@ -306,3 +306,29 @@ test("mensajes y presencia se rechazan fuera de una colaboracion activa", async 
     activoEn: serverTimestamp(),
   }));
 });
+
+test("docente autorizado puede pausar o reanudar el cronometro individual", async () => {
+  const db = teacherDb();
+  await assertSucceeds(updateDoc(doc(db, "estudiantes", studentUid), {
+    controlCronometroIndividual: {
+      pausado: true,
+      reinicioId: "",
+      actualizadoPor: teacherEmail,
+      actualizadoEn: serverTimestamp(),
+    },
+    actualizadoEn: serverTimestamp(),
+  }));
+});
+
+test("estudiante no puede modificar el control del cronometro individual", async () => {
+  const db = studentDb();
+  await assertFails(updateDoc(doc(db, "estudiantes", studentUid), {
+    controlCronometroIndividual: {
+      pausado: false,
+      reinicioId: "",
+      actualizadoPor: "alumno@example.com",
+      actualizadoEn: serverTimestamp(),
+    },
+    actualizadoEn: serverTimestamp(),
+  }));
+});

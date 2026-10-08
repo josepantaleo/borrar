@@ -308,15 +308,6 @@
   pointer-events: none;
 }
 
-.student-floating-timer[hidden] {
-  display: none !important;
-}
-
-#firebaseAuthOverlay:not(.hidden) ~ #studentFloatingTimer,
-body:has(#firebaseAuthOverlay:not(.hidden)) #studentFloatingTimer {
-  display: none !important;
-}
-
 .section-title {
   position: relative;
   padding-right: 0.5rem;

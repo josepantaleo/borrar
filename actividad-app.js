@@ -13,21 +13,60 @@
           "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
       }[char])));
       const repararCaracteresVisibles = valor => {
-          let actual = String(valor ?? "");
-          for (let intento = 0; intento < 3 && /[\u00c3\u00c2\u00e2\u00ef\u00f0]/.test(actual); intento++) {
-              try {
-                  const bytes = Uint8Array.from([...actual].map(caracter => {
-                      const codigo = caracter.codePointAt(0);
-                      return codigo <= 0xff ? codigo : (codigo & 0xff);
-                  }));
-                  const decodificado = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-                  if (!decodificado || decodificado === actual) break;
-                  actual = decodificado;
-              } catch (_) {
-                  break;
+          let texto = String(valor ?? "");
+          const decodificarUtf8MalInterpretado = entrada => {
+              let actual = entrada;
+              for (let intento = 0; intento < 4 && /[ÃÂâ]/.test(actual); intento++) {
+                  try {
+                      const bytes = Uint8Array.from([...actual].map(caracter => {
+                          const codigo = caracter.codePointAt(0);
+                          return codigo <= 0xff ? codigo : (codigo & 0xff);
+                      }));
+                      const decodificado = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+                      if (!decodificado || decodificado === actual) break;
+                      actual = decodificado;
+                  } catch (_) {
+                      break;
+                  }
               }
+              return actual;
+          };
+          const reemplazos = [
+              ["\u00c3\u0192\u00c2", "\u00c3"], ["\u00c3\u0192", "\u00c3"],
+              ["\u00c3\u201a", "\u00c2"], ["\u00c3\u00a2", "\u00e2"],
+              ["\u00c3\u00a1", "\u00e1"], ["\u00c3\u00a9", "\u00e9"],
+              ["\u00c3\u00ad", "\u00ed"], ["\u00c3\u00b3", "\u00f3"],
+              ["\u00c3\u00ba", "\u00fa"], ["\u00c3\u00b1", "\u00f1"],
+              ["\u00c3\u00bc", "\u00fc"], ["\u00c3\u0161", "\u00da"],
+              ["\u00c3\u201c", "\u00d3"], ["\u00c3\u2030", "\u00c9"],
+              ["\u00c3\u008d", "\u00cd"], ["\u00c3\u2018", "\u00d1"],
+              ["\u00c2\u00b7", "\u00b7"], ["\u00c2\u00bf", "\u00bf"],
+              ["\u00c2\u00a1", "\u00a1"], ["\u00c2\u00b0", "\u00b0"],
+              ["\u00e2\u20ac\u201c", "\u201c"], ["\u00e2\u20ac\u009d", "\u201d"],
+              ["\u00e2\u20ac\u2122", "\u2019"], ["\u00e2\u20ac\u2014", "\u2014"],
+              ["\u00e2\u20ac\u201c", "\u2013"], ["\u00e2\u20ac\u00a6", "\u2026"],
+              ["\u00e2\u2020\u2019", "\u2192"], ["\u00e2\u2030\u00a5", "\u2265"],
+              ["ÃƒÂ", "Ã"], ["Ãƒ", "Ã"], ["Â", ""],
+              ["Ã¡", "á"], ["Ã©", "é"], ["Ã­", "í"], ["Ã³", "ó"], ["Ãº", "ú"],
+              ["Ã±", "ñ"], ["Ã¼", "ü"], ["Ã", "Á"], ["Ã‰", "É"], ["Ã", "Í"],
+              ["Ã“", "Ó"], ["Ãš", "Ú"], ["Ã‘", "Ñ"], ["Ãœ", "Ü"],
+              ["â€œ", "“"], ["â€", "”"], ["â€˜", "‘"], ["â€™", "’"],
+              ["â€”", "—"], ["â€“", "–"], ["â€¦", "…"], ["â†’", "→"],
+              ["â‰¥", "≥"], ["â‰¤", "≤"], ["âš ï¸", "⚠️"], ["âš ", "⚠"],
+              ["âœ…", "✅"], ["âŒ", "❌"], ["â˜‘", "☑"], ["â˜", "☐"],
+              ["â°", "⏰"], ["â¸", "⏸"], ["â–¶", "▶"], ["â„¹ï¸", "ℹ️"],
+              ["â•", "═"], ["Ã—", "×"], ["Ã·", "÷"], ["Ãšlt", "Últ"],
+              ["Ãš", "Ú"], ["Ã“", "Ó"], ["Ã‰", "É"], ["Ã", "Í"], ["Ã‘", "Ñ"],
+              ["Ã‚¿", "¿"], ["Â¿", "¿"], ["Ã‚¡", "¡"], ["Â¡", "¡"],
+              ["Ã‚·", "·"], ["Â·", "·"], ["Â°", "°"], ["N.Âº", "N.º"],
+              ["Ã¢â‚¬Â¦", "…"], ["â‚¬Â¦", "…"]
+          ];
+          for (let ronda = 0; ronda < 3; ronda++) {
+              reemplazos.forEach(([incorrecto, correcto]) => {
+                  texto = texto.split(incorrecto).join(correcto);
+              });
           }
-          return actual;
+          return decodificarUtf8MalInterpretado(texto);
       };
       window.repararCaracteresVisibles = repararCaracteresVisibles;
       (() => {
@@ -483,7 +522,7 @@
           const clave = normalizarTerminoAyuda(termino);
           if (ejemplosPalabrasClave[clave]) return ejemplosPalabrasClave[clave];
           if (categoria === "action") {
-              return `Ejemplo general: aplic? la acci?n ${termino} sobre datos de prueba antes de resolver el caso del desaf?o.`;
+              return `Ejemplo general: aplicá la acción â€œ${termino}â€ sobre datos de prueba antes de resolver el caso del desafío.`;
           }
           if (categoria === "tool") {
               return `Ejemplo general: probá ${termino} con un valor sencillo y observá qué resultado produce.`;
@@ -619,7 +658,7 @@
                       })
                   : [];
           } catch (_) {
-              return texto.split(/[,;\n•]+/).map(x => ({
+              return texto.split(/[,;\nâ€¢]+/).map(x => ({
                   termino: x.replace(/^[-*\d.\s]+/, "").trim(),
                   explicacion: ""
               }));
@@ -999,7 +1038,6 @@
           notaModificadaManualmente: false
       };
       let seccionActivaActual = seccionesData[0].id;
-      window.obtenerSeccionActivaEstudiante = () => seccionActivaActual;
 
       function formatearFechaNotaDocente(valor) {
           if (!valor) return '';
@@ -1193,12 +1231,12 @@
               editor.dataset.cooperationLocked = String(Boolean(bloqueoCooperacion));
           }
           const bloqueado = (
-              (editor.dataset.cooperationLocked === "true" && !window.firebaseTeacherUser) ||
+              editor.dataset.cooperationLocked === "true" ||
               !cuentaEstudianteActiva ||
               !claseHabilitada ||
               pantallaBloqueada ||
               Boolean(actividadesFinalizadas[sectionId]) ||
-               Boolean(modulosPausados[sectionId]) && !window.firebaseTeacherUser
+              Boolean(modulosPausados[sectionId])
           );
           editor.disabled = bloqueado;
           editor.__setCodeMirrorDisabled?.(bloqueado);
@@ -1241,6 +1279,7 @@
               editor.__syncCodeMirror?.(editor.value);
               editor.dispatchEvent(new Event('input', { bubbles: true }));
           }
+          setLocalStorage(`draft_editor-${sectionId}`, sec.initialCode || '');
           tiemposRestantes[sectionId] = TIEMPO_MAXIMO_SEGUNDOS;
           setLocalStorage(`timer_${sectionId}`, TIEMPO_MAXIMO_SEGUNDOS);
           removeLocalStorage(`timer_started_${sectionId}`);
@@ -1990,7 +2029,7 @@
           const el = document.getElementById('firebaseSaveStatus');
           if (!el) return;
           el.className = `firebase-status ${tipo}`;
-          el.textContent = `● ${texto}`;
+          el.textContent = `â— ${texto}`;
       }
 
       
@@ -1999,7 +2038,7 @@
           if (!valor) return { curso: '', division: '' };
 
           // Acepta formatos antiguos: "6TO A", "6TO - A", "5° Año A", "5° Año 'A'"
-          const m = valor.match(/^(.*?)(?:\s*[-–—]?\s*['"]?([A-Za-z])['"]?)$/);
+          const m = valor.match(/^(.*?)(?:\s*[-â€“â€”]?\s*['"]?([A-Za-z])['"]?)$/);
           if (m && m[2] && m[1].trim()) {
               return { curso: m[1].trim(), division: m[2].toUpperCase() };
           }
@@ -2150,9 +2189,9 @@
           const versionLocalEn = new Date().toISOString();
           seccionesData.forEach(sec => {
               const editor = document.getElementById(`editor-${sec.id}`);
-              codigos[sec.id] = editor ? editor.value : sec.initialCode;
+              codigos[sec.id] = editor ? editor.value : (getLocalStorage(`draft_editor-${sec.id}`) || sec.initialCode);
           });
-          return {
+          const paquete = {
               estudiante: { nombre, curso, division, turno },
               salidasPestana: totalSalidasPestana,
               eventosSalidasPestana: JSON.parse(JSON.stringify(eventosSalidasPestana || [])),
@@ -2174,6 +2213,16 @@
               versionLocalEn,
               versionApp: '8.0-desafios-externos-editables-ia'
           };
+          try {
+              if (typeof window.obtenerEntregasAcademicasEspeciales === 'function') {
+                  const especiales = window.obtenerEntregasAcademicasEspeciales();
+                  if (especiales && typeof especiales === 'object') {
+                      paquete.proyectoFinal = especiales.proyectoFinal || null;
+                      paquete.coloquioExamen = especiales.coloquioExamen || null;
+                  }
+              }
+          } catch (_) {}
+          return paquete;
       }
 
       function programarGuardadoFirebase() {
@@ -2428,6 +2477,7 @@
           }
           if (datos.finalizadas) Object.entries(datos.finalizadas).forEach(([id,v]) => v ? setLocalStorage(`finalized_${id}`, 'true') : removeLocalStorage(`finalized_${id}`));
           if (datos.contadorPrevisualizaciones) Object.entries(datos.contadorPrevisualizaciones).forEach(([id,v]) => setLocalStorage(`preview_count_${id}`, Number(v)));
+          if (datos.codigos) Object.entries(datos.codigos).forEach(([id,v]) => { if (typeof v === 'string') setLocalStorage(`draft_editor-${id}`, v); });
           historialResultados = datos.historialResultados || {};
           notasDesafiosDocente = datos.notasDesafiosDocente && typeof datos.notasDesafiosDocente === 'object'
               ? datos.notasDesafiosDocente
@@ -2447,6 +2497,10 @@
               typeof datos.estadosRecomendacionesInforme === 'object'
               ? datos.estadosRecomendacionesInforme
               : {};
+          window.restaurarEntregasAcademicasEspeciales?.({
+              proyectoFinal: datos.proyectoFinal || null,
+              coloquioExamen: datos.coloquioExamen || null
+          });
           const tiemposLocales = { ...tiemposRestantes };
           tiemposRestantes = { ...(datos.tiemposRestantes || {}), ...tiemposLocales };
           const pausaGlobalLocal = getLocalStorage('pausa_global');
@@ -2471,7 +2525,7 @@
           const textoRegistro = esNuevoRegistro
               ? "Primera vez con este correo. Completá tus datos para comenzar."
               : "Este correo ya está registrado. Completá los datos faltantes para continuar.";
-          modal.innerHTML=`<div class="modal-box" style="max-width:520px;width:92%;"><h3>????? Datos del estudiante</h3><p>Primera vez con este correo. Complet? tus datos para comenzar.</p><div class="input-group"><label>Nombre y Apellido</label><input id="nuevoNombre" type="text" required></div><div class="input-group"><label>Curso</label><select id="nuevoCurso" required><option value="">Seleccionar curso</option><option>1? A?o</option><option>2? A?o</option><option>3? A?o</option><option>4? A?o</option><option>5? A?o</option><option>6? A?o</option><option>7? A?o</option></select></div><div class="input-group"><label>Divisi?n</label><select id="nuevoDivision" required><option value="">Seleccionar divisi?n</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div><div class="input-group"><label>Turno</label><select id="nuevoTurno" required><option value="">Seleccionar turno</option><option>Ma?ana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select></div><div id="nuevoError" role="alert" style="display:none;color:#fca5a5">Seleccion? obligatoriamente curso, divisi?n y turno.</div><div class="modal-actions"><button class="btn btn-primary" id="confirmarNuevo" type="button">Comenzar actividad</button></div></div>`;
+          modal.innerHTML=`<div class="modal-box" style="max-width:520px;width:92%;"><h3>ðŸ‘¨â€ðŸŽ“ Datos del estudiante</h3><p>Primera vez con este correo. Completá tus datos para comenzar.</p><div class="input-group"><label>Nombre y Apellido</label><input id="nuevoNombre" type="text" required></div><div class="input-group"><label>Curso</label><select id="nuevoCurso" required><option value="">Seleccionar curso</option><option>1° Año</option><option>2° Año</option><option>3° Año</option><option>4° Año</option><option>5° Año</option><option>6° Año</option><option>7° Año</option></select></div><div class="input-group"><label>División</label><select id="nuevoDivision" required><option value="">Seleccionar división</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div><div class="input-group"><label>Turno</label><select id="nuevoTurno" required><option value="">Seleccionar turno</option><option>Mañana</option><option>Tarde</option><option>Vespertino</option><option>Noche</option></select></div><div id="nuevoError" role="alert" style="display:none;color:#fca5a5">Seleccioná obligatoriamente curso, división y turno.</div><div class="modal-actions"><button class="btn btn-primary" id="confirmarNuevo" type="button">Comenzar actividad</button></div></div>`;
           const descripcionRegistro = modal.querySelector(".modal-box > p");
           if (descripcionRegistro) descripcionRegistro.textContent = textoRegistro;
           document.body.appendChild(modal);
@@ -2697,7 +2751,7 @@
               overlay.classList.remove('hidden');
               return;
           }
-          // FIX CRÍTICO PARA CAMBIO DE CUENTA:
+          // FIX CRÃTICO PARA CAMBIO DE CUENTA:
           // si entra otro UID en el mismo navegador, nunca debemos reutilizar
           // el caché local del estudiante anterior. Firebase es la fuente de verdad.
           // Desde aquí TODAS las claves locales pertenecen al UID actual.
@@ -2887,7 +2941,7 @@
               li.innerHTML = `<i class="fa-solid ${sec.icon}"></i> <span>${sec.title}</span>`;
               navList.appendChild(li);
 
-              const savedCode = sec.initialCode;
+              const savedCode = getLocalStorage(`draft_editor-${sec.id}`) || sec.initialCode;
               const isFinalized = getLocalStorage(`finalized_${sec.id}`) === 'true';
               const tutorMinimizado = getLocalStorage(`ai_tutor_minimized_${sec.id}`) !== 'false';
               if (isFinalized) actividadesFinalizadas[sec.id] = true;
@@ -2932,7 +2986,7 @@
 
                   <div class="pause-banner" id="pause-banner-${sec.id}">
                       <i class="fa-solid fa-circle-pause" style="font-size: 1.2rem;"></i>
-                      <span><strong>MDULO PAUSADO POR EL PROFESOR:</strong> El cron?metro y la edici?n de c?digo han sido suspendidos temporalmente.</span>
+                      <span><strong>MÃ“DULO PAUSADO POR EL PROFESOR:</strong> El cronómetro y la edición de código han sido suspendidos temporalmente.</span>
                   </div>
 
                   <div class="theory-box">
@@ -3130,10 +3184,10 @@
                               <div class="analyst-box" id="analyst-${sec.id}">
                                   <div class="analyst-header">
                                       <i class="fa-solid fa-user-check"></i>
-                                      Analista de Viabilidad y Excelencia — RESPONDE AHORA
+                                      Analista de Viabilidad y Excelencia â€” RESPONDE AHORA
                                   </div>
                                   <div style="margin-bottom:0.8rem;color:#cbd5e1;line-height:1.45;">
-                                      [icon] Al pulsar <strong>IA</strong>, estas preguntas se habilitan para responder.
+                                      ðŸ¤– Al pulsar <strong>IA</strong>, estas preguntas se habilitan para responder.
                                       Están basadas en <strong>tu código</strong>, en la <strong>solución de la IA</strong>
                                       y en la <strong>comparación entre ambos</strong>. Algunas tienen más de una respuesta correcta.
                                   </div>
@@ -3332,38 +3386,6 @@
           return document.getElementById(`editor-${sectionId}`)?.value ||
               historialResultados[sectionId]?.codigo || "";
       }
-      window.obtenerEvidenciaEntregaEstudiante = sectionId => {
-          const historial = historialResultados[sectionId] || {};
-          const codigo = obtenerCodigoActualEstudiante(sectionId);
-          const ejecucion = historial.evaluacionCodigo?.ejecucion || (
-              historial.exito === undefined ? null : {
-                  intentada: true,
-                  ok: historial.exito === true,
-                  salida: historial.salida || "",
-                  error: historial.error || ""
-              }
-          );
-          return {
-              codigo,
-              pruebas: ejecucion ? [{
-                  tipo: "ejecucion",
-                  intentada: ejecucion.intentada !== false,
-                  ok: ejecucion.ok === true,
-                  salida: ejecucion.salida || historial.salida || "",
-                  error: ejecucion.error || historial.error || ""
-              }] : [],
-              respuestas: Array.isArray(historial.analista?.preguntas)
-                  ? Object.fromEntries(historial.analista.preguntas.map((pregunta, indice) => [String(indice), pregunta]))
-                  : (historial.analista?.preguntas || {}),
-              errores: [
-                  ...(historial.error ? [historial.error] : []),
-                  ...(historial.evaluacionCodigo?.mejoras || [])
-              ],
-              ayudaUsada: historial.ayudasAnalista || historial.ayudasComprension || [],
-              versionCodigo: Number(historial.versionCodigo || 0),
-              intento: Number(historial.intento || 1)
-          };
-      };
 
       function construirRevisionTiempoEstudiante(sectionId, segundosRestantes) {
           const sec = seccionesData.find(s => s.id === sectionId) || {};
@@ -3435,22 +3457,22 @@
           if (tipo === "uno") {
               alertBox.className = "time-review-alert is-urgent";
               alertBox.innerHTML = `
-                  <div class="time-review-alert-heading"><span aria-hidden="true">⏰</span><strong>Último minuto!</strong><span class="time-review-alert-time">${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}</span></div>
+                  <div class="time-review-alert-heading"><span aria-hidden="true">â°</span><strong>¡Ãšltimo minuto!</strong><span class="time-review-alert-time">${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}</span></div>
                   <p>Antes de entregar, revisá rápidamente:</p>
                   <ul>${renderizarListaRevision(["Que el código ejecute sin errores.", "Que la salida responda a la consigna.", "Que hayas completado la parte principal del desafío."])}</ul>
                   <p class="time-review-priority">Enfocate en completar lo indispensable y corregir el error más importante.</p>`;
           } else {
               alertBox.className = "time-review-alert is-warning";
               alertBox.innerHTML = `
-                  <div class="time-review-alert-heading"><span aria-hidden="true">⏰</span><strong>Te quedan aproximadamente ${revision.minutos} minutos.</strong><span class="time-review-alert-time">${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}</span></div>
+                  <div class="time-review-alert-heading"><span aria-hidden="true">â°</span><strong>Te quedan aproximadamente ${revision.minutos} minutos.</strong><span class="time-review-alert-time">${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}</span></div>
                   <div class="time-review-grid">
-                    <section><h4>✅ Lo que ya lograste</h4><ul>${renderizarListaRevision(revision.fortalezas)}</ul></section>
-                    <section><h4>⚠️ Para revisar</h4><ul>${renderizarListaRevision(revision.paraRevisar)}</ul></section>
-                    <section><h4>[icon] Pendiente</h4><ul>${renderizarListaRevision(revision.pendiente)}</ul></section>
+                    <section><h4>âœ… Lo que ya lograste</h4><ul>${renderizarListaRevision(revision.fortalezas)}</ul></section>
+                    <section><h4>âš ï¸ Para revisar</h4><ul>${renderizarListaRevision(revision.paraRevisar)}</ul></section>
+                    <section><h4>ðŸ”´ Pendiente</h4><ul>${renderizarListaRevision(revision.pendiente)}</ul></section>
                   </div>
-                  <h4 class="time-review-priority-title">[icon] Prioridad ahora</h4>
+                  <h4 class="time-review-priority-title">ðŸ”´ Prioridad ahora</h4>
                   <ol>${renderizarListaRevision(revision.prioridades)}</ol>
-                  <p class="time-review-hint">[Pista] Pista: ${escaparTextoAnalista(revision.pista)}</p>`;
+                  <p class="time-review-hint">ðŸ’¡ Pista: ${escaparTextoAnalista(revision.pista)}</p>`;
           }
           alertBox.hidden = false;
           alertBox.dataset.lastShown = tipo;
@@ -3548,7 +3570,7 @@
       function expirarTiempoModulo(sectionId) {
           if (!cuentaEstudianteActiva || !claseHabilitada || actividadesFinalizadas[sectionId]) return;
 
-          alert(`? ?Tiempo agotado (40 minutos) para este m?dulo! Se registrar? nota 1 por tiempo expirado.`);
+          alert(`â° ¡Tiempo agotado (40 minutos) para este módulo! Se registrará nota 1 por tiempo expirado.`);
 
           const editor = document.getElementById(`editor-${sectionId}`);
           if (editor) editor.disabled = true;
@@ -3870,7 +3892,7 @@
               return;
           }
           if (!actividadesFinalizadas[sectionId]) {
-              alert("ℹ️ Este ejercicio ya se encuentra desbloqueado y activo.");
+              alert("â„¹ï¸ Este ejercicio ya se encuentra desbloqueado y activo.");
               return;
           }
 
@@ -3912,7 +3934,7 @@
           actualizarDisplayTiempo(sectionId);
 
           actualizarProgreso();
-          alert(`[icon] ¡El ejercicio actual (${sectionId}) ha sido desbloqueado con éxito por el profesor!`);
+          alert(`ðŸ”“ ¡El ejercicio actual (${sectionId}) ha sido desbloqueado con éxito por el profesor!`);
       }
 
       function desbloquearTodosEjercicios() {
@@ -3965,7 +3987,7 @@
           });
 
           actualizarProgreso();
-          alert("[icon] ¡Todos los ejercicios de la plataforma han sido desbloqueados con éxito!");
+          alert("ðŸ”“ ¡Todos los ejercicios de la plataforma han sido desbloqueados con éxito!");
       }
 
       function togglePausaModulo(sectionId) {
@@ -3999,7 +4021,7 @@
                   control.disabled = true;
               });
 
-              alert(`?? Cron?metro y edici?n pausados por el profesor para el m?dulo ${sectionId}.`);
+              alert(`â¸ï¸ Cronómetro y edición pausados por el profesor para el módulo ${sectionId}.`);
           } else {
               if (btnPause) {
                   btnPause.innerHTML = `<i class="fa-solid fa-pause"></i> Pausar (Profe)`;
@@ -4026,7 +4048,7 @@
                   }
               }
 
-              alert(`?? Cron?metro y edici?n reanudados para el m?dulo ${sectionId}.`);
+              alert(`â–¶ï¸ Cronómetro y edición reanudados para el módulo ${sectionId}.`);
           }
       }
 
@@ -4090,8 +4112,8 @@
           actualizarBotonPausaCronometros();
           if (mostrarAviso) {
               alert(cronometrosPausadosPorDocente
-                  ? "?? Pausa Global Activada: Se han congelado los cron?metros y editores de todos los m?dulos."
-                  : "?? Pausa Global Desactivada: Se han reanudado todos los m?dulos activos.");
+                  ? "â¸ï¸ Pausa Global Activada: Se han congelado los cronómetros y editores de todos los módulos."
+                  : "â–¶ï¸ Pausa Global Desactivada: Se han reanudado todos los módulos activos.");
           }
       }
 
@@ -4179,7 +4201,17 @@
 
       function aplicarControlCronometroIndividual(datos = {}) {
           cronometrosPausadosIndividualmente = Boolean(datos.pausado);
+          // La pausa individual controlada desde el panel docente es la fuente
+          // remota de verdad. Las marcas locales antiguas podían mantener el
+          // banner y el editor bloqueados después de reanudar.
+          seccionesData.forEach(sec => {
+              removeLocalStorage(`pausa_${sec.id}`);
+          });
           establecerPausaGlobal(cronometrosPausadosPorDocente, false);
+          seccionesData.forEach(sec => {
+              actualizarControlesDesafio(sec.id);
+              actualizarBloqueoEditorEstudiante(sec.id);
+          });
           const reinicioId = String(datos.reinicioId || '');
           const ultimoReinicio = getLocalStorage('app_last_individual_timer_reset') || '';
           if (!reinicioId || reinicioId === ultimoReinicio) return;
@@ -4276,6 +4308,7 @@
                   document.getElementById(`editor-${sectionId}`).dispatchEvent(new Event('input', { bubbles: true }));
                   document.getElementById(`console-${sectionId}`).innerText = '// Código restablecido.';
                   document.getElementById(`ai-feedback-${sectionId}`).classList.remove('active');
+                  removeLocalStorage(`draft_editor-${sectionId}`);
                   delete historialResultados[sectionId];
 
                   const navBtn = document.getElementById(`nav-btn-${sectionId}`);
@@ -4291,7 +4324,7 @@
       }
 
       async function reiniciarSesionEstudiante() {
-          if (confirm("?? ?Iniciar nueva sesi?n? Se cerrar? la cuenta de Google y se borrar? el avance local de este equipo.")) {
+          if (confirm("âš ï¸ ¿Iniciar nueva sesión? Se cerrará la cuenta de Google y se borrará el avance local de este equipo.")) {
               if (window.cerrarSesionGoogle) await window.cerrarSesionGoogle();
               else window.location.reload();
           }
@@ -4333,7 +4366,15 @@
       }
 
       function actualizarProgreso() {
-          const finalizadasCount = seccionesData.filter(sec => actividadesFinalizadas[sec.id] === true).length;
+          const estadoReal = obtenerFinalizadasEfectivasEstudiante({
+              finalizadas: actividadesFinalizadas,
+              historialResultados,
+              codigos: Object.fromEntries(seccionesData.map(sec => [
+                  sec.id,
+                  document.getElementById(`editor-${sec.id}`)?.value || ''
+              ]))
+          });
+          const finalizadasCount = seccionesData.filter(sec => estadoReal[sec.id] === true).length;
           const porcentaje = Math.round((finalizadasCount / seccionesData.length) * 100);
           document.getElementById('progressBar').style.width = `${porcentaje}%`;
           document.getElementById('progressBarContainer')?.setAttribute('aria-valuenow', String(porcentaje));
@@ -4496,7 +4537,7 @@
           const total = eventos.length;
           const segundos = eventos.reduce((suma, item) => suma + Math.max(0, Number(item.duracionSegundos || item.duracion || 0)), 0);
           const minutos = Math.round(segundos / 60);
-          contenido.innerHTML = `<div class="student-tabs-summary-stats"><div><small>Cambios registrados</small><strong>${total}</strong></div><div><small>Tiempo fuera</small><strong>${minutos} min</strong></div><div><small>Último cambio</small><strong>${total ? escapeHtml(new Date(eventos[total - 1].timestamp || eventos[total - 1].en || Date.now()).toLocaleTimeString('es-AR')) : 'Sin cambios'}</strong></div></div><div class="student-tabs-summary-list">${total ? eventos.slice(-12).reverse().map(item => `<article><strong>${escapeHtml(item.titulo || item.dominio || item.motivo || 'Cambio de pesta?a')}</strong><small>${escapeHtml(new Date(item.timestamp || item.en || Date.now()).toLocaleString('es-AR'))} ? ${Math.max(0, Number(item.duracionSegundos || item.duracion || 0))} s</small></article>`).join('') : '<p class="student-tabs-summary-empty">Todav?a no hay cambios de pesta?a registrados.</p>'}</div>`;
+          contenido.innerHTML = `<div class="student-tabs-summary-stats"><div><small>Cambios registrados</small><strong>${total}</strong></div><div><small>Tiempo fuera</small><strong>${minutos} min</strong></div><div><small>Ãšltimo cambio</small><strong>${total ? escapeHtml(new Date(eventos[total - 1].timestamp || eventos[total - 1].en || Date.now()).toLocaleTimeString('es-AR')) : 'Sin cambios'}</strong></div></div><div class="student-tabs-summary-list">${total ? eventos.slice(-12).reverse().map(item => `<article><strong>${escapeHtml(item.titulo || item.dominio || item.motivo || 'Cambio de pestaña')}</strong><small>${escapeHtml(new Date(item.timestamp || item.en || Date.now()).toLocaleString('es-AR'))} · ${Math.max(0, Number(item.duracionSegundos || item.duracion || 0))} s</small></article>`).join('') : '<p class="student-tabs-summary-empty">Todavía no hay cambios de pestaña registrados.</p>'}</div>`;
           modal.classList.add('active');
           document.body.classList.add('student-tabs-summary-open');
           modal.querySelector('.student-tabs-summary-box')?.focus({preventScroll:true});
@@ -4548,7 +4589,7 @@
           const resultado = await ejecutarCodigoAislado(code);
 
           const logs = Array.isArray(resultado.logs) ? resultado.logs : [];
-          if (!resultado.ok) logs.push("[EXCEPCIÓN]: " + resultado.error);
+          if (!resultado.ok) logs.push("[EXCEPCIÃ“N]: " + resultado.error);
           if (logs.length === 0) logs.push("// Ejecutado sin salida en consola.");
           consoleBox.style.color = resultado.ok ? "#10b981" : "#ef4444";
           consoleBox.innerText = logs.join("\n");
@@ -4598,7 +4639,7 @@
 
       function limpiarSalidaEvaluacion(valor) {
           return normalizarEvaluacion(String(valor || "")
-              .replace(/\[(?:LOG|INFO|AVISO|ERROR|EXCEPCIÓN)\]:/gi, " ")
+              .replace(/\[(?:LOG|INFO|AVISO|ERROR|EXCEPCIÃ“N)\]:/gi, " ")
               .replace(/\/\/ ejecutado sin salida en consola\./gi, " ")
               .replace(/[{}[\]",'`]/g, " "));
       }
@@ -4711,8 +4752,8 @@
                   nombre,
                   cumple,
                   evidencia: cumple
-                      ? `Se encontr una estructura compatible con “${nombre}”.`
-                      : `No se encontr una estructura verificable para “${nombre}”.`
+                      ? `Se encontró una estructura compatible con â€œ${nombre}â€.`
+                      : `No se encontró una estructura verificable para â€œ${nombre}â€.`
               };
           });
           const conceptosCumplidos = evidenciasConceptos.filter(x => x.cumple).length;
@@ -4945,36 +4986,29 @@
           return evaluarCodigoPorEvidencias(code, sec, resultadoEjecucion).nota;
       }
 
-      function calcularNotaCombinada(notaCodigo, porcentajePreguntas, evaluacionCodigo = null, componentes = {}) {
-          const codigoBase = Math.max(0, Math.min(10, Number(notaCodigo) || 0));
+      function calcularNotaCombinada(notaCodigo, porcentajePreguntas, evaluacionCodigo = null) {
+          const codigo = Math.max(0, Math.min(10, Number(notaCodigo) || 0));
+          const preguntas = Math.max(0, Math.min(100, Number(porcentajePreguntas) || 0)) / 10;
           const metricas = evaluacionCodigo?.metricas || {};
           const evidencia = [
               Number(metricas.requisitos),
+              Number(metricas.comportamiento),
               Number(metricas.estructura),
               Number(metricas.calidad)
           ].filter(Number.isFinite);
-          const requisitos = evidencia.length
+          const evidenciaPromedio = evidencia.length
               ? evidencia.reduce((total, valor) => total + Math.max(0, Math.min(1, valor)), 0) / evidencia.length
-              : codigoBase / 10;
-          const funcionamiento = Number.isFinite(Number(metricas.comportamiento))
-              ? Math.max(0, Math.min(1, Number(metricas.comportamiento)))
-              : (evaluacionCodigo?.ejecucion?.ok ? 0.8 : 0);
-          const codigo = Number((codigoBase * 0.65 + requisitos * 10 * 0.35).toFixed(1));
-          const multiple = Math.max(0, Math.min(10, Number(componentes.multiple ?? porcentajePreguntas) || 0));
-          const socraticas = Math.max(0, Math.min(10, Number(componentes.socraticas ?? porcentajePreguntas) || 0));
-          const pruebas = Math.max(0, Math.min(10, Number(componentes.pruebas ?? (evaluacionCodigo?.ejecucion?.intentada ? (evaluacionCodigo.ejecucion.ok ? 10 : 2) : 0)) || 0));
-          let nota = (
-              codigo * 0.40 +
-              (funcionamiento * 10) * 0.25 +
-              multiple * 0.15 +
-              socraticas * 0.15 +
-              pruebas * 0.05
+              : codigo / 10;
+          const notaCodigoAjustada = Number(
+              (codigo * 0.75 + evidenciaPromedio * 10 * 0.25).toFixed(1)
           );
+          let nota = notaCodigoAjustada * 0.65 + preguntas * 0.35;
           const sintaxisValida = evaluacionCodigo?.sintaxis?.valida !== false;
           const ejecucionCorrecta = evaluacionCodigo?.ejecucion?.ok !== false;
+          const comportamiento = Number(evaluacionCodigo?.metricas?.comportamiento);
           if (!sintaxisValida) nota = Math.min(nota, 3);
           else if (!ejecucionCorrecta) nota = Math.min(nota, 4);
-          else if (funcionamiento < 0.35) nota = Math.min(nota, 6);
+          else if (Number.isFinite(comportamiento) && comportamiento < 0.35) nota = Math.min(nota, 6);
           return Number(Math.max(1, Math.min(10, nota)).toFixed(1));
       }
 
@@ -4984,7 +5018,7 @@
 
           let usos = contadorPrevisualizaciones[sectionId] || 0;
           if (usos >= 3) {
-              alert("?? Has alcanzado el l?mite m?ximo de 3 consultas de nota previa para este m?dulo.");
+              alert("âš ï¸ Has alcanzado el límite máximo de 3 consultas de nota previa para este módulo.");
               return;
           }
 
@@ -5032,7 +5066,7 @@
           },
           {
               respuestaAbierta: true,
-              q: () => `Compar? una diferencia concreta entre tu soluci?n y la soluci?n de referencia. Eleg? un criterio claridad, robustez, eficiencia o facilidad de mantenimiento y defend? cu?l decisi?n es m?s adecuada y en qu? situaci?n podr?a convenir la otra.`
+              q: () => `Compará una diferencia concreta entre tu solución y la solución de referencia. Elegí un criterio â€”claridad, robustez, eficiencia o facilidad de mantenimientoâ€” y defendé cuál decisión es más adecuada y en qué situación podría convenir la otra.`
           },
           {
               respuestaAbierta: true,
@@ -5052,7 +5086,7 @@
           },
           {
               respuestaAbierta: true,
-              q: () => `Usando un ejemplo espec?fico de tu c?digo, explic? la diferencia entre obtener la salida correcta y construir una soluci?n t?cnicamente s?lida. Propon? una mejora y justific? qu? calidad aporta.`
+              q: () => `Usando un ejemplo específico de tu código, explicá la diferencia entre â€œobtener la salida correctaâ€ y construir una solución técnicamente sólida. Proponé una mejora y justificá qué calidad aporta.`
           }
       ];
 
@@ -5315,7 +5349,7 @@
                   diagnostico.esPlantilla
                       ? "todavía está la plantilla inicial."
                       : `hay ${diagnostico.lineasUtiles.length} líneas útiles y la evaluación orientativa marca ${evaluacion.nota}/10.`,
-                  "Elegí “Entender consigna” si todavía estús planificando o “Revisar mi código” si ya hiciste un intento."
+                  "Elegí â€œEntender consignaâ€ si todavía estás planificando o â€œRevisar mi códigoâ€ si ya hiciste un intento."
               );
           }
 
@@ -5350,7 +5384,7 @@
                   mejoras.length
                       ? mejoras[0]
                       : pendientes.length
-                          ? `Hacé visible en el código el concepto “${pendientes[0]}”.`
+                          ? `Hacé visible en el código el concepto â€œ${pendientes[0]}â€.`
                           : "Ejecutá dos casos con datos distintos y compará los resultados esperados.",
                   preguntaSocratica || "¿Qué línea demuestra mejor que tu programa cumple la consigna?"
               );
@@ -5440,7 +5474,7 @@
                   "No voy a entregar el código completo.",
                   "la actividad evalúa tu razonamiento y tus decisiones, no solo el resultado final.",
                   pendientes.length
-                      ? `Trabajemos sobre ${pendientes[0]}: explic? en una frase qu? deber?a hacer esa parte.`
+                      ? `Trabajemos sobre â€œ${pendientes[0]}â€: explicá en una frase qué debería hacer esa parte.`
                       : "Decime qué parte te cuesta: entrada, condición, repetición, función o salida.",
                   "¿Qué intentaste hasta ahora y qué resultado obtuviste?"
               );
@@ -5465,7 +5499,7 @@
               return construirRespuestaIA(
                   "Necesito una ejecución reciente.",
                   "no encuentro un error registrado en la consola del módulo.",
-                  "Pulsí “Ejecutar y probar” y después volv a “Aydame con el error”.",
+                  "Pulsá â€œEjecutar y probarâ€ y después volvé a â€œAyúdame con el errorâ€.",
                   "¿Cuál es la primera salida que difiere de lo esperado?"
               );
           }
@@ -5474,15 +5508,15 @@
               return construirRespuestaIA(
                   "Un solo foco para avanzar",
                   foco
-                      ? `todavía no encuentro evidencia clara de “${foco}”.`
+                      ? `todavía no encuentro evidencia clara de â€œ${foco}â€.`
                       : `la estructura alcanza una estimación de ${evaluacion.nota}/10 y no detecto un concepto principal ausente.`,
                   foco
-                      ? `Agreg? o correg? ?nicamente la parte que demuestra ${foco} y ejecut? de nuevo.`
+                      ? `Agregá o corregí únicamente la parte que demuestra â€œ${foco}â€ y ejecutá de nuevo.`
                       : "Diseñá un caso límite y verificá que la salida siga siendo correcta.",
                   preguntaSocratica || "¿Qué cambio pequeño podés comprobar antes de continuar?"
               );
           }
-          if (/condicion|if|decidir/.test(texto)) return construirRespuestaIA("Condiciones", diagnostico.tieneDecision ? "tu c?digo ya contiene una decisi?n." : "todav?a no detecto una decisi?n expl?cita.", "Escrib? la regla en palabras: si ocurre..., entonces...; de lo contrario.... Despu?s traduc? exactamente esa regla.", "?Qu? dos resultados diferentes deber?a producir la condici?n?");
+          if (/condicion|if|decidir/.test(texto)) return construirRespuestaIA("Condiciones", diagnostico.tieneDecision ? "tu código ya contiene una decisión." : "todavía no detecto una decisión explícita.", "Escribí la regla en palabras: â€œsi ocurre..., entonces...; de lo contrario...â€. Después traducí exactamente esa regla.", "¿Qué dos resultados diferentes debería producir la condición?");
           if (/bucle|repet|for|while|recorrer/.test(texto)) return construirRespuestaIA("Repeticiones", diagnostico.tieneRepeticion ? "tu código ya contiene una estructura repetitiva." : "todavía no detecto un bucle.", "Definí qué dato recorrés, dónde empieza y cuál es la condición de finalización.", "¿Qué cambia en cada vuelta para evitar un ciclo infinito?");
           if (/funcion|parametro|return/.test(texto)) return construirRespuestaIA("Funciones", diagnostico.tieneFuncion ? "tu código ya declara una función." : "todavía no detecto una función.", "Definí una tarea única, los datos que recibe y el resultado que devuelve. Probala con un ejemplo pequeño.", "¿La función devuelve un valor o solamente lo muestra?");
           if (/salida|console|mostrar|resultado/.test(texto)) return construirRespuestaIA("Salida del programa", diagnostico.tieneSalida ? "hay una instrucción de salida en tu código." : "no encuentro una salida visible con console.log.", "Compará la variable mostrada con la salida exacta que exige la consigna y verificá cuándo se calcula.", "¿La salida permite comprobar el resultado sin leer el código?");
@@ -5491,17 +5525,17 @@
                   "Vamos a reducir el problema.",
                   diagnostico.esPlantilla ? "todavía no hay un intento ejecutable." : `ya escribiste ${diagnostico.lineasUtiles.length} líneas útiles.`,
                   nivelPista >= 3 && pendientes.length
-                      ? `Busc? en la teor?a del m?dulo el concepto ${pendientes[0]} y escrib? una sola instrucci?n que lo represente.`
-                      : "Completú esta frase en un comentario: “Mi programa recibe..., hace... y muestra...”.",
+                      ? `Buscá en la teoría del módulo el concepto â€œ${pendientes[0]}â€ y escribí una sola instrucción que lo represente.`
+                      : "Completá esta frase en un comentario: â€œMi programa recibe..., hace... y muestra...â€.",
                   preguntaSocratica || "¿Cuál de esas tres partes podés resolver primero?"
               );
           }
           if (pendientes.length) {
               const accion = nivelPista === 1
-                  ? `Revis? la consigna y localiz? d?nde deber?a aparecer ${pendientes[0]}.`
+                  ? `Revisá la consigna y localizá dónde debería aparecer â€œ${pendientes[0]}â€.`
                   : nivelPista === 2
-                      ? `Escrib? en un comentario qu? deber?a hacer ${pendientes[0]} y convert? ese comentario en una instrucci?n.`
-                      : `Concentrate solo en ${pendientes[0]}: agreg? la estructura m?nima que lo demuestre y ejecut? un caso peque?o.`;
+                      ? `Escribí en un comentario qué debería hacer â€œ${pendientes[0]}â€ y convertí ese comentario en una instrucción.`
+                      : `Concentrate solo en â€œ${pendientes[0]}â€: agregá la estructura mínima que lo demuestre y ejecutá un caso pequeño.`;
               return construirRespuestaIA(
                   `Pista ${nivelPista} de 3`,
                   `detecté ${diagnostico.conceptosCumplidos.length ? `como avances ${diagnostico.conceptosCumplidos.join(", ")}, pero ` : ""}falta evidencia clara de ${pendientes.join(", ")}.`,
@@ -5660,12 +5694,12 @@
           const base = mezclarArray(analistaPlantillas).slice(0,4);
           const personalizadas = configuradas.slice(0,2).map(q => ({
               tipo:"SOCRÁTICA",
-              categoria:"SOCRTICA DEL DESAFÍO",
+              categoria:"SOCRÁTICA DEL DESAFÃO",
               respuestaAbierta:true,
               q:()=>`${q} Fundamentá tu respuesta con una decisión concreta del código, una evidencia y una consecuencia.`
           }));
           const gen = mezclarArray(preguntasSocraticas).slice(0,Math.max(0,2-personalizadas.length));
-          return [...base.map(p=>({...p,categoria:"AN?LISIS TCNICO"})),...personalizadas,...gen.map(p=>({...p,tipo:"SOCR?TICA",categoria:"SOCR?TICA"}))].map((p,i)=>{
+          return [...base.map(p=>({...p,categoria:"ANÁLISIS TÃ‰CNICO"})),...personalizadas,...gen.map(p=>({...p,tipo:"SOCRÁTICA",categoria:"SOCRÁTICA"}))].map((p,i)=>{
             const respuestaAbierta = p.respuestaAbierta === true || p.tipo === "SOCRÁTICA";
             const opciones = respuestaAbierta ? [] : mezclarArray(p.opciones(code,ideal));
             if (!respuestaAbierta && !opciones.some(x=>x.c)) opciones[0].c=true;
@@ -5699,10 +5733,10 @@
                   <strong>${i + 1}. ${p.q}</strong>
                   <div style="margin:.4rem 0 .7rem;color:var(--text-muted);font-size:.75rem">
                       <span class="analyst-badge">${p.categoria || "ANÁLISIS"}</span>
-                      ${p.respuestaAbierta ? "[icon]  Respuesta razonada sobre tu solución" :
-                        p.tipo === "ESTUDIANTE" ? "[icon] Basada en tu código" :
-                        p.tipo === "IA" ? "[IA] Basada en la solución de IA" :
-                        "[Comparación] Comparación entre ambos códigos"}
+                      ${p.respuestaAbierta ? "ðŸŸ  Respuesta razonada sobre tu solución" :
+                        p.tipo === "ESTUDIANTE" ? "ðŸ”µ Basada en tu código" :
+                        p.tipo === "IA" ? "ðŸŸ£ Basada en la solución de IA" :
+                        "ðŸŸ¢ Comparación entre ambos códigos"}
                       <br>${p.respuestaAbierta
                           ? "Incluí una decisión concreta, una justificación, una evidencia y una consecuencia o mejora."
                           : 'Puede haber <strong>más de una respuesta correcta</strong>.'}
@@ -5992,7 +6026,7 @@
           const result = document.getElementById(`analyst-result-${sectionId}`);
 
            if (respondidas < preguntas.length) {
-               result.innerHTML = `?? Debes responder todas las preguntas. Las socr?ticas requieren una explicaci?n escrita y las t?cnicas pueden tener varias opciones correctas.`;
+               result.innerHTML = `âš ï¸ Debes responder todas las preguntas. Las socráticas requieren una explicación escrita y las técnicas pueden tener varias opciones correctas.`;
                return;
            }
 
@@ -6018,13 +6052,7 @@
           if (!historialResultados[sectionId]) historialResultados[sectionId] = {};
           const notaCodigo = Number(historialResultados[sectionId].notaCodigo ?? historialResultados[sectionId].notaIA ?? 0);
           const evaluacionCodigo = historialResultados[sectionId].evaluacionCodigo || null;
-           const notaFinal = calcularNotaCombinada(notaCodigo, porcentaje, evaluacionCodigo, {
-               multiple: porcentaje,
-               socraticas: notaPreguntas,
-               pruebas: evaluacionCodigo?.ejecucion?.intentada
-                   ? (evaluacionCodigo.ejecucion.ok ? 10 : 2)
-                   : 0
-           });
+          const notaFinal = calcularNotaCombinada(notaCodigo, porcentaje, evaluacionCodigo);
           const metricasCodigoVista = evaluacionCodigo?.metricas || {};
           const evidenciasCodigoVista = [
               Number(metricasCodigoVista.requisitos),
@@ -6035,7 +6063,9 @@
           const evidenciaCodigoVista = evidenciasCodigoVista.length
               ? Number((evidenciasCodigoVista.reduce((total, valor) => total + valor, 0) / evidenciasCodigoVista.length * 10).toFixed(1))
               : notaCodigo;
-           const funcionamientoVista = Number(((evaluacionCodigo?.metricas?.comportamiento || 0) * 10).toFixed(1));
+          const notaCodigoPonderadaVista = Number(
+              (notaCodigo * 0.75 + evidenciaCodigoVista * 0.25).toFixed(1)
+          );
           const limiteFinal = evaluacionCodigo?.sintaxis?.valida === false
               ? "La calificación automática del módulo se limitó a 3 porque el código contiene un error de sintaxis."
               : evaluacionCodigo?.ejecucion?.ok === false
@@ -6046,11 +6076,10 @@
 
            result.innerHTML =
                `<strong>Calificación automática del módulo: ${notaFinal}/10</strong><br>` +
-               `Funcionamiento y pruebas: <strong>${funcionamientoVista}/10</strong> (25%).<br>` +
-               `Opción múltiple: <strong>${notaPreguntas}/10</strong> (15%).<br>` +
-               `Socráticas: <strong>${notaPreguntas}/10</strong> (15%).<br>` +
-               `Proceso y pruebas registradas: <strong>${evaluacionCodigo?.ejecucion?.intentada ? (evaluacionCodigo.ejecucion.ok ? "10.0" : "2.0") : "0.0"}/10</strong> (5%).<br>` +
+               `Código y evidencias técnicas: <strong>${notaCodigoPonderadaVista}/10</strong> (65%).<br>` +
+               `Respuestas razonadas: <strong>${notaPreguntas}/10</strong> (35%).<br>` +
                `<strong>Desglose:</strong> ${conteoNiveles.completa} completas (${rubricaAplicada.puntos.completa.toFixed(2)}), ${conteoNiveles.incompleta} correctas incompletas (${rubricaAplicada.puntos.incompleta.toFixed(2)}), ${conteoNiveles.parcial} parciales (${rubricaAplicada.puntos.parcial.toFixed(2)}) y ${conteoNiveles.incorrecta} incorrectas (${rubricaAplicada.puntos.incorrecta.toFixed(2)}).<br>` +
+               `Viabilidad: <strong>${viabilidad}</strong>.<br>` +
               `Excelencia: <strong>${excelencia}</strong>.<br>` +
               `Las preguntas mezclaron evidencias de tu código, de la solución IA, de la comparación entre ambos y situaciones de razonamiento socrático.` +
               (limiteFinal ? `<br><strong>${escaparTextoAnalista(limiteFinal)}</strong>` : "");
@@ -6073,7 +6102,7 @@
               ? Number((evidenciasCodigo.reduce((total, valor) => total + valor, 0) / evidenciasCodigo.length * 10).toFixed(1))
               : notaCodigo;
           historialResultados[sectionId].desgloseNota = {
-              formula: "codigo_40_funcionamiento_25_multiple_15_socraticas_15_pruebas_5",
+              formula: "codigo_evidencias_65_respuestas_35",
               notaCodigoBase: notaCodigo,
               evidenciaCodigo,
               notaPreguntas,
@@ -6118,7 +6147,7 @@
                   "beforeend",
                   `<div style="margin-top:.8rem;padding:.7rem;border:1px solid rgba(16,185,129,.4);border-radius:6px;color:#a7f3d0">
                       <strong>Calificación automática del módulo: ${notaFinal}/10</strong><br>
-                      Código ${notaCodigo}/10 × 70% + preguntas ${notaPreguntas}/10 × 30%.
+                      Código ${notaCodigo}/10 Ã— 70% + preguntas ${notaPreguntas}/10 Ã— 30%.
                   </div>`
               );
           }
@@ -6129,7 +6158,7 @@
           if (!claseHabilitada) return;
           if (actividadesFinalizadas[sectionId] || modulosPausados[sectionId]) return;
 
-          if (!confirm("ATENCIN: esta acci?n mostrar? una soluci?n de referencia, realizar? una evaluaci?n autom?tica orientativa y bloquear? la actividad. ?Deseas continuar?")) {
+          if (!confirm("ATENCIÃ“N: esta acción mostrará una solución de referencia, realizará una evaluación automática orientativa y bloqueará la actividad. ¿Deseas continuar?")) {
               return;
           }
 
@@ -6155,7 +6184,7 @@
           ]);
           const salidaAlumno = [
               ...(Array.isArray(resultadoAlumno.logs) ? resultadoAlumno.logs : []),
-              ...(!resultadoAlumno.ok && resultadoAlumno.error ? [`[EXCEPCIÓN]: ${resultadoAlumno.error}`] : [])
+              ...(!resultadoAlumno.ok && resultadoAlumno.error ? [`[EXCEPCIÃ“N]: ${resultadoAlumno.error}`] : [])
           ].join("\n");
           const salidaReferencia = resultadoReferencia.ok
               ? (Array.isArray(resultadoReferencia.logs) ? resultadoReferencia.logs.join("\n") : "")
@@ -6175,12 +6204,12 @@
               const puntaje = evaluacion.nota;
               let analisis = "";
 
-              if (puntaje === 1) analisis = "? <strong>Evaluaci?n Estricta (1/10):</strong> Plantilla inicial sin resolver.";
-              else if (puntaje === 4) analisis = "?? <strong>Evaluaci?n Estricta (4/10):</strong> C?digo sin estructuras l?gicas requeridas.";
-              else if (puntaje === 7) analisis = "[Objetivo] <strong>Evaluación Estricta (7/10):</strong> Alcanza o supera el 70% de desarrollo.";
-              else if (puntaje === 5) analisis = "[Buscar] <strong>Evaluación Estricta (5/10):</strong> Resolución parcial por debajo del 70%.";
-              else if (puntaje === 3) analisis = "?? <strong>Evaluaci?n Estricta (3/10):</strong> C?digo demasiado escueto.";
-              else if (puntaje === 10) analisis = "? <strong>?Excelente Trabajo! (10/10):</strong> Cumple rigurosamente con los par?metros ideales.";
+              if (puntaje === 1) analisis = "âŒ <strong>Evaluación Estricta (1/10):</strong> Plantilla inicial sin resolver.";
+              else if (puntaje === 4) analisis = "âš ï¸ <strong>Evaluación Estricta (4/10):</strong> Código sin estructuras lógicas requeridas.";
+              else if (puntaje === 7) analisis = "ðŸŽ¯ <strong>Evaluación Estricta (7/10):</strong> Alcanza o supera el 70% de desarrollo.";
+              else if (puntaje === 5) analisis = "ðŸ” <strong>Evaluación Estricta (5/10):</strong> Resolución parcial por debajo del 70%.";
+              else if (puntaje === 3) analisis = "âš ï¸ <strong>Evaluación Estricta (3/10):</strong> Código demasiado escueto.";
+              else if (puntaje === 10) analisis = "âœ… <strong>¡Excelente Trabajo! (10/10):</strong> Cumple rigurosamente con los parámetros ideales.";
 
               analisis = `<strong>Estimación orientativa estricta (${puntaje}/10):</strong> ${diagnostico.resumen}` +
                   `<br><strong>Guía de mejora:</strong><ol>${diagnostico.pasos.map(x => `<li>${escaparTextoAnalista(x)}</li>`).join("")}</ol>` +
@@ -6195,10 +6224,10 @@
               const conceptos = Array.isArray(sec.conceptosDetectar) ? sec.conceptosDetectar : [];
               const errores = Array.isArray(sec.erroresFrecuentes) ? sec.erroresFrecuentes : [];
               feedbackText.innerHTML = `<strong>Nota del código: ${puntaje}/10 (70% de la calificación automática del módulo)</strong><br><small>La calificación automática se calculará después de entregar todas las preguntas, que representan el 30%. La nota definitiva requiere confirmación docente.</small><br>${analisis}` +
-                (objetivos.length ? `<hr><strong>[Objetivo] Objetivos:</strong><ul>${objetivos.map(x=>`<li>${escaparTextoAnalista(x)}</li>`).join("")}</ul>`:"") +
-                (conceptos.length ? `<strong>[Conceptos] Conceptos que la IA revisa:</strong> ${conceptos.map(x=>escaparTextoAnalista(x)).join(", ")}<br>`:"") +
-                (errores.length ? `<strong>?? Errores frecuentes a revisar:</strong> ${errores.slice(0,3).map(x=>escaparTextoAnalista(x)).join(" ? ")}<br>`:"") +
-                `<div style="margin-top:.6rem;color:#a5b4fc"><strong>[Aviso] Protección IA:</strong> no se entrega código listo para copiar ni se revelan directamente las respuestas.</div>`;
+                (objetivos.length ? `<hr><strong>ðŸŽ¯ Objetivos:</strong><ul>${objetivos.map(x=>`<li>${escaparTextoAnalista(x)}</li>`).join("")}</ul>`:"") +
+                (conceptos.length ? `<strong>ðŸ§  Conceptos que la IA revisa:</strong> ${conceptos.map(x=>escaparTextoAnalista(x)).join(", ")}<br>`:"") +
+                (errores.length ? `<strong>âš ï¸ Errores frecuentes a revisar:</strong> ${errores.slice(0,3).map(x=>escaparTextoAnalista(x)).join(" · ")}<br>`:"") +
+                `<div style="margin-top:.6rem;color:#a5b4fc"><strong>ðŸš« Protección IA:</strong> no se entrega código listo para copiar ni se revelan directamente las respuestas.</div>`;
 
               construirAnalista(sectionId, code);
               if (idealDisplay) {
@@ -6238,7 +6267,6 @@
               historialResultados[sectionId].analisisIA = analisis.replace(/<[^>]*>?/gm, '');
               historialResultados[sectionId].exito = Boolean(resultadoAlumno.ok);
               programarGuardadoFirebase();
-              void window.congelarEntregaDefinitivaActual?.(sectionId);
       }
 
       function generarTextoAnalistaPDF(sectionId) {
@@ -6246,9 +6274,9 @@
           const preguntas = data.analista && data.analista.preguntas ? data.analista.preguntas : [];
           if (!preguntas.length) return "ANALISTA DE VIABILIDAD Y EXCELENCIA\nNo se respondió el cuestionario del analista.\n";
 
-          let texto = "\n\n════════════════════════════════════════════════════\n";
+          let texto = "\n\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n";
           texto += "ANALISTA DE VIABILIDAD Y EXCELENCIA\n";
-          texto += "════════════════════════════════════════════════════\n\n";
+          texto += "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n";
 
           texto += `Resultado: ${data.analista.correctas || 0}/${data.analista.total || preguntas.length} `;
           texto += `(${data.analista.porcentaje || 0}%)\n`;
@@ -6261,7 +6289,7 @@
 
               if (p.opciones) {
                   p.opciones.forEach((op, j) => {
-                      const marcada = p.seleccionadas && p.seleccionadas.includes(j) ? "☑" : "☐";
+                      const marcada = p.seleccionadas && p.seleccionadas.includes(j) ? "â˜‘" : "â˜";
                       texto += `   ${marcada} ${String.fromCharCode(65 + j)}) ${op.texto || op.t || ""}`;
                       if (op.correcta === true || op.c === true) texto += "  [CORRECTA]";
                       texto += "\n";
@@ -6752,7 +6780,7 @@
               let posicion = documento.indexOf(termino, view.state.selection.main.to);
               if (posicion < 0) posicion = documento.indexOf(termino);
               if (posicion < 0) {
-                  estadoHerramientas.textContent = `No se encontr “${termino}”.`;
+                  estadoHerramientas.textContent = `No se encontró â€œ${termino}â€.`;
                   return false;
               }
               const coincidencias = documento.split(termino).length - 1;
@@ -6779,7 +6807,7 @@
               }
               const seleccion = view.state.selection.main;
               if (view.state.sliceDoc(seleccion.from, seleccion.to) !== termino && !buscarSiguiente()) return;
-              const reemplazo = prompt(`Reemplazar “${termino}” por:`, "");
+              const reemplazo = prompt(`Reemplazar â€œ${termino}â€ por:`, "");
               if (reemplazo === null) return;
               const rango = view.state.selection.main;
               view.dispatch({
@@ -6979,7 +7007,7 @@
       }
 
       // ==========================================
-      // FUNCIONES DE IMPORTACIÓN Y EXPORTACIÓN JSON Y PDF
+      // FUNCIONES DE IMPORTACIÃ“N Y EXPORTACIÃ“N JSON Y PDF
       // ==========================================
 
       // ===============================
@@ -7055,8 +7083,8 @@
           if (!solicitudes.length) return;
           const nombres = solicitudes.map(item => item.estudianteNombre || 'Estudiante');
           const texto = solicitudes.length === 1
-              ? `[Colaboración] ${nombres[0]} solicita colaboración`
-              : `[Colaboración] ${solicitudes.length} estudiantes solicitan colaboración`;
+              ? `ðŸ–ï¸ ${nombres[0]} solicita colaboración`
+              : `ðŸ–ï¸ ${solicitudes.length} estudiantes solicitan colaboración`;
           const etiqueta = document.getElementById('textoAlertaColaboracionFlotante');
           const contador = document.getElementById('contadorAlertaColaboracionFlotante');
           const alerta = document.getElementById('alertaColaboracionFlotante');
@@ -7071,7 +7099,7 @@
           intervaloTituloColaboracion = setInterval(() => {
               if (!alertaColaboracionActiva) return;
               alternarTitulo = !alternarTitulo;
-              document.title = alternarTitulo ? '🖐️ SOLICITUD DE COLABORACIÓN' : tituloOriginalDocumento;
+              document.title = alternarTitulo ? 'ðŸ–ï¸ SOLICITUD DE COLABORACIÃ“N' : tituloOriginalDocumento;
           }, 900);
           reproducirSonidoSolicitud();
           if (intervaloSonidoColaboracion) clearInterval(intervaloSonidoColaboracion);
@@ -7333,7 +7361,7 @@
           const resumen = document.getElementById('resumenEliminacionHistorialJitsi');
           const alcance = document.getElementById('alcanceEliminacionHistorialJitsi');
           const confirmacion = document.getElementById('confirmacionEliminarHistorialJitsi');
-          if (resumen) resumen.textContent = 'Presioñ “Revisar documentos” para contar el historial existente.';
+          if (resumen) resumen.textContent = 'Presioná â€œRevisar documentosâ€ para contar el historial existente.';
           if (alcance) alcance.textContent = 'Todas las clases y fechas';
           if (confirmacion) confirmacion.value = '';
           actualizarConfirmacionEliminarHistorialJitsi();
@@ -7506,7 +7534,7 @@
           const p = rubrica.puntos;
           if (!(p.completa > 0)) return "El puntaje de respuesta completa debe ser mayor que cero.";
           if (!(p.completa >= p.incompleta && p.incompleta >= p.parcial && p.parcial >= p.incorrecta)) {
-              return "Los puntajes deben respetar este orden: completa ≥ incompleta ≥ parcial ≥ incorrecta.";
+              return "Los puntajes deben respetar este orden: completa â‰¥ incompleta â‰¥ parcial â‰¥ incorrecta.";
           }
           if (!Object.values(rubrica.criterios).some(Boolean)) {
               return "Activá al menos un criterio de evaluación.";
@@ -7914,10 +7942,10 @@
       }
 
       const INTERVALOS_NOTAS_PROFESOR = [
-          { etiqueta: "0–3,9", minimo: 0, maximo: 4, color: "#ef4444" },
-          { etiqueta: "4–5,9", minimo: 4, maximo: 6, color: "#f59e0b" },
-          { etiqueta: "6–7,9", minimo: 6, maximo: 8, color: "#0ea5e9" },
-          { etiqueta: "8–10", minimo: 8, maximo: 10.01, color: "#22c55e" }
+          { etiqueta: "0â€“3,9", minimo: 0, maximo: 4, color: "#ef4444" },
+          { etiqueta: "4â€“5,9", minimo: 4, maximo: 6, color: "#f59e0b" },
+          { etiqueta: "6â€“7,9", minimo: 6, maximo: 8, color: "#0ea5e9" },
+          { etiqueta: "8â€“10", minimo: 8, maximo: 10.01, color: "#22c55e" }
       ];
 
       function obtenerDatosGraficosNotasProfesor(estudiantes) {
@@ -7932,12 +7960,14 @@
                       estudiante.estudiante?.division,
                       estudiante.estudiante?.turno
                   ].filter(Boolean).join(" · "),
-                  academica: academicaTexto === "—" ? null : Number(academicaTexto),
-                  calculada: calculadaTexto === "—" ? null : Number(calculadaTexto),
-                  final: finalTexto === "—" ? null : Number(finalTexto),
+                  academica: academicaTexto === "â€”" ? null : Number(academicaTexto),
+                  calculada: calculadaTexto === "â€”" ? null : Number(calculadaTexto),
+                  final: finalTexto === "â€”" ? null : Number(finalTexto),
                   progreso: calcularProgresoEstudiante(estudiante),
                   desafiosConNota: obtenerNotasDesafiosFinalizadosEstudiante(estudiante).length,
-                  desafiosFinalizados: seccionesData.filter(sec => estudiante?.finalizadas?.[sec.id] === true).length
+                  desafiosFinalizados: seccionesData.filter(sec =>
+                      obtenerFinalizadasEfectivasEstudiante(estudiante)[sec.id] === true
+                  ).length
               };
           }).filter(fila => fila.academica !== null || fila.final !== null)
             .sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -8139,7 +8169,7 @@
                               <td>${formatearNotaGrafico(fila.academica)}</td>
                               <td>${formatearNotaGrafico(fila.calculada)}</td>
                               <td>${formatearNotaGrafico(fila.final)}</td>
-                              <td>${diferencia === null ? "—" : `${diferencia > 0 ? "+" : ""}${formatearNotaGrafico(diferencia)}`}</td>
+                              <td>${diferencia === null ? "â€”" : `${diferencia > 0 ? "+" : ""}${formatearNotaGrafico(diferencia)}`}</td>
                               <td><span class="teacher-grade-status ${fila.final === null ? "is-pending" : "is-confirmed"}">${fila.final === null ? "Final pendiente" : "Confirmada"}</span></td>
                           </tr>`;
                       }).join("")}</tbody>
@@ -8174,7 +8204,7 @@
           const criterioPrincipal = obtenerCriteriosFaltantesActividad(estudiantes, sec.id)[0]?.[0] || "";
           const sugerenciasPorCriterio = {
               "desarrollo suficiente": "Modelar respuestas breves con la estructura decisión, explicación, evidencia y consecuencia.",
-              "justificación causal": "Repasar relaciones de causa y efecto usando conectores como “porque”, “permite”, “evita” y “por lo tanto”.",
+              "justificación causal": "Repasar relaciones de causa y efecto usando conectores como â€œporqueâ€, â€œpermiteâ€, â€œevitaâ€ y â€œpor lo tantoâ€.",
               "evidencia del código o de una prueba": "Practicar cómo citar una variable, condición, función o caso de prueba concreto para sostener una afirmación.",
               "consecuencia, límite o mejora": "Trabajar casos límite y pedir que anticipen qué cambia, qué puede fallar y cómo comprobar una mejora."
           };
@@ -8183,7 +8213,7 @@
               sugerencias.push(sugerenciasPorCriterio[criterioPrincipal]);
           }
           if (sec.theory) sugerencias.push(`Reforzar el contenido: ${String(sec.theory).slice(0, 180)}`);
-          if (sec.exerciseTitle) sugerencias.push(`Retomar “${sec.exerciseTitle}” con una entrada alternativa y una explicación paso a paso.`);
+          if (sec.exerciseTitle) sugerencias.push(`Retomar â€œ${sec.exerciseTitle}â€ con una entrada alternativa y una explicación paso a paso.`);
           return sugerencias.slice(0, 3);
       }
 
@@ -8232,7 +8262,7 @@
                       <strong>${alerta.indice}. ${escapeHtml(alerta.titulo)}</strong>
                       <span>Riesgo ${porcentajeExactoPanel(alerta.riesgo)} · +${porcentajeExactoPanel(alerta.aumentoRiesgo)}</span>
                   </div>
-                  <p>Las respuestas parciales o incorrectas aumentaron desde ${porcentajeExactoPanel(alerta.riesgoAnterior)} en “${escapeHtml(alerta.actividadAnterior)}”.</p>
+                  <p>Las respuestas parciales o incorrectas aumentaron desde ${porcentajeExactoPanel(alerta.riesgoAnterior)} en â€œ${escapeHtml(alerta.actividadAnterior)}â€.</p>
                   <ul>${alerta.sugerencias.map(sugerencia => `<li>${escapeHtml(sugerencia)}</li>`).join("")}</ul>
               </article>`).join("")}</div>
           </section>`;
@@ -8244,7 +8274,7 @@
           return `<details class="teacher-evolution-data" open>
               <summary><i class="fa-solid fa-table-list"></i> Porcentajes exactos por actividad</summary>
               <div class="teacher-group-report-table"><table>
-                  <thead><tr><th>N.º</th><th>Actividad</th><th>Desafíos</th><th>Respuestas</th><th>Completas</th><th>Incompletas</th><th>Parciales</th><th>Incorrectas</th><th>Riesgo</th><th>Cambio</th></tr></thead>
+                  <thead><tr><th>N.Âº</th><th>Actividad</th><th>Desafíos</th><th>Respuestas</th><th>Completas</th><th>Incompletas</th><th>Parciales</th><th>Incorrectas</th><th>Riesgo</th><th>Cambio</th></tr></thead>
                   <tbody>${evolucion.map((item, indice) => `<tr class="${indicesAlerta.has(item.indice) ? "is-risk-row" : ""}">
                       <td>${item.indice}</td>
                       <td><strong>${escapeHtml(item.titulo)}</strong>${indicesAlerta.has(item.indice) ? ' <span class="teacher-risk-badge">Refuerzo</span>' : ""}</td>
@@ -8255,7 +8285,7 @@
                       <td class="is-parcial">${porcentajeExactoPanel(item.porcentajes.parcial)}</td>
                       <td class="is-incorrecta">${porcentajeExactoPanel(item.porcentajes.incorrecta)}</td>
                       <td>${porcentajeExactoPanel(item.riesgo)}</td>
-                      <td>${indice === 0 ? "—" : `${item.aumentoRiesgo > 0 ? "+" : ""}${porcentajeExactoPanel(item.aumentoRiesgo)}`}</td>
+                      <td>${indice === 0 ? "â€”" : `${item.aumentoRiesgo > 0 ? "+" : ""}${porcentajeExactoPanel(item.aumentoRiesgo)}`}</td>
                   </tr>`).join("")}</tbody>
               </table></div>
           </details>`;
@@ -8496,7 +8526,7 @@
               const completados = grupo.estudiantes.filter(item => item.estado === "completado").length;
               return `<article>
                   <header>
-                      <div><strong>${escapeHtml(grupo.plan.contenido)}</strong><small>${escapeHtml(grupo.plan.actividadOrigenTitulo)} → ${escapeHtml(grupo.plan.actividadObjetivoTitulo)}</small></div>
+                      <div><strong>${escapeHtml(grupo.plan.contenido)}</strong><small>${escapeHtml(grupo.plan.actividadOrigenTitulo)} â†’ ${escapeHtml(grupo.plan.actividadObjetivoTitulo)}</small></div>
                       <span>${completados}/${grupo.estudiantes.length} completados</span>
                   </header>
                   <p>${escapeHtml(grupo.plan.indicaciones)}</p>
@@ -8979,7 +9009,7 @@
 
       function dibujarTablaEvolucionInformePDF(doc, evolucion) {
           const columnas = [
-              { titulo: "N.º", x: 10, ancho: 10 },
+              { titulo: "N.Âº", x: 10, ancho: 10 },
               { titulo: "Actividad", x: 21, ancho: 70 },
               { titulo: "Des.", x: 94, ancho: 13 },
               { titulo: "Resp.", x: 109, ancho: 14 },
@@ -9357,14 +9387,19 @@
       function obtenerFinalizadasEfectivasEstudiante(d = {}) {
           const declaradas = d?.finalizadas && typeof d.finalizadas === 'object' ? d.finalizadas : {};
           const resultados = d?.historialResultados && typeof d.historialResultados === 'object' ? d.historialResultados : {};
-          const notasDocente = d?.notasDesafiosDocente && typeof d.notasDesafiosDocente === 'object' ? d.notasDesafiosDocente : {};
-          const finalizadas = { ...declaradas };
+          const finalizadas = {};
           seccionesData.forEach(sec => {
-              const ajuste = notasDocente[sec.id] || {};
-              const notaDocente = ajuste.nota === null || ajuste.nota === undefined || ajuste.nota === '' ? NaN : Number(ajuste.nota);
               const resultado = resultados[sec.id] || {};
-              const notaAutomatica = Number(resultado.notaFinal ?? resultado.notaIA);
-              if (Number.isFinite(notaDocente) || Number.isFinite(notaAutomatica)) finalizadas[sec.id] = true;
+              const codigo = String(resultado.codigo || d?.codigos?.[sec.id] || '').trim();
+              const ejecucionRegistrada = resultado.exito === true || resultado.exito === false ||
+                  Boolean(resultado.evaluacionCodigo?.ejecucion) ||
+                  Boolean(resultado.salida) || Boolean(resultado.error);
+              const respuestasEvaluadas = Number.isFinite(Number(resultado.notaPreguntas)) ||
+                  (Array.isArray(resultado.analista?.preguntas) && resultado.analista.preguntas.length > 0);
+              finalizadas[sec.id] = declaradas[sec.id] === true &&
+                  codigo.length > 0 &&
+                  ejecucionRegistrada &&
+                  respuestasEvaluadas;
           });
           return finalizadas;
       }
@@ -9397,23 +9432,23 @@
       }
       function calcularNotaEstudiante(d) {
           const notas = obtenerNotasDesafiosFinalizadosEstudiante(d).map(item => item.nota);
-          if (!notas.length) return '—';
+          if (!notas.length) return 'â€”';
           return (notas.reduce((a,b)=>a+b,0)/notas.length).toFixed(1);
       }
       function calcularNotaProvisionalEstudiante(d) {
           const academica = Number(calcularNotaEstudiante(d));
-          if (!Number.isFinite(academica)) return '—';
+          if (!Number.isFinite(academica)) return 'â€”';
           const penalizacion = Math.max(0, Math.min(10, Number(d.revisionSalidas?.penalizacion) || 0));
           return Math.max(0, academica - penalizacion).toFixed(1);
       }
       function calcularNotaDefinitivaEstudiante(d) {
           const revision = d.revisionSalidas || {};
-          if (revision.notaConfirmada !== true) return '—';
+          if (revision.notaConfirmada !== true) return 'â€”';
           const confirmada = revision.notaConfirmadaValor === null || revision.notaConfirmadaValor === ''
               ? NaN
               : Number(revision.notaConfirmadaValor);
           if (Number.isFinite(confirmada)) return Math.max(0, Math.min(10, confirmada)).toFixed(1);
-          return '—';
+          return 'â€”';
       }
       function obtenerDetallePromedioEstudiante(d) {
           const historial = d.historialResultados || {};
@@ -9465,6 +9500,14 @@
               return ['finalizados', 'corregidos', 'pendientes'].includes(guardado) ? guardado : '';
           } catch (_) {
               return '';
+          }
+      })();
+      const CLAVE_VISIBILIDAD_VALORES_GRAFICO_NOTAS = 'teacher_student_grade_chart_show_values';
+      let mostrarValoresGraficoNotasEstudiante = (() => {
+          try {
+              return sessionStorage.getItem(CLAVE_VISIBILIDAD_VALORES_GRAFICO_NOTAS) !== 'false';
+          } catch (_) {
+              return true;
           }
       })();
       const CLAVE_POSICION_GRAFICO_NOTAS_ESTUDIANTE = 'teacher_student_grade_chart_scroll_left';
@@ -9585,6 +9628,35 @@
           activador?.setAttribute?.('aria-pressed', 'true');
       }
       window.abrirDesafioDesdeGraficoNotasEstudiante = abrirDesafioDesdeGraficoNotasEstudiante;
+      function aplicarVisibilidadValoresGraficoNotasEstudiante(grafico, mostrar) {
+          if (!grafico) return;
+          mostrarValoresGraficoNotasEstudiante = mostrar !== false;
+          grafico.classList.toggle('hide-grade-values', !mostrarValoresGraficoNotasEstudiante);
+          const boton = grafico.querySelector('.teacher-student-grade-values-toggle');
+          if (boton) {
+              boton.setAttribute('aria-pressed', String(mostrarValoresGraficoNotasEstudiante));
+              boton.setAttribute('aria-label', mostrarValoresGraficoNotasEstudiante
+                  ? 'Ocultar notas numéricas del gráfico'
+                  : 'Mostrar notas numéricas del gráfico');
+              boton.innerHTML = mostrarValoresGraficoNotasEstudiante
+                  ? '<i class="fa-solid fa-eye-slash"></i> Ocultar notas'
+                  : '<i class="fa-solid fa-eye"></i> Mostrar notas';
+          }
+          try {
+              sessionStorage.setItem(
+                  CLAVE_VISIBILIDAD_VALORES_GRAFICO_NOTAS,
+                  String(mostrarValoresGraficoNotasEstudiante)
+              );
+          } catch (_) {}
+      }
+      function alternarValoresGraficoNotasEstudiante(boton = null) {
+          const grafico = boton?.closest?.('.teacher-student-grade-chart');
+          if (!grafico) return;
+          aplicarVisibilidadValoresGraficoNotasEstudiante(
+              grafico,
+              grafico.classList.contains('hide-grade-values')
+          );
+      }
       function renderGraficoNotasDesafiosEstudiante(d) {
           const historial = d?.historialResultados || {};
           const notasDocente = d?.notasDesafiosDocente || {};
@@ -9658,7 +9730,7 @@
           const tituloActual = desafioActual.desafio?.title || 'Sin desafío informado';
           const estadoActual = desafioActual.trabajandoAhora
               ? 'Trabajando ahora'
-              : (desafioActual.conectado ? 'Desaf?o abierto' : (desafioActual.id ? 'Último desaf?o informado' : 'Sin actividad informada'));
+              : (desafioActual.conectado ? 'Desafío abierto' : (desafioActual.id ? 'Ãšltimo desafío informado' : 'Sin actividad informada'));
           const estadoActualTexto = desafioActual.siguiente ? 'Siguiente desafío' : estadoActual;
           const conteosFiltros = {
               todos: datos.length,
@@ -9690,6 +9762,9 @@
                       </button>
                       <button type="button" data-grade-filter-button="pendientes" aria-pressed="false" onclick="filtrarGraficoNotasDesafiosEstudiante('pendientes', this)">
                           <i class="fa-solid fa-clock"></i> <span>Pendientes</span><b>${conteosFiltros.pendientes}</b>
+                      </button>
+                      <button type="button" class="teacher-student-grade-values-toggle" aria-pressed="true" aria-label="Ocultar notas numéricas del gráfico" onclick="alternarValoresGraficoNotasEstudiante(this)">
+                          <i class="fa-solid fa-eye-slash"></i> Ocultar notas
                       </button>
                       <button type="button" class="is-reset" onclick="restablecerFiltroGraficoNotasEstudiante(this)" title="Volver a mostrar todos los desafíos">
                           <i class="fa-solid fa-arrow-rotate-left"></i> Restablecer filtro
@@ -10007,6 +10082,48 @@
           renderPanelProfesor();
           abrirDetalleEstudianteProfesor(indice);
       }
+
+      async function guardarEntregaAcademicaEspecialProfesor(indice, tipo) {
+          const d = estudiantesProfesor[indice];
+          const campo = tipo === 'proyectoFinal' ? 'proyectoFinal' : 'coloquioExamen';
+          const etiqueta = tipo === 'proyectoFinal' ? 'Proyecto Final' : 'COLOQUIO-EXAMEN';
+          const input = document.getElementById(`notaEspecial-${tipo}`);
+          const motivo = document.getElementById(`motivoEspecial-${tipo}`)?.value?.trim() || '';
+          const confirmar = document.getElementById(`confirmarEspecial-${tipo}`)?.checked === true;
+          const estado = document.getElementById(`estadoEspecial-${tipo}`);
+          const nota = Number(input?.value);
+          if (!d?.uid) return alert('No se encontró el identificador Firebase del estudiante.');
+          if (!Number.isFinite(nota) || nota < 0 || nota > 10) {
+              alert(`La nota de ${etiqueta} debe ser un número entre 0 y 10.`);
+              input?.focus();
+              return;
+          }
+          if (!(await window.autorizarDocenteFirebase?.())) {
+              alert('Solo una cuenta docente autorizada puede confirmar estas notas.');
+              return;
+          }
+          if (estado) { estado.className = 'teacher-challenge-grade-status saving'; estado.textContent = 'Guardando...'; }
+          const ok = await window.guardarEntregaAcademicaEspecialFirebase?.(d.uid, tipo, {
+              nota: Number(nota.toFixed(1)), motivo, confirmada: confirmar
+          });
+          if (!ok) {
+              if (estado) { estado.className = 'teacher-challenge-grade-status error'; estado.textContent = 'No se pudo guardar'; }
+              alert('No se pudo guardar la nota especial. Verificá permisos y conexión.');
+              return;
+          }
+          d[campo] = {
+              ...(d[campo] || {}),
+              grade: Number(nota.toFixed(1)),
+              confirmedGrade: confirmar ? Number(nota.toFixed(1)) : null,
+              gradeConfirmed: confirmar,
+              gradeReason: motivo,
+              gradeConfirmedBy: confirmar ? (window.firebaseTeacherUser?.email || window.firebaseCurrentUser?.email || '') : ''
+          };
+          renderPanelProfesor();
+          abrirDetalleEstudianteProfesor(indice);
+      }
+
+      window.guardarEntregaAcademicaEspecialProfesor = guardarEntregaAcademicaEspecialProfesor;
       async function cargarHistorialNotasDesafioProfesor(indice, sectionId) {
           const d = estudiantesProfesor[indice];
           const contenedor = document.getElementById(`historialNotaDesafio-${sectionId}`);
@@ -10086,7 +10203,7 @@
               alert('Escribí una justificación antes de aplicar una penalización.');
               return;
           }
-          if (notaConfirmada && notaCalculada === '—') {
+          if (notaConfirmada && notaCalculada === 'â€”') {
               alert('Todavía no hay un promedio académico para confirmar.');
               return;
           }
@@ -10292,6 +10409,30 @@
           if (!confirm(mensajes[accion] || '¿Confirmar la operación?')) return;
           const ok = await window.controlarCronometroEstudianteFirebase?.(d.uid, accion);
           if (!ok) {
+              const error = window.ultimoErrorCronometroIndividual || {};
+              const codigo = String(error.code || '').trim();
+              const detalle = String(error.message || '').trim();
+              const diagnostico = codigo === 'teacher-not-authorized'
+                  ? 'La sesiÃ³n docente no estÃ¡ autorizada o expirÃ³. IngresÃ¡ nuevamente como docente.'
+                  : codigo === 'permission-denied'
+                      ? 'Firestore rechazÃ³ la escritura. PublicÃ¡ firestore.rules en el proyecto Firebase activo y verificÃ¡ que la cuenta docente figure como autorizada.'
+                      : codigo === 'auth/email-not-verified'
+                          ? 'El correo de la cuenta docente no estÃ¡ verificado.'
+                          : (codigo === 'unavailable' || codigo === 'network-request-failed')
+                              ? 'No se pudo conectar con Firebase. RevisÃ¡ la conexiÃ³n e intentÃ¡ nuevamente.'
+                              : detalle || 'Firebase no devolviÃ³ un motivo detallado.';
+              const contexto = [
+                  codigo ? `CÃ³digo: ${codigo}` : '',
+                  error.projectId ? `Proyecto: ${error.projectId}` : '',
+                  error.email ? `Cuenta: ${error.email}` : ''
+              ].filter(Boolean).join('\n');
+              alert(
+                  `No se pudo ${accion === 'pausar' ? 'pausar' : accion === 'reanudar' ? 'reanudar' : 'reiniciar'} el cronÃ³metro de ${nombre}.\n\n` +
+                  `${diagnostico}${contexto ? `\n\n${contexto}` : ''}`
+              );
+              return;
+          }
+          if (!ok) {
               alert('No se pudo actualizar el cronómetro individual. Verificá las reglas de Firestore.');
               return;
           }
@@ -10421,7 +10562,7 @@
           modal.className = 'modal-overlay';
           modal.setAttribute('role', 'dialog');
           modal.setAttribute('aria-modal', 'true');
-          modal.innerHTML = `<div class="modal-box teacher-unlock-selector-box" tabindex="-1"><header class="teacher-unlock-selector-header"><div><span class="student-progress-eyebrow">Panel docente</span><h3><i class="fa-solid fa-unlock-keyhole"></i> Desbloquear actividades</h3><p>${escapeHtml(nombre)} ? Eleg? exactamente qu? actividades volver a habilitar.</p></div><button type="button" class="btn btn-secondary teacher-unlock-selector-close" aria-label="Cerrar"><span aria-hidden="true"></span></button></header><div class="teacher-unlock-selector-toolbar"><button type="button" class="btn btn-secondary" data-unlock-select-all><i class="fa-solid fa-check-double"></i> Seleccionar todas</button><button type="button" class="btn btn-secondary" data-unlock-clear><i class="fa-solid fa-square-minus"></i> Limpiar selecci?n</button><span data-unlock-count>0 seleccionadas</span></div><div class="teacher-unlock-selector-list">${actividades.map(sec => `<label class="teacher-unlock-option"><input type="checkbox" value="${escapeHtml(sec.id)}"><span><strong>${escapeHtml(sec.title || sec.id)}</strong><small>Actividad finalizada ? se conservar?n respuestas y calificaciones</small></span></label>`).join('')}</div><div class="teacher-unlock-selector-actions"><span class="teacher-unlock-selector-status" role="status"></span><button type="button" class="btn btn-success" data-unlock-confirm disabled><i class="fa-solid fa-unlock"></i> Desbloquear seleccionadas</button></div></div>`;
+          modal.innerHTML = `<div class="modal-box teacher-unlock-selector-box" tabindex="-1"><header class="teacher-unlock-selector-header"><div><span class="student-progress-eyebrow">Panel docente</span><h3><i class="fa-solid fa-unlock-keyhole"></i> Desbloquear actividades</h3><p>${escapeHtml(nombre)} · Elegí exactamente qué actividades volver a habilitar.</p></div><button type="button" class="btn btn-secondary teacher-unlock-selector-close" aria-label="Cerrar"><span aria-hidden="true">Ã—</span></button></header><div class="teacher-unlock-selector-toolbar"><button type="button" class="btn btn-secondary" data-unlock-select-all><i class="fa-solid fa-check-double"></i> Seleccionar todas</button><button type="button" class="btn btn-secondary" data-unlock-clear><i class="fa-solid fa-square-minus"></i> Limpiar selección</button><span data-unlock-count>0 seleccionadas</span></div><div class="teacher-unlock-selector-list">${actividades.map(sec => `<label class="teacher-unlock-option"><input type="checkbox" value="${escapeHtml(sec.id)}"><span><strong>${escapeHtml(sec.title || sec.id)}</strong><small>Actividad finalizada · se conservarán respuestas y calificaciones</small></span></label>`).join('')}</div><div class="teacher-unlock-selector-actions"><span class="teacher-unlock-selector-status" role="status"></span><button type="button" class="btn btn-success" data-unlock-confirm disabled><i class="fa-solid fa-unlock"></i> Desbloquear seleccionadas</button></div></div>`;
           document.body.appendChild(modal);
           const cerrar = () => modal.remove();
           modal.querySelector('.teacher-unlock-selector-close').onclick = cerrar;
@@ -10553,8 +10694,8 @@
                   const clases=['teacher-answer',seleccionada?'selected':'',correcta?'correct':(seleccionada?'wrong':'')].filter(Boolean).join(' ');
                   const marcas=[seleccionada?'Seleccionada':'',correcta?'Correcta':''].filter(Boolean).join(' · ');
                   return `<span class="${clases}">
-                      ${seleccionada ? '☑' : '☐'} ${String.fromCharCode(65+j)}) ${escapeHtml(op?.texto || op?.t || '')}
-                      ${marcas ? `<small style="color:var(--text-muted)"> — ${marcas}</small>` : ''}
+                      ${seleccionada ? 'â˜‘' : 'â˜'} ${String.fromCharCode(65+j)}) ${escapeHtml(op?.texto || op?.t || '')}
+                      ${marcas ? `<small style="color:var(--text-muted)"> â€” ${marcas}</small>` : ''}
                   </span>`;
               }).join('')}
           </div>`;
@@ -11024,7 +11165,7 @@
       }
 
       // ============================================================
-      // DATOS PERSONALES DEL ESTUDIANTE — EDICIÓN DOCENTE
+      // DATOS PERSONALES DEL ESTUDIANTE â€” EDICIÃ“N DOCENTE
       // El docente autorizado puede modificar nombre, curso, división y turno.
       // El guardado se realiza por UID en estudiantes/{uid} y no toca progreso,
       // respuestas, códigos, notas ni historial del estudiante.
@@ -11167,8 +11308,41 @@
           const promedio = calcularNotaEstudiante(d);
           const notaCalculada = calcularNotaProvisionalEstudiante(d);
           const notaDefinitiva = calcularNotaDefinitivaEstudiante(d);
-          const notaFinalEditable = notaDefinitiva !== '—' ? notaDefinitiva : notaCalculada;
+          const notaFinalEditable = notaDefinitiva !== 'â€”' ? notaDefinitiva : notaCalculada;
           const detallePromedio = obtenerDetallePromedioEstudiante(d);
+          const proyectoFinal = d.proyectoFinal || {};
+          const coloquioExamen = d.coloquioExamen || {};
+          const renderEntregaEspecial = (tipo, titulo, icono, entrega) => {
+              const enviada = entrega.submitted === true || Boolean(entrega.code || entrega.challenge);
+              const nota = Number(entrega.confirmedGrade ?? entrega.grade);
+              const notaValida = Number.isFinite(nota);
+              const confirmada = entrega.gradeConfirmed === true && Number.isFinite(Number(entrega.confirmedGrade));
+              const contenido = tipo === 'proyectoFinal'
+                  ? (entrega.code || '// Sin código entregado.')
+                  : (entrega.challenge || '// Sin desafío entregado.');
+              return `<section class="teacher-special-assessment">
+                  <div class="teacher-special-assessment-header">
+                      <div><h3><i class="fa-solid ${icono}"></i> ${titulo}</h3><p>${enviada ? `Entrega registrada: ${escapeHtml(String(entrega.submittedAt || 'sin fecha'))}` : 'Sin entrega registrada'}</p></div>
+                      <span class="teacher-activity-badge ${confirmada ? 'is-approved' : (enviada ? 'is-pending' : 'is-muted')}">${confirmada ? 'Nota confirmada' : (enviada ? 'Pendiente de confirmación' : 'Pendiente')}</span>
+                  </div>
+                  <div class="teacher-detail-summary">
+                      <div class="teacher-detail-stat"><small>Nota automática</small><strong>${notaValida ? `${Number(entrega.grade).toFixed(1)}/10` : 'Pendiente'}</strong></div>
+                      <div class="teacher-detail-stat"><small>Nota confirmada</small><strong>${confirmada ? `${Number(entrega.confirmedGrade).toFixed(1)}/10` : 'Pendiente'}</strong></div>
+                      <div class="teacher-detail-stat"><small>Docente</small><strong>${escapeHtml(entrega.gradeConfirmedBy || 'Sin confirmar')}</strong></div>
+                  </div>
+                  <details class="teacher-special-submission"><summary>Ver entrega</summary><pre class="teacher-code">${escapeHtml(contenido)}</pre>${tipo === 'coloquioExamen' && Array.isArray(entrega.answers) ? `<div class="teacher-special-answers">${entrega.answers.map((respuesta, i) => `<p><strong>${i + 1}.</strong> ${escapeHtml(respuesta || 'Sin respuesta')}</p>`).join('')}</div>` : ''}</details>
+                  <div class="teacher-challenge-grade-fields">
+                      <label>Nota docente<input id="notaEspecial-${tipo}" type="number" min="0" max="10" step="0.1" value="${notaValida ? nota.toFixed(1) : ''}" placeholder="0 a 10"></label>
+                      <label>Observación<input id="motivoEspecial-${tipo}" type="text" maxlength="1000" value="${escapeHtml(entrega.gradeReason || '')}" placeholder="Criterio o fundamento"></label>
+                      <label class="teacher-special-confirm"><input id="confirmarEspecial-${tipo}" type="checkbox" ${confirmada ? 'checked' : ''}> Confirmar esta nota</label>
+                  </div>
+                  <div class="teacher-challenge-grade-actions"><button class="btn btn-primary" type="button" onclick="guardarEntregaAcademicaEspecialProfesor(${indice}, '${tipo}')"><i class="fa-solid fa-check-double"></i> Guardar nota</button><span id="estadoEspecial-${tipo}" class="teacher-challenge-grade-status ${confirmada ? 'saved' : ''}">${confirmada ? 'Confirmada' : 'Sin cambios'}</span></div>
+              </section>`;
+          };
+          const entregasEspecialesHtml = [
+              renderEntregaEspecial('proyectoFinal', 'Proyecto Final', 'fa-rocket', proyectoFinal),
+              renderEntregaEspecial('coloquioExamen', 'COLOQUIO-EXAMEN', 'fa-user-graduate', coloquioExamen)
+          ].join('');
           const desafioActualDetalle = obtenerDesafioActualEstudiante(d);
           const graficoNotasDesafios = renderGraficoNotasDesafiosEstudiante(d);
           const resumenConsultasIA = resumirConsultasIAEstudiante(d);
@@ -11256,7 +11430,7 @@
                   : '';
               const estado = finalizadas[sec.id] ? 'Finalizada' : (r.notaCodigo !== undefined ? 'Preguntas pendientes' : 'En curso');
               const formulaActividad = r.notaCodigo !== undefined && r.notaPreguntas !== undefined
-                  ? `(${r.notaCodigo} × 0,70) + (${r.notaPreguntas} × 0,30) = ${notaAutomatica}`
+                  ? `(${r.notaCodigo} Ã— 0,70) + (${r.notaPreguntas} Ã— 0,30) = ${notaAutomatica}`
                   : 'La fórmula se completará al entregar código y preguntas.';
               const estadosDetalle = [
                   (!evaluacionCodigo?.sintaxis?.valida || evaluacionCodigo?.ejecucion?.ok === false || Boolean(r.error)) ? 'errores' : '',
@@ -11304,7 +11478,7 @@
                           <div class="teacher-detail-stat"><small>Intentos</small><strong>${intentosModulo}</strong></div>
                       </div>
                       ${ultimoDesbloqueoModulo ? `<div style="padding:.65rem;border-radius:6px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.25);margin-bottom:.8rem;line-height:1.5">
-                          <strong><i class="fa-solid fa-unlock-keyhole"></i> Último desbloqueo</strong><br>
+                          <strong><i class="fa-solid fa-unlock-keyhole"></i> Ãšltimo desbloqueo</strong><br>
                           Motivo: ${escapeHtml(ultimoDesbloqueoModulo.motivo || 'Nuevo intento autorizado')}<br>
                           Docente: ${escapeHtml(ultimoDesbloqueoModulo.por || 'Docente autorizado')}
                           ${fechaDesbloqueoModulo ? `<br>Fecha: ${escapeHtml(fechaDesbloqueoModulo)}` : ''}
@@ -11329,7 +11503,7 @@
                               <div>
                                   <h4><i class="fa-solid fa-pen-to-square"></i> Calificación del docente</h4>
                                   <p>${tieneNotaDocente
-                                      ? `Esta nota reemplaza la autom?tica en el promedio. Última modificaci?n: ${escapeHtml(ajusteNotaDocente.modificadaPor || 'docente autorizado')}.`
+                                      ? `Esta nota reemplaza la automática en el promedio. Ãšltima modificación: ${escapeHtml(ajusteNotaDocente.modificadaPor || 'docente autorizado')}.`
                                       : 'Podés reemplazar la nota automática de este desafío sin modificar el código ni las respuestas.'}</p>
                               </div>
                               <span id="estadoNotaDesafioDocente-${sec.id}" class="teacher-challenge-grade-status ${tieneNotaDocente ? 'saved' : ''}">
@@ -11415,7 +11589,7 @@
               ? detallePromedio.evaluadas.map(x=>`${escapeHtml(x.titulo)}: ${x.nota}/10`).join('<br>')
               : 'Todavía no hay actividades con una nota vigente para incluir en el promedio.';
           const formulaPromedio = detallePromedio.promedio !== null
-              ? `${detallePromedio.evaluadas.map(x=>x.nota).join(' + ')} = ${detallePromedio.suma.toFixed(1)}; ${detallePromedio.suma.toFixed(1)} ÷ ${detallePromedio.evaluadas.length} = ${detallePromedio.promedio.toFixed(1)}`
+              ? `${detallePromedio.evaluadas.map(x=>x.nota).join(' + ')} = ${detallePromedio.suma.toFixed(1)}; ${detallePromedio.suma.toFixed(1)} Ã· ${detallePromedio.evaluadas.length} = ${detallePromedio.promedio.toFixed(1)}`
               : 'Pendiente';
           const eventosHtml = eventos.length ? eventos.map(evento => {
               const salida = evento.salidaEn ? new Date(evento.salidaEn).toLocaleString() : 'Sin fecha';
@@ -11423,7 +11597,7 @@
                   ? 'No registrada'
                   : `${evento.duracionSegundos} segundos`;
               const justificacion = evento.justificacion
-                  ? `<div style="margin-top:.4rem;color:#cbd5e1"><strong>Justificacin:</strong> ${escapeHtml(evento.justificacion.motivo || '')} — ${escapeHtml(evento.justificacion.detalle || '')}</div>`
+                  ? `<div style="margin-top:.4rem;color:#cbd5e1"><strong>Justificación:</strong> ${escapeHtml(evento.justificacion.motivo || '')} â€” ${escapeHtml(evento.justificacion.detalle || '')}</div>`
                   : '<div style="margin-top:.4rem;color:#fbbf24">Sin justificación del estudiante.</div>';
               return `<div class="teacher-question">
                   <strong>Evento ${Number(evento.numero || 0)} · ${escapeHtml(salida)}</strong>
@@ -11474,15 +11648,15 @@
               <div class="teacher-detail-summary">
                   <div class="teacher-detail-stat"><small>Nombre</small><strong>${escapeHtml(e.nombre || d.nombreGoogle || 'Sin nombre')}</strong></div>
                   <div class="teacher-detail-stat"><small>Email</small><strong>${escapeHtml(d.email || 'Sin email')}</strong></div>
-                  <div class="teacher-detail-stat"><small>Curso y división</small><strong>${escapeHtml(`${e.curso || '—'} ${e.division || ''}`)}</strong></div>
-                   <div class="teacher-detail-stat"><small>Turno</small><strong>${escapeHtml(e.turno || '—')}</strong></div>
+                  <div class="teacher-detail-stat"><small>Curso y división</small><strong>${escapeHtml(`${e.curso || 'â€”'} ${e.division || ''}`)}</strong></div>
+                   <div class="teacher-detail-stat"><small>Turno</small><strong>${escapeHtml(e.turno || 'â€”')}</strong></div>
                    <div class="teacher-detail-stat"><small>Progreso</small><strong>${progreso}%</strong></div>
-                   <div class="teacher-detail-stat teacher-current-challenge-stat"><small>${desafioActualDetalle.siguiente ? 'Siguiente desaf?o' : 'Desaf?o actual'}</small><strong>${escapeHtml(desafioActualDetalle.desafio?.title || 'Sin actividad informada')}</strong><span>${desafioActualDetalle.trabajandoAhora ? 'Trabajando ahora' : (desafioActualDetalle.siguiente ? 'Calculado por finalizaci?n' : (desafioActualDetalle.id ? 'Último informado' : 'Sin conexi?n activa'))}</span></div>
+                   <div class="teacher-detail-stat teacher-current-challenge-stat"><small>${desafioActualDetalle.siguiente ? 'Siguiente desafío' : 'Desafío actual'}</small><strong>${escapeHtml(desafioActualDetalle.desafio?.title || 'Sin actividad informada')}</strong><span>${desafioActualDetalle.trabajandoAhora ? 'Trabajando ahora' : (desafioActualDetalle.siguiente ? 'Calculado por finalización' : (desafioActualDetalle.id ? 'Ãšltimo informado' : 'Sin conexión activa'))}</span></div>
                    <div class="teacher-detail-stat"><small>Desafíos con evaluación socrática</small><strong>${actividadesSocraticasValidas.length}</strong></div>
                   <div class="teacher-detail-stat"><small>Total de respuestas socráticas</small><strong>${respuestasSocraticasValidas}</strong></div>
-                  <div class="teacher-detail-stat"><small>Promedio acadmico</small><strong>${promedio === '—' ? 'Pendiente' : `${promedio}/10`}</strong></div>
-                  <div class="teacher-detail-stat"><small>Nota calculada</small><strong>${notaCalculada === '—' ? 'Pendiente' : `${notaCalculada}/10`}</strong></div>
-                  <div class="teacher-detail-stat"><small>Nota definitiva</small><strong>${notaDefinitiva === '—' ? 'Pendiente de confirmación' : `${notaDefinitiva}/10`}</strong></div>
+                  <div class="teacher-detail-stat"><small>Promedio académico</small><strong>${promedio === 'â€”' ? 'Pendiente' : `${promedio}/10`}</strong></div>
+                  <div class="teacher-detail-stat"><small>Nota calculada</small><strong>${notaCalculada === 'â€”' ? 'Pendiente' : `${notaCalculada}/10`}</strong></div>
+                  <div class="teacher-detail-stat"><small>Nota definitiva</small><strong>${notaDefinitiva === 'â€”' ? 'Pendiente de confirmación' : `${notaDefinitiva}/10`}</strong></div>
                   <div class="teacher-detail-stat teacher-level-completa"><small>Respuestas completas</small><strong>${resumenNivelesAnalista.completa}</strong></div>
                   <div class="teacher-detail-stat teacher-level-incompleta"><small>Correctas incompletas</small><strong>${resumenNivelesAnalista.incompleta}</strong></div>
                   <div class="teacher-detail-stat teacher-level-parcial"><small>Respuestas parciales</small><strong>${resumenNivelesAnalista.parcial}</strong></div>
@@ -11490,8 +11664,12 @@
                   <div class="teacher-detail-stat"><small>Estado de cuenta</small><strong style="color:${colorCuentaDetalle}">${estadoCuentaDetalle}</strong></div>
                   <div class="teacher-detail-stat"><small>Salidas de pestaña</small><strong>${Number(d.salidasPestana ?? d.salidasPestana ?? 0)}</strong></div>
                   <div class="teacher-detail-stat"><small>Desbloqueos</small><strong>${cantidadDesbloqueos}</strong></div>
-                   <div class="teacher-detail-stat"><small>Última actualización</small><strong>${escapeHtml(fecha)}</strong></div>
+                   <div class="teacher-detail-stat"><small>Ãšltima actualización</small><strong>${escapeHtml(fecha)}</strong></div>
                </div>
+               <section class="teacher-special-assessments">
+                   <div class="teacher-section-title"><i class="fa-solid fa-award"></i> Evaluaciones especiales</div>
+                   ${entregasEspecialesHtml}
+               </section>
                ${graficoNotasDesafios}
                <button type="button" class="teacher-floating-chart-button" onclick="irAlGraficoNotasEstudiante(this)" title="Ir al gráfico de notas">
                    <i class="fa-solid fa-chart-column"></i><span>Ir al gráfico</span>
@@ -11585,9 +11763,9 @@
                   <div style="margin-top:.4rem;color:var(--text-muted);line-height:1.5">
                     Fecha del bloqueo: ${escapeHtml(d.pantallaBloqueadaEn ? new Date(d.pantallaBloqueadaEn).toLocaleString() : 'Sin bloqueo registrado')}<br>
                     Cantidad de salidas: ${Number(d.pantallaBloqueadaSalidas || d.salidasPestana || 0)}<br>
-                    Última sección: ${escapeHtml(d.pantallaBloqueadaSeccion || 'Sin identificar')}<br>
+                    Ãšltima sección: ${escapeHtml(d.pantallaBloqueadaSeccion || 'Sin identificar')}<br>
                     Total de desbloqueos: ${cantidadDesbloqueos}<br>
-                    Último desbloqueo: ${escapeHtml(ultimoDesbloqueoFecha)}<br>
+                    Ãšltimo desbloqueo: ${escapeHtml(ultimoDesbloqueoFecha)}<br>
                     Realizado por: ${escapeHtml(ultimoDesbloqueo.por || 'Sin registrar')}<br>
                     Motivo: ${escapeHtml(ultimoDesbloqueo.motivo || 'Sin motivo registrado')}
                   </div>
@@ -11597,7 +11775,7 @@
               <details class="teacher-activity">
                   <summary>Cómo se calculó el promedio académico</summary>
                   <div class="teacher-activity-content">
-                      <p><strong>F?rmula:</strong> suma de las notas vigentes evaluadas  cantidad de actividades evaluadas. Las correcciones docentes reemplazan a la nota autom?tica.</p>
+                      <p><strong>Fórmula:</strong> suma de las notas vigentes evaluadas Ã· cantidad de actividades evaluadas. Las correcciones docentes reemplazan a la nota automática.</p>
                       <p style="margin-top:.5rem;"><strong>Cálculo actual:</strong> ${escapeHtml(formulaPromedio)}</p>
                       <p style="margin-top:.7rem;"><strong>Actividades incluidas (${detallePromedio.evaluadas.length}):</strong></p>
                       <div style="margin-top:.35rem;color:#cbd5e1;line-height:1.5">${notasUsadas}</div>
@@ -11636,21 +11814,21 @@
                           </div>
                           <div class="input-group" style="margin-top:.7rem">
                               <label for="notaFinalDocenteProfesor">Nota final que desea confirmar el docente</label>
-                              <input id="notaFinalDocenteProfesor" type="number" min="0" max="10" step="0.1" value="${notaFinalEditable === '—' ? '' : notaFinalEditable}">
+                              <input id="notaFinalDocenteProfesor" type="number" min="0" max="10" step="0.1" value="${notaFinalEditable === 'â€”' ? '' : notaFinalEditable}">
                               <small style="color:var(--text-muted)">Puede conservar la nota calculada o reemplazarla por otro valor entre 0 y 10. Solo será definitiva al marcar la confirmación.</small>
                           </div>
                           <div style="margin-top:.7rem;line-height:1.5">
-                              Promedio acadmico: <strong>${promedio === '—' ? 'Pendiente' : `${promedio}/10`}</strong><br>
+                              Promedio académico: <strong>${promedio === 'â€”' ? 'Pendiente' : `${promedio}/10`}</strong><br>
                               Penalización: <strong>-${Number(revision.penalizacion || 0).toFixed(1)}</strong><br>
-                              Nota calculada: <strong>${notaCalculada === '—' ? 'Pendiente' : `${notaCalculada}/10`}</strong><br>
-                              Nota definitiva: <strong>${notaDefinitiva === '—' ? 'Pendiente de confirmación docente' : `${notaDefinitiva}/10`}</strong>
+                              Nota calculada: <strong>${notaCalculada === 'â€”' ? 'Pendiente' : `${notaCalculada}/10`}</strong><br>
+                              Nota definitiva: <strong>${notaDefinitiva === 'â€”' ? 'Pendiente de confirmación docente' : `${notaDefinitiva}/10`}</strong>
                               ${revision.notaConfirmada === true && revision.notaModificadaManualmente === true
                                   ? '<br><small>La nota definitiva fue modificada manualmente por el docente.</small>'
                                   : ''}
-                              ${revision.revisadoPor ? `<br><small>Última revisión: ${escapeHtml(revision.revisadoPor)}</small>` : ''}
+                              ${revision.revisadoPor ? `<br><small>Ãšltima revisión: ${escapeHtml(revision.revisadoPor)}</small>` : ''}
                           </div>
                           <label style="display:flex;align-items:flex-start;gap:.55rem;margin-top:.8rem;padding:.75rem;border:1px solid rgba(56,189,248,.35);border-radius:7px;background:rgba(56,189,248,.08);cursor:pointer">
-                              <input id="confirmarNotaDefinitivaProfesor" type="checkbox" ${revision.notaConfirmada === true ? 'checked' : ''} ${notaCalculada === '—' ? 'disabled' : ''} style="margin-top:.2rem">
+                              <input id="confirmarNotaDefinitivaProfesor" type="checkbox" ${revision.notaConfirmada === true ? 'checked' : ''} ${notaCalculada === 'â€”' ? 'disabled' : ''} style="margin-top:.2rem">
                               <span>
                                   <strong>Confirmar nota definitiva</strong><br>
                                   <small>Se confirmará el valor ingresado arriba. Si se modifica el descuento desde el editor rápido, deberá confirmarse nuevamente.</small>
@@ -11687,6 +11865,7 @@
           if (botonFiltroRecordado) {
               filtrarGraficoNotasDesafiosEstudiante(ultimoFiltroGraficoNotasEstudiante, botonFiltroRecordado);
           }
+          aplicarVisibilidadValoresGraficoNotasEstudiante(graficoNotas, mostrarValoresGraficoNotasEstudiante);
           restaurarPosicionGraficoNotasEstudiante(graficoNotas);
           window.cargarHistorialAccesosProfesorFirebase?.(d.uid).then(accesos => {
               const contenedor = document.getElementById("historialAccesosProfesor");
@@ -12247,7 +12426,7 @@
           const nota = calcularNotaProvisionalEstudiante(d);
           indiceEditorDescuentoEstudiante = indice;
           document.getElementById('editarDescuentoSubtitulo').textContent = `${nombre} · ${d.email || 'Sin email'}`;
-          document.getElementById('editarDescuentoNotaActual').textContent = nota === '—' ? 'Pendiente' : `${nota}/10 calculada`;
+          document.getElementById('editarDescuentoNotaActual').textContent = nota === 'â€”' ? 'Pendiente' : `${nota}/10 calculada`;
           document.getElementById('editarDescuentoPuntos').value = Number(revision.penalizacion || 0).toFixed(1);
           document.getElementById('editarDescuentoMotivo').value = revision.motivo || '';
           const error = document.getElementById('editarDescuentoError');
@@ -12851,7 +13030,7 @@
               const email = String(d.email||'').toLowerCase();
               const progreso = calcularProgresoEstudiante(d);
               const notaTexto = calcularNotaDefinitivaEstudiante(d);
-              const nota = notaTexto === '—' ? NaN : Number(notaTexto);
+              const nota = notaTexto === 'â€”' ? NaN : Number(notaTexto);
               const descuento = Math.max(0, Math.min(10, Number(d.revisionSalidas?.penalizacion) || 0));
               const alerta = obtenerAlertaConsultasIA(d);
               const actualizado = obtenerMarcaConexionProfesor(d);
@@ -12999,8 +13178,8 @@
           const bloqueados=rows.filter(d=>d.pantallaBloqueada===true).length;
           const desbloqueosTotales=rows.reduce((total,d)=>total+Number(d.cantidadDesbloqueos||0),0);
           const intentosPortapapelesTotales=rows.reduce((total,d)=>total+obtenerResumenPortapapeles(d).total,0);
-          const notas=rows.map(calcularNotaDefinitivaEstudiante).filter(n=>n!=='—').map(Number);
-          const promedio=notas.length?(notas.reduce((a,b)=>a+b,0)/notas.length).toFixed(1):'—';
+          const notas=rows.map(calcularNotaDefinitivaEstudiante).filter(n=>n!=='â€”').map(Number);
+          const promedio=notas.length?(notas.reduce((a,b)=>a+b,0)/notas.length).toFixed(1):'â€”';
           document.getElementById('resumenProfesor').innerHTML=[
               ['Estudiantes',total,'','fa-users'],
               ['Solicitudes pendientes',solicitudesPendientes,'','fa-user-clock'],
@@ -13021,7 +13200,7 @@
               const resumenPortapapelesFila = obtenerResumenPortapapeles(d);
               const riesgoColor = resumenPortapapelesFila.riesgo === 'alto' ? '#fecaca' : (resumenPortapapelesFila.riesgo === 'medio' ? '#fde68a' : '#bfdbfe');
               const portapapelesFilaHtml = resumenPortapapelesFila.total > 0
-                  ? `<div style="margin-top:.35rem;padding:.3rem .45rem;border-radius:5px;background:rgba(239,68,68,.14);color:${riesgoColor};font-size:.7rem;line-height:1.35" title="Copiar: ${resumenPortapapelesFila.conteos.copiar} ? Cortar: ${resumenPortapapelesFila.conteos.cortar} ? Pegar: ${resumenPortapapelesFila.conteos.pegar} ? Últimos 2 min: ${resumenPortapapelesFila.intentosUltimosDosMinutos}">
+                  ? `<div style="margin-top:.35rem;padding:.3rem .45rem;border-radius:5px;background:rgba(239,68,68,.14);color:${riesgoColor};font-size:.7rem;line-height:1.35" title="Copiar: ${resumenPortapapelesFila.conteos.copiar} · Cortar: ${resumenPortapapelesFila.conteos.cortar} · Pegar: ${resumenPortapapelesFila.conteos.pegar} · Ãšltimos 2 min: ${resumenPortapapelesFila.intentosUltimosDosMinutos}">
                       <i class="fa-solid fa-clipboard-list"></i> Portapapeles: <strong>${resumenPortapapelesFila.total}</strong> · Riesgo <strong>${escapeHtml(resumenPortapapelesFila.riesgo)}</strong>
                     </div>`
                   : '';
@@ -13032,7 +13211,7 @@
                       · Comprensión: ${resumenAyudasFila.verificacionesCorrectas}/${resumenAyudasFila.verificacionesIntentadas}
                     </div>`
                   : '';
-              const fecha=d.actualizadoEn?.toDate ? d.actualizadoEn.toDate().toLocaleString() : '—';
+              const fecha=d.actualizadoEn?.toDate ? d.actualizadoEn.toDate().toLocaleString() : 'â€”';
               const indice=estudiantesProfesor.indexOf(d);
               const inactiva = d.estadoCuenta === 'inactivo';
               const cronometroPausado = d.controlCronometroIndividual?.pausado === true;
@@ -13051,13 +13230,13 @@
               const progresoClase = p >= 100 ? 'is-complete' : (p < 35 ? 'is-low' : '');
               const progresoIcono = p >= 100 ? 'fa-circle-check' : 'fa-chart-line';
               const progresoHtml = `<div class="teacher-progress-indicator ${progresoClase}" title="Progreso completado: ${p}%"><div class="teacher-progress-value"><span>${p}%</span><i class="fa-solid ${progresoIcono}"></i></div><div class="teacher-progress-track" aria-hidden="true"><span class="teacher-progress-fill" style="width:${Math.max(0, Math.min(100, p))}%"></span></div></div>`;
-              const notaNumero = n === '—' ? NaN : Number(n);
+              const notaNumero = n === 'â€”' ? NaN : Number(n);
               const notaClase = !Number.isFinite(notaNumero) ? '' : (notaNumero >= 7 ? 'grade-high' : (notaNumero >= 6 ? 'grade-medium' : 'grade-low'));
               const notaIcono = !Number.isFinite(notaNumero) ? 'fa-minus' : (notaNumero >= 7 ? 'fa-star' : (notaNumero >= 6 ? 'fa-circle-half-stroke' : 'fa-triangle-exclamation'));
               const notaCalculada = calcularNotaProvisionalEstudiante(d);
               const notaHtml = Number.isFinite(notaNumero)
                   ? `<span class="teacher-grade-badge ${notaClase}" title="Nota definitiva confirmada por el docente: ${n}"><i class="fa-solid ${notaIcono}"></i> ${n}</span>`
-                  : `<span class="teacher-grade-badge" title="${notaCalculada === '—' ? 'Sin nota calculada' : `Nota calculada ${notaCalculada}/10, pendiente de confirmación docente`}"><i class="fa-solid fa-clock"></i> ${notaCalculada === '—' ? 'Pendiente' : `${notaCalculada} sin confirmar`}</span>`;
+                  : `<span class="teacher-grade-badge" title="${notaCalculada === 'â€”' ? 'Sin nota calculada' : `Nota calculada ${notaCalculada}/10, pendiente de confirmación docente`}"><i class="fa-solid fa-clock"></i> ${notaCalculada === 'â€”' ? 'Pendiente' : `${notaCalculada} sin confirmar`}</span>`;
               const descuentoPuntos = Math.max(0, Math.min(10, Number(d.revisionSalidas?.penalizacion) || 0));
               const descuentoMotivo = String(d.revisionSalidas?.motivo || '').trim();
               const descuentoTitulo = descuentoPuntos > 0
@@ -13068,7 +13247,7 @@
               const totalIntentosDesafio = Object.values(intentosDesafioFila).reduce((total, valor) => total + Math.max(0, Number(valor || 0)), 0);
               const ultimoDesbloqueoFila = Array.isArray(d.historialDesbloqueosDesafios) ? d.historialDesbloqueosDesafios[d.historialDesbloqueosDesafios.length - 1] : null;
               const ultimoDesbloqueoTitulo = ultimoDesbloqueoFila
-                  ? `Último desbloqueo: ${ultimoDesbloqueoFila.motivo || 'Nuevo intento'}  ${ultimoDesbloqueoFila.fecha ? new Date(ultimoDesbloqueoFila.fecha).toLocaleString('es-AR') : 'Sin fecha'}`
+                  ? `Ãšltimo desbloqueo: ${ultimoDesbloqueoFila.motivo || 'Nuevo intento'} · ${ultimoDesbloqueoFila.fecha ? new Date(ultimoDesbloqueoFila.fecha).toLocaleString('es-AR') : 'Sin fecha'}`
                   : 'Sin desbloqueos de desafíos registrados';
               const intentosDesafioHtml = totalIntentosDesafio
                   ? `<div style="margin-top:.35rem;font-size:.68rem;color:#a7f3d0" title="${escapeHtml(ultimoDesbloqueoTitulo)}"><i class="fa-solid fa-repeat"></i> Intentos de desafíos: ${totalIntentosDesafio}</div>`
@@ -13103,7 +13282,7 @@
               const estadoConexionAcciones = `<span class="teacher-actions-online-label"><i class="fa-solid ${etiquetaConexion[1]}"></i> ${etiquetaConexion[0]}${d.__controlEstudiante?.sesionesDuplicadas ? ' · Sesión duplicada' : ''}</span>`;
           return `<tr data-estudiante-uid="${escapeHtml(d.uid || '')}" class="${bloqueado ? 'teacher-blocked-row' : ''}" style="${!bloqueado && alertaIA.activa ? `background:${alertaIA.nivel === 'alta' ? 'rgba(239,68,68,.045)' : 'rgba(245,158,11,.035)'}` : ''}"><td class="acciones-principales-cell"><button type="button" class="btn ${claseAcciones} btn-abrir-acciones-estudiante" data-estudiante-index="${indice}" style="width:100%;justify-content:flex-start;text-align:left;padding:.55rem .7rem" title="${tituloAcciones}"><i class="fa-solid fa-sliders"></i><span>Acciones</span>${estadoConexionAcciones}</button></td><td class="descuento-puntos-cell">${descuentoHtml}</td><td>${escapeHtml(e.nombre||d.nombreGoogle||'Sin nombre')}<div class="code-version-badge" style="margin-top:.4rem;font-size:.68rem;padding:.25rem .45rem"><i class="fa-solid fa-code-branch"></i> Script v${escapeHtml(versionScript)}</div>${intentosDesafioHtml}${alertaHtml}${ayudasFilaHtml}${portapapelesFilaHtml}</td><td>${escapeHtml(d.email||'')}</td><td>${escapeHtml(e.curso||'')}</td><td>${escapeHtml(e.division||'')}</td><td>${escapeHtml(e.turno||'')}</td><td>${estadoHtml}</td><td>${progresoHtml}</td><td>${notaHtml}</td><td>${salidasHtml}</td><td>${ultimaReaperturaHtml}</td><td><strong>${Number(d.cantidadDesbloqueos || 0)}</strong></td></tr>`;
               }).join('') || '<tr><td colspan="13" style="padding:1rem;text-align:center;">No hay estudiantes que coincidan con los filtros.</td></tr>';
-          // BOTÓN VISIBLE: edicin de datos personales en la primera columna (Acciones).
+          // BOTÃ“N VISIBLE: edición de datos personales en la primera columna (Acciones).
           // La versión anterior intentaba agregarlo al último TD y por eso no aparecía.
           [...document.querySelectorAll('#tablaProfesorBody tr')].forEach((fila, posicion) => {
               const estudianteFila = rows[posicion];
@@ -13129,7 +13308,7 @@
           [...document.querySelectorAll('#tablaProfesorBody tr')].forEach((fila, posicion) => {
               const estudiante = rows[posicion];
               if (!estudiante) return;
-              const etiquetasColumnas = ['Acciones','Descuento de puntos','Estudiante','Email','Curso','Divisi?n','Turno','Estado','Progreso','Nota definitiva','Cambios de pesta?a','Última reapertura','Desbloqueos'];
+              const etiquetasColumnas = ['Acciones','Descuento de puntos','Estudiante','Email','Curso','División','Turno','Estado','Progreso','Nota definitiva','Cambios de pestaña','Ãšltima reapertura','Desbloqueos'];
               [...fila.children].forEach((celda, indiceCelda) => {
                   if (etiquetasColumnas[indiceCelda]) celda.setAttribute('data-label', etiquetasColumnas[indiceCelda]);
               });
@@ -13293,7 +13472,7 @@
 
 
       // ============================================================
-      // EDITOR DE DESAFÍOS DEL PANEL PROFESOR
+      // EDITOR DE DESAFÃOS DEL PANEL PROFESOR
       // ============================================================
       let desafioEditorActual=0;
       let desafiosEditorFirebase=[];
@@ -13328,7 +13507,7 @@
           const b=document.createElement('button');
           b.className='btn '+(i===desafioEditorActual?'btn-primary':'btn-secondary');
           b.style='display:block;width:100%;text-align:left;margin-bottom:.4rem;';
-          b.textContent=(d.id||('sec-'+(i+1)))+' — '+(d.title||'Sin título');
+          b.textContent=(d.id||('sec-'+(i+1)))+' â€” '+(d.title||'Sin título');
           b.onclick=()=>{guardarFormularioDesafioFirebase(false);desafioEditorActual=i;renderListaDesafiosFirebase();renderFormularioDesafioFirebase();};
           el.appendChild(b);
         });
@@ -13340,27 +13519,27 @@
         document.getElementById('formDesafioFirebase').innerHTML=`
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
             <div><label>ID</label><input id="edf_id" value="${escapeHtml(d.id||'')}" readonly></div>
-            <div><label>Ícono</label><input id="edf_icon" value="${escapeHtml(d.icon||'')}"></div>
+            <div><label>Ãcono</label><input id="edf_icon" value="${escapeHtml(d.icon||'')}"></div>
             <div><label>Título</label><input id="edf_title" value="${escapeHtml(d.title||'')}"></div>
             <div><label>Título del desafío</label><input id="edf_exerciseTitle" value="${escapeHtml(d.exerciseTitle||'')}"></div>
             <div style="grid-column:1/-1"><label>Teoría</label><textarea id="edf_theory">${escapeHtml(d.theory||'')}</textarea></div>
             <div style="grid-column:1/-1"><label>Consigna</label><textarea id="edf_exerciseDesc" style="min-height:120px">${escapeHtml(d.exerciseDesc||'')}</textarea></div>
             <div style="grid-column:1/-1"><label>Código inicial</label><textarea id="edf_initialCode" style="min-height:140px">${escapeHtml(d.initialCode||'')}</textarea></div>
             <div style="grid-column:1/-1"><label>Solución de referencia IA</label><textarea id="edf_aiSolution" style="min-height:160px">${escapeHtml(d.aiSolution||'')}</textarea></div>
-            <div style="grid-column:1/-1"><label>[Objetivo] Objetivos pedagógicos</label><textarea id="edf_objetivos">${escapeHtml(textoArray(d.objetivosPedagogicos))}</textarea></div>
-            <div style="grid-column:1/-1"><label>[Conceptos] Conceptos que debe detectar la IA</label><textarea id="edf_conceptos">${escapeHtml(textoArray(d.conceptosDetectar))}</textarea></div>
-            <div style="grid-column:1/-1"><label>? Preguntas socr?ticas</label><textarea id="edf_preguntas" style="min-height:120px">${escapeHtml(textoArray(d.preguntasSocraticas))}</textarea></div>
-            <div style="grid-column:1/-1"><label>⚠️ Errores frecuentes</label><textarea id="edf_errores" style="min-height:120px">${escapeHtml(textoArray(d.erroresFrecuentes))}</textarea></div>
-            <div style="grid-column:1/-1"><label>[Aviso] Qué NO debe revelar la IA</label><textarea id="edf_norevelar" style="min-height:120px">${escapeHtml(textoArray(d.noRevelarIA))}</textarea></div>
+            <div style="grid-column:1/-1"><label>ðŸŽ¯ Objetivos pedagógicos</label><textarea id="edf_objetivos">${escapeHtml(textoArray(d.objetivosPedagogicos))}</textarea></div>
+            <div style="grid-column:1/-1"><label>ðŸ§  Conceptos que debe detectar la IA</label><textarea id="edf_conceptos">${escapeHtml(textoArray(d.conceptosDetectar))}</textarea></div>
+            <div style="grid-column:1/-1"><label>â“ Preguntas socráticas</label><textarea id="edf_preguntas" style="min-height:120px">${escapeHtml(textoArray(d.preguntasSocraticas))}</textarea></div>
+            <div style="grid-column:1/-1"><label>âš ï¸ Errores frecuentes</label><textarea id="edf_errores" style="min-height:120px">${escapeHtml(textoArray(d.erroresFrecuentes))}</textarea></div>
+            <div style="grid-column:1/-1"><label>ðŸš« Qué NO debe revelar la IA</label><textarea id="edf_norevelar" style="min-height:120px">${escapeHtml(textoArray(d.noRevelarIA))}</textarea></div>
           </div>
-          <h4>[icon] Criterios de evaluación</h4>
+          <h4>ðŸ“Š Criterios de evaluación</h4>
           <p style="color:var(--text-muted);font-size:.8rem;">Los pesos deben sumar 100.</p>
           <table style="width:100%;border-collapse:collapse;min-width:650px;"><thead><tr><th>Criterio</th><th>Peso</th><th>Indicador</th><th></th></tr></thead><tbody id="edf_criterios"></tbody></table>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;">
-            <button class="btn btn-secondary" onclick="agregarCriterioFirebase()">➕ Criterio</button>
-            <button class="btn btn-secondary" onclick="normalizarCriteriosFirebase()">⚖️ Normalizar</button>
-            <button class="btn btn-primary" onclick="guardarDesafioActualFirebase()">?? Guardar desaf?o</button>
-            <button class="btn btn-secondary" onclick="guardarLos19Firebase()">☁️ Guardar los 19</button>
+            <button class="btn btn-secondary" onclick="agregarCriterioFirebase()">âž• Criterio</button>
+            <button class="btn btn-secondary" onclick="normalizarCriteriosFirebase()">âš–ï¸ Normalizar</button>
+            <button class="btn btn-primary" onclick="guardarDesafioActualFirebase()">â˜ï¸ Guardar desafío</button>
+            <button class="btn btn-secondary" onclick="guardarLos19Firebase()">â˜ï¸ Guardar los 19</button>
           </div>`;
         criterios.forEach(c=>agregarFilaCriterioFirebase(c));
         document.querySelectorAll('#formDesafioFirebase input,#formDesafioFirebase textarea').forEach(el => {
@@ -13376,7 +13555,7 @@
         tr.innerHTML=`<td><input data-k="criterio" value="${escapeHtml(c.criterio||'')}"></td>
           <td><input data-k="peso" type="number" min="0" max="100" value="${Number(c.peso)||0}" style="width:80px"></td>
           <td><input data-k="indicador" value="${escapeHtml(c.indicador||'')}"></td>
-          <td><button class="btn btn-danger" onclick="this.closest('tr').remove()">x️</button></td>`;
+          <td><button class="btn btn-danger" onclick="this.closest('tr').remove()">ðŸ—‘ï¸</button></td>`;
         document.getElementById('edf_criterios').appendChild(tr);
       }
       function agregarCriterioFirebase(){agregarFilaCriterioFirebase();}
@@ -13402,7 +13581,7 @@
         if(ok){
           seccionesData=seccionesData.map(x=>x.id===d.id?({...x,...d}):x);
           document.getElementById('estadoEditorDesafiosFirebase').textContent='Guardado: '+d.id+' · '+new Date().toLocaleTimeString();
-        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='? No se pudo guardar. Revis? las reglas de Firestore.';
+        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='âŒ No se pudo guardar. Revisá las reglas de Firestore.';
       }
       async function guardarLos19Firebase(){
         guardarFormularioDesafioFirebase();
@@ -13412,7 +13591,7 @@
         if(ok){
           seccionesData=JSON.parse(JSON.stringify(desafiosEditorFirebase));
           document.getElementById('estadoEditorDesafiosFirebase').textContent='Los 19 desafíos fueron guardados · '+new Date().toLocaleTimeString();
-        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='? No se pudieron guardar los desaf?os.';
+        }else document.getElementById('estadoEditorDesafiosFirebase').textContent='âŒ No se pudieron guardar los desafíos.';
       }
       document.getElementById('buscarDesafioFirebase')?.addEventListener('input',renderListaDesafiosFirebase);
       document.addEventListener('keydown', event => {
@@ -13559,7 +13738,7 @@
               y = agregarTextoPDFProfesor(doc, `${indice + 1}. ${sec.title}`, y);
               doc.setFontSize(8.5);
               y = agregarTextoPDFProfesor(doc, `Estado: ${finalizadas[sec.id] ? 'Finalizada' : 'Pendiente'} · Nota automática: ${r.notaFinal ?? r.notaIA ?? 'Pendiente'} · Nota vigente: ${notaVigente ?? 'Pendiente'}${ajuste.nota !== undefined && ajuste.nota !== null ? ' (corrección docente)' : ''}`, y);
-              y = agregarTextoPDFProfesor(doc, `Intentos: ${intentosDesafio} ? Última reapertura: ${reaperturaDesafio ? formatearFechaPDF(reaperturaDesafio.item.fecha || reaperturaDesafio.item.en) : 'Sin reaperturas registradas'} ? Motivo: ${reaperturaDesafio?.item?.motivo || 'Sin motivo registrado'}`, y);
+              y = agregarTextoPDFProfesor(doc, `Intentos: ${intentosDesafio} · Ãšltima reapertura: ${reaperturaDesafio ? formatearFechaPDF(reaperturaDesafio.item.fecha || reaperturaDesafio.item.en) : 'Sin reaperturas registradas'} · Motivo: ${reaperturaDesafio?.item?.motivo || 'Sin motivo registrado'}`, y);
               doc.setFont('helvetica', 'normal');
               y = agregarTextoPDFProfesor(doc, `Consigna: ${sec.exerciseDesc || 'Sin consigna'}`, y);
               if (evaluacion.nota !== undefined) {
@@ -13665,8 +13844,8 @@
               }, { errores: 0, pendientes: 0, modificadas: 0, finalizadas: 0 });
           };
           const estadisticas = estudiantes.map(d => ({ estudiante: d, ...contarSituacionDesafios(d) }));
-          const notasAcademicas = estudiantes.map(calcularNotaEstudiante).filter(x => x !== '—').map(Number);
-          const notasDefinitivas = estudiantes.map(calcularNotaDefinitivaEstudiante).filter(x => x !== '—').map(Number);
+          const notasAcademicas = estudiantes.map(calcularNotaEstudiante).filter(x => x !== 'â€”').map(Number);
+          const notasDefinitivas = estudiantes.map(calcularNotaDefinitivaEstudiante).filter(x => x !== 'â€”').map(Number);
           const promedio = valores => valores.length
               ? (valores.reduce((a, b) => a + b, 0) / valores.length).toFixed(1)
               : 'Pendiente';
@@ -13720,7 +13899,7 @@
               y = agregarTextoPDFProfesor(
                   doc,
                   `${indice + 1}. ${e.nombre || d.nombreGoogle || 'Sin nombre'} · ${d.email || 'Sin email'}\n` +
-                  `Estado: ${textoEstadoCuenta(d)} ? Progreso: ${calcularProgresoEstudiante(d)}% ? Promedio: ${calcularNotaEstudiante(d)}/10 ? Nota definitiva: ${notaDefinitiva === '' ? 'Pendiente' : `${notaDefinitiva}/10`} ? Errores: ${item.errores} ? Pendientes: ${item.pendientes} ? Correcciones docentes: ${item.modificadas}`,
+                  `Estado: ${textoEstadoCuenta(d)} · Progreso: ${calcularProgresoEstudiante(d)}% · Promedio: ${calcularNotaEstudiante(d)}/10 · Nota definitiva: ${notaDefinitiva === 'â€”' ? 'Pendiente' : `${notaDefinitiva}/10`} · Errores: ${item.errores} · Pendientes: ${item.pendientes} · Correcciones docentes: ${item.modificadas}`,
                   y,
                   { altoLinea: 4 }
               );
@@ -13751,8 +13930,8 @@
               y = agregarTextoPDFProfesor(doc, [
                   `Email: ${d.email || 'Sin email'} · UID: ${d.uid || 'Sin registrar'}`,
                   `Grupo: ${grupo} · Estado: ${textoEstadoCuenta(d)}`,
-                  `Última actualización: ${formatearFechaPDF(d.actualizadoEn)}`,
-                  `Progreso: ${calcularProgresoEstudiante(d)}% ? Promedio acad?mico: ${calcularNotaEstudiante(d)}/10 ? Nota calculada: ${calcularNotaProvisionalEstudiante(d)}/10 ? Nota definitiva: ${calcularNotaDefinitivaEstudiante(d) === '' ? 'Pendiente' : `${calcularNotaDefinitivaEstudiante(d)}/10`}`,
+                  `Ãšltima actualización: ${formatearFechaPDF(d.actualizadoEn)}`,
+                  `Progreso: ${calcularProgresoEstudiante(d)}% · Promedio académico: ${calcularNotaEstudiante(d)}/10 · Nota calculada: ${calcularNotaProvisionalEstudiante(d)}/10 · Nota definitiva: ${calcularNotaDefinitivaEstudiante(d) === 'â€”' ? 'Pendiente' : `${calcularNotaDefinitivaEstudiante(d)}/10`}`,
                   `Desafíos finalizados: ${resumen.finalizadas}/${seccionesData.length} · Con errores: ${resumen.errores} · Pendientes: ${resumen.pendientes} · Notas docentes: ${resumen.modificadas}`,
                   d.estadoCuenta === 'inactivo' ? `Baja: ${d.bajaMotivo || 'Sin motivo'} · Fecha: ${formatearFechaPDF(d.bajaFecha)} · Responsable: ${d.bajaPor || 'Sin registrar'}` : '',
                   d.estadoCuenta === 'rechazado' ? `Rechazo: ${d.rechazoMotivo || 'Sin motivo'} · Fecha: ${formatearFechaPDF(d.rechazadoEn)} · Responsable: ${d.rechazadoPor || 'Sin registrar'}` : ''
@@ -13773,8 +13952,8 @@
                   `Confirmación de nota final: ${revision.notaConfirmada === true ? 'Confirmada' : 'Pendiente'}${revision.notaModificadaManualmente === true ? ' · Modificada manualmente por el docente' : ''}`,
                   `Cambios de pestaña: ${Number(d.salidasPestana || 0)} · Pantalla bloqueada: ${d.pantallaBloqueada === true ? 'Sí' : 'No'} · Desbloqueos: ${Number(d.cantidadDesbloqueos || 0)}`,
                   d.ultimoDesbloqueo || d.desbloqueoPantalla
-                      ? `Último desbloqueo: ${formatearFechaPDF((d.ultimoDesbloqueo || d.desbloqueoPantalla).en)} ? Docente: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).por || 'Sin registrar'} ? Motivo: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).motivo || 'Sin motivo'}`
-                      : 'Último desbloqueo: sin registros'
+                      ? `Ãšltimo desbloqueo: ${formatearFechaPDF((d.ultimoDesbloqueo || d.desbloqueoPantalla).en)} · Docente: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).por || 'Sin registrar'} · Motivo: ${(d.ultimoDesbloqueo || d.desbloqueoPantalla).motivo || 'Sin motivo'}`
+                      : 'Ãšltimo desbloqueo: sin registros'
               ].join('\n'), y, { altoLinea: 4.2 });
 
               if (eventos.length) {
@@ -13829,7 +14008,7 @@
                   y = agregarTextoPDFProfesor(doc, [
                       `Estado: ${finalizadas[sec.id] ? 'Finalizado' : 'Pendiente'}`,
                       `Nota del código (70%): ${r.notaCodigo ?? 'Pendiente'} · Nota de preguntas (30%): ${r.notaPreguntas ?? 'Pendiente'} · Nota automática: ${notaAutomatica ?? 'Pendiente'} · Nota vigente: ${notaVigente ?? 'Pendiente'}${ajuste.nota !== undefined && ajuste.nota !== null ? ' (corregida por docente)' : ''}`,
-                      `Intentos: ${intentosDesafio} ? Última reapertura: ${reaperturaDesafio ? formatearFechaPDF(reaperturaDesafio.item.fecha || reaperturaDesafio.item.en) : 'Sin reaperturas registradas'} ? Motivo: ${reaperturaDesafio?.item?.motivo || 'Sin motivo registrado'}`,
+                      `Intentos: ${intentosDesafio} · Ãšltima reapertura: ${reaperturaDesafio ? formatearFechaPDF(reaperturaDesafio.item.fecha || reaperturaDesafio.item.en) : 'Sin reaperturas registradas'} · Motivo: ${reaperturaDesafio?.item?.motivo || 'Sin motivo registrado'}`,
                       `Tiempo restante: ${formatearTiempoProfesor(tiempos[sec.id] ?? 2400)} · Consultas de nota previa: ${Number(previews[sec.id] || 0)}/3`,
                       `Ayudas pedagógicas: palabras consultadas ${consultasPalabras} · pasos abiertos ${Number(ayudaModulo.pasosVistos || 0)} · material de apoyo ${Number(ayudaModulo.materialApoyoVistas || 0)} · verificación ${Number(ayudaModulo.verificacion?.intentos || 0)} intento(s)`
                   ].join('\n'), y, { altoLinea: 4 });
@@ -13932,7 +14111,7 @@
                   `Reforzar ${item.titulo}`,
                   `Nota vigente: ${item.nota.toFixed(1)}/10.`,
                   item.teoria
-                      ? `Repasá “${item.teoria}” y volv a resolver “${item.ejercicio || item.titulo}” explicando cada decisin y probando al menos dos casos.`
+                      ? `Repasá â€œ${item.teoria}â€ y volvé a resolver â€œ${item.ejercicio || item.titulo}â€ explicando cada decisión y probando al menos dos casos.`
                       : "Revisá la solución, explicá cada decisión y comprobala con al menos dos casos de prueba."
               );
           });
@@ -13969,7 +14148,7 @@
           const criterioPrincipal = Object.entries(criterios).sort((a, b) => b[1] - a[1])[0];
           const accionesCriterio = {
               "desarrollo suficiente": "Escribí respuestas de al menos tres ideas conectadas: qué hiciste, cómo funciona y cómo lo comprobaste.",
-              "justificación causal": "Usá conectores como “porque”, “permite”, “evita” y “por lo tanto” para relacionar código y resultado.",
+              "justificación causal": "Usá conectores como â€œporqueâ€, â€œpermiteâ€, â€œevitaâ€ y â€œpor lo tantoâ€ para relacionar código y resultado.",
               "evidencia del código o de una prueba": "Citá una variable, condición, función o resultado de prueba concreto en cada explicación.",
               "consecuencia, límite o mejora": "Incluí un caso límite, una posible falla o una mejora y explicá cómo la verificarías."
           };
@@ -14010,7 +14189,7 @@
                   `Preparar el próximo desafío: ${proxima.titulo}`,
                   `Avance actual: ${progreso}% del trayecto.`,
                   proxima.teoria
-                      ? `Le? primero ${proxima.teoria}, identific? los conceptos nuevos y escrib? dos ejemplos breves antes de resolver el desaf?o.`
+                      ? `Leé primero â€œ${proxima.teoria}â€, identificá los conceptos nuevos y escribí dos ejemplos breves antes de resolver el desafío.`
                       : "Revisá la consigna, identificá entradas, proceso y salida, y planificá dos casos de prueba."
               );
           }
@@ -14147,10 +14326,11 @@
           setTimeout(() => modal.querySelector(".student-progress-modal-box")?.focus({ preventScroll: true }), 0);
       }
 
-          function cerrarProgresoEstudiante() {
-              document.getElementById("progresoEstudianteModal")?.classList.remove("active");
-              document.body.classList.remove("student-progress-modal-open");
-          }
+      function cerrarProgresoEstudiante() {
+          document.getElementById("progresoEstudianteModal")?.classList.remove("active");
+          document.body.classList.remove("student-progress-modal-open");
+          document.getElementById("btnAbrirProgresoEstudiante")?.focus({ preventScroll: true });
+      }
 
       document.getElementById("progresoEstudianteModal")?.addEventListener("click", event => {
           if (event.target?.id === "progresoEstudianteModal") cerrarProgresoEstudiante();
@@ -14221,8 +14401,8 @@
                   <header><div><i class="fa-solid fa-grip"></i><strong>Calificaciones por desafío</strong></div>
                       <div class="student-heatmap-legend">
                           <span class="is-pending">Pendiente</span><span class="is-ungraded">Sin nota</span>
-                          <span class="is-critical">0–3,9</span><span class="is-warning">4–5,9</span>
-                          <span class="is-good">6–7,9</span><span class="is-excellent">8–10</span>
+                          <span class="is-critical">0â€“3,9</span><span class="is-warning">4â€“5,9</span>
+                          <span class="is-good">6â€“7,9</span><span class="is-excellent">8â€“10</span>
                       </div>
                   </header>
                   <div class="student-heatmap-grid">${datos.actividades.map(actividad => {
@@ -14230,7 +14410,7 @@
                           Number(actividad.conteoSocratico.incorrecta || 0);
                       return `<article class="student-heatmap-cell ${colores(actividad)}" title="${escapeHtml(`${actividad.titulo}: ${actividad.finalizada ? (Number.isFinite(actividad.nota) ? `${actividad.nota.toFixed(1)}/10` : "sin nota") : "pendiente"} · ${actividad.respuestasSocraticas} respuestas · ${riesgo} a reforzar`)}">
                           <span>${actividad.indice}</span>
-                          <strong>${Number.isFinite(actividad.nota) ? actividad.nota.toFixed(1) : (actividad.finalizada ? "—" : "P")}</strong>
+                          <strong>${Number.isFinite(actividad.nota) ? actividad.nota.toFixed(1) : (actividad.finalizada ? "â€”" : "P")}</strong>
                           <small>${escapeHtml(actividad.titulo.replace(/^\d+\.\s*/, ""))}</small>
                       </article>`;
                   }).join("")}</div>
@@ -14280,6 +14460,7 @@
               if (botonFiltro) {
                   filtrarGraficoNotasDesafiosEstudiante(ultimoFiltroGraficoNotasEstudiante, botonFiltro);
               }
+              aplicarVisibilidadValoresGraficoNotasEstudiante(grafico, mostrarValoresGraficoNotasEstudiante);
               restaurarPosicionGraficoNotasEstudiante(grafico);
           }
       }
@@ -14466,10 +14647,10 @@
           const leyendaMapa = [
               { texto: "Pendiente", color: [203, 213, 225] },
               { texto: "Sin nota", color: [148, 163, 184] },
-              { texto: "0–3,9", color: [239, 68, 68] },
-              { texto: "4–5,9", color: [245, 158, 11] },
-              { texto: "6–7,9", color: [14, 165, 233] },
-              { texto: "8–10", color: [34, 197, 94] }
+              { texto: "0â€“3,9", color: [239, 68, 68] },
+              { texto: "4â€“5,9", color: [245, 158, 11] },
+              { texto: "6â€“7,9", color: [14, 165, 233] },
+              { texto: "8â€“10", color: [34, 197, 94] }
           ];
           let xLeyenda = 14;
           leyendaMapa.forEach(item => {
@@ -14591,7 +14772,7 @@
           doc.setFontSize(7.5);
           doc.text("Las respuestas y notas corresponden únicamente a desafíos finalizados.", 14, 22);
           const columnasEstudiante = [
-              { titulo: "N.º", x: 14 },
+              { titulo: "N.Âº", x: 14 },
               { titulo: "Desafío", x: 24 },
               { titulo: "Estado", x: 91 },
               { titulo: "Nota", x: 116 },
@@ -14646,7 +14827,7 @@
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
           const formulaGeneral = doc.splitTextToSize(
-              "F?rmula: suma de las notas vigentes de las actividades evaluadas  cantidad de actividades evaluadas. Cuando existe una correcci?n docente, esa nota reemplaza a la autom?tica en el promedio. Las actividades pendientes no se incluyen.",
+              "Fórmula: suma de las notas vigentes de las actividades evaluadas Ã· cantidad de actividades evaluadas. Cuando existe una corrección docente, esa nota reemplaza a la automática en el promedio. Las actividades pendientes no se incluyen.",
               180
           );
           doc.text(formulaGeneral, 14, yPos);
@@ -14680,7 +14861,7 @@
               doc.text(lineasSuma, 14, yPos);
               yPos += lineasSuma.length * 4 + 1;
               doc.text(
-                  `Divisin: ${sumaNotasFinales.toFixed(1)} ÷ ${actividadesEvaluadasPDF.length} actividades = ${promedioFinal}/10`,
+                  `División: ${sumaNotasFinales.toFixed(1)} Ã· ${actividadesEvaluadasPDF.length} actividades = ${promedioFinal}/10`,
                   14,
                   yPos
               );
@@ -14793,7 +14974,7 @@
                   yPos += 5;
                   if (res.notaCodigo !== undefined && res.notaPreguntas !== undefined && notaFinalModulo !== undefined) {
                       const formulaModulo =
-                          `Clculo: (${res.notaCodigo} × 0,70) + (${res.notaPreguntas} × 0,30) = ${notaFinalModulo}/10`;
+                          `Cálculo: (${res.notaCodigo} Ã— 0,70) + (${res.notaPreguntas} Ã— 0,30) = ${notaFinalModulo}/10`;
                       doc.text(formulaModulo, 14, yPos);
                       yPos += 5;
                   }
@@ -14848,3 +15029,19 @@
       // Exponer explícitamente las acciones docentes usadas por botones dinámicos.
       window.abrirAccionesEstudiante = abrirAccionesEstudiante;
       window.abrirDetalleEstudianteProfesor = abrirDetalleEstudianteProfesor;
+
+      // Puente público para extensiones académicas (proyecto final y coloquio).
+      // Mantiene el estado interno encapsulado y evita duplicar la lógica de notas.
+      window.obtenerEstadoAcademicoActividad = () => ({
+          historialResultados,
+          actividadesFinalizadas,
+          notasDesafiosDocente,
+          secciones: Array.isArray(seccionesData) ? seccionesData.map(sec => ({
+              id: sec.id,
+              title: sec.title
+          })) : []
+      });
+      window.solicitarGuardadoActividad = () => {
+          try { programarGuardadoFirebase(); } catch (_) {}
+          try { guardarAhoraFirebase?.(); } catch (_) {}
+      };

@@ -392,13 +392,32 @@ function asegurarAvisoMensajeDocente(){
  overlay.innerHTML=`<div class="teacher-screen-message-box" tabindex="-1"><div class="teacher-screen-message-icon"><i class="fa-solid fa-bullhorn"></i></div><div class="teacher-screen-message-content"><div class="teacher-screen-message-meta"><span id="mensajeDocentePantallaPrioridad">Mensaje del docente</span><span id="mensajeDocentePantallaCantidad"></span></div><h2 id="mensajeDocentePantallaTitulo">Mensaje del docente</h2><p id="mensajeDocentePantallaTexto"></p><small id="mensajeDocentePantallaFecha"></small><div id="mensajeDocentePantallaEstado" class="teacher-screen-message-status" role="status"></div><button class="btn btn-primary" id="confirmarMensajeDocentePantalla" type="button"><i class="fa-solid fa-check"></i> Entendido</button></div></div>`;document.body.appendChild(overlay);overlay.querySelector("#confirmarMensajeDocentePantalla").onclick=confirmarLecturaMensajeDocente;
 }
 function mostrarSiguienteMensajeDocente(){
+  if(!mensajeDocenteVisible) window.__confirmandoMensajeDocente=false;
  asegurarAvisoMensajeDocente();const overlay=document.getElementById("mensajeDocentePantalla");if(mensajeDocenteVisible||!mensajesDocentePendientes.length){if(!mensajeDocenteVisible)overlay.hidden=true;return}
  mensajeDocenteVisible=mensajesDocentePendientes[0];const urgente=mensajeDocenteVisible.prioridad==="urgente";overlay.classList.toggle("urgent",urgente);overlay.hidden=false;overlay.querySelector("#mensajeDocentePantallaPrioridad").textContent=urgente?"Aviso urgente del docente":"Mensaje del docente";overlay.querySelector("#mensajeDocentePantallaTitulo").textContent=mensajeDocenteVisible.asunto||"Mensaje del docente";overlay.querySelector("#mensajeDocentePantallaTexto").textContent=mensajeDocenteVisible.contenido||"";overlay.querySelector("#mensajeDocentePantallaCantidad").textContent=mensajesDocentePendientes.length>1?`${mensajesDocentePendientes.length} mensajes pendientes`:"";const fecha=ms(mensajeDocenteVisible.enviadoEn);overlay.querySelector("#mensajeDocentePantallaFecha").textContent=`Enviado por ${mensajeDocenteVisible.docente||"Docente autorizado"}${fecha?` · ${new Date(fecha).toLocaleString("es-AR")}`:""}`;overlay.querySelector("#mensajeDocentePantallaEstado").textContent="";setTimeout(()=>overlay.querySelector("#confirmarMensajeDocentePantalla")?.focus(),0);
 }
 async function confirmarLecturaMensajeDocente(){
+ if(window.__confirmandoMensajeDocente)return;
+ window.__confirmandoMensajeDocente=true;
+ const mensajeEnConfirmacion=mensajeDocenteVisible;
+ window.__mensajesDocenteConfirmadosSesion=window.__mensajesDocenteConfirmadosSesion||new Set();
+ if(mensajeEnConfirmacion?.id)window.__mensajesDocenteConfirmadosSesion.add(String(mensajeEnConfirmacion.id));
+ window.setTimeout(()=>{
+  if(window.__confirmandoMensajeDocente&&mensajeDocenteVisible===mensajeEnConfirmacion){
+   const overlay=document.getElementById("mensajeDocentePantalla");
+   const boton=overlay?.querySelector("#confirmarMensajeDocentePantalla");
+   if(boton){boton.disabled=false;boton.innerHTML='<i class="fa-solid fa-check"></i> Entendido';}
+   mensajeDocenteVisible=null;
+   mensajesDocentePendientes=mensajesDocentePendientes.filter(item=>item!==mensajeEnConfirmacion);
+   if(overlay){overlay.classList.remove("active","urgent");overlay.hidden=true;}
+   window.__confirmandoMensajeDocente=false;
+   mostrarSiguienteMensajeDocente();
+  }
+ },9000);
  if(!mensajeDocenteVisible)return;const overlay=document.getElementById("mensajeDocentePantalla"),boton=overlay.querySelector("#confirmarMensajeDocentePantalla"),estado=overlay.querySelector("#mensajeDocentePantallaEstado"),original=boton.innerHTML;boton.disabled=true;boton.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Confirmando...';const compatible=mensajeDocenteVisible.canal==="documento-estudiante",ok=compatible?await window.marcarMensajeDocenteCompatibleFirebase?.(mensajeDocenteVisible,"leido"):await window.marcarMensajeDocenteLeidoFirebase?.(mensajeDocenteVisible);boton.disabled=false;boton.innerHTML=original;if(!ok){estado.textContent="No se pudo confirmar la lectura. Revisá la conexión e intentá nuevamente.";return}if(compatible)marcarMensajeCompatibleLeido(mensajeDocenteVisible.id);mensajesDocentePendientes=mensajesDocentePendientes.filter(m=>m.id!==mensajeDocenteVisible.id);mensajeDocenteVisible=null;overlay.hidden=true;mostrarSiguienteMensajeDocente();
 }
-window.addEventListener("mensajes-docente-estudiante",evento=>{if(esSesionDocenteActual())return;const recibidos=Array.isArray(evento.detail)?evento.detail:[],actualId=mensajeDocenteVisible?.id||"";mensajesDocentePendientes=recibidos.filter(m=>m.id!==actualId);if(mensajeDocenteVisible)mensajesDocentePendientes.unshift(mensajeDocenteVisible);mostrarSiguienteMensajeDocente()});
+window.__mensajesDocenteConfirmadosSesion=window.__mensajesDocenteConfirmadosSesion||new Set();
+window.addEventListener("mensajes-docente-estudiante",evento=>{if(esSesionDocenteActual())return;const recibidos=Array.isArray(evento.detail)?evento.detail:[],actualId=mensajeDocenteVisible?.id||"";mensajesDocentePendientes=recibidos.filter(m=>m.id!==actualId&&!window.__mensajesDocenteConfirmadosSesion.has(String(m.id)));if(mensajeDocenteVisible)mensajesDocentePendientes.unshift(mensajeDocenteVisible);mostrarSiguienteMensajeDocente()});
 function recibirMensajeDocenteCompatible(mensaje={}){
  if(esSesionDocenteActual())return;const user=window.firebaseCurrentUser;if(!user||!mensaje.id||mensaje.estudianteUid!==user.uid||idsMensajesCompatiblesLeidos().includes(String(mensaje.id)))return;if(mensaje.recibido!==true)void window.marcarMensajeDocenteCompatibleFirebase?.(mensaje,"recibido");if(mensajeDocenteVisible?.id===mensaje.id||mensajesDocentePendientes.some(item=>item.id===mensaje.id))return;mensajesDocentePendientes.push({...mensaje,canal:"documento-estudiante"});mostrarSiguienteMensajeDocente();
 }
@@ -991,7 +1010,7 @@ async function abrirEditorColaborativoProfesor(referenciaEstudiante,sectionId){
  modal.dataset.uid=d.uid;modal.dataset.sectionId=sectionId;modal.dataset.studentIndex=String(indice);modal.dataset.rolColaborativo="docente";
  actualizarEstadoCursoCooperativo(modal,"waiting");
  document.getElementById("editorColaborativoAlumno").textContent=`${d.estudiante?.nombre||d.nombreGoogle||d.email||"Estudiante"} · ${sec?.title||sectionId}`;
-  editor.value=codigo;editor.__syncCodeMirror?.(codigo);editor.disabled=false;editor.__setCodeMirrorDisabled?.(false);
+ editor.value=codigo;editor.__syncCodeMirror?.(codigo);editor.disabled=true;editor.__setCodeMirrorDisabled?.(true);
  estado.textContent="Verificando la cuenta docente...";salida.textContent="Preparando colaboración";salida.className="";
  modal.classList.add("active");
  try{
@@ -1020,9 +1039,9 @@ async function abrirEditorColaborativoProfesor(referenciaEstudiante,sectionId){
    salida.textContent=modal.dataset.edicionCooperativaPausada==="true" && modoActual.consentimiento==="aceptado"
     ? "Acceso docente directo · edición pausada"
     : "Acceso docente directo · cambios sincronizados automáticamente";
-    // El docente autorizado conserva edición directa del documento compartido.
-    editor.disabled=false;
-    editor.__setCodeMirrorDisabled?.(false);
+   const edicionPausada=modal.dataset.edicionCooperativaPausada==="true" && modoActual.consentimiento==="aceptado";
+   editor.disabled=edicionPausada;
+   editor.__setCodeMirrorDisabled?.(edicionPausada);
    salida.className="success";
  }catch(error){
   actualizarEstadoCursoCooperativo(modal,"error");
@@ -1031,7 +1050,7 @@ async function abrirEditorColaborativoProfesor(referenciaEstudiante,sectionId){
   const codigoError=String(error?.code||error?.message||"");
   const detalle=codigoError.includes("permission-denied")?"Firestore rechazó la colaboración. Publicá la versión actualizada de reglas.txt.":codigoError.includes("teacher-not-authorized")?"La cuenta docente no está autorizada.":codigoError.includes("firebase-not-ready")?"Firebase todavía no está listo. Recargá la página e intentá nuevamente.":String(error?.message||"Revisá la conexión y las reglas de Firestore.");
   estado.textContent="No se pudo iniciar la colaboración";salida.textContent=detalle;salida.className="danger";
-   editor.disabled=false;editor.__setCodeMirrorDisabled?.(false);
+  editor.disabled=true;editor.__setCodeMirrorDisabled?.(true);
  }
 }
 window.abrirEditorColaborativoProfesor=abrirEditorColaborativoProfesor;

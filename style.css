@@ -2043,11 +2043,3 @@ input:focus-visible,
         animation-iteration-count: 1 !important;
     }
 }
-/* Ayuda pedagógica sin solución: interpretación, concepto y pistas. */
-.pedagogical-help-modal{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:1rem;background:rgba(2,6,23,.72)}
-.pedagogical-help-box{width:min(680px,100%);max-height:min(86vh,760px);overflow:auto;background:var(--bg-card,#111827);color:var(--text,#f8fafc);border:1px solid var(--border,#334155);border-radius:8px;padding:1.2rem;box-shadow:0 20px 60px rgba(0,0,0,.35)}
-.pedagogical-help-box header{display:flex;align-items:center;justify-content:space-between;gap:1rem}
-.pedagogical-help-box header button{border:0;background:transparent;color:inherit;font-size:1.7rem;cursor:pointer}
-.pedagogical-help-box p{line-height:1.5;margin:.85rem 0}
-.pedagogical-help-warning{border-left:3px solid #f59e0b;padding-left:.7rem;color:#fbbf24}
-.btn-explicar-que-pide{margin-top:.75rem;font-size:.78rem}
